@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS Custom Properties for Theme Switching */
+:root {
+  /* Light Mode Colors */
+  --color-primary: #2563eb;
+  --color-secondary: #64748b;
+  --color-background: #ffffff;
+  --color-surface: #f8fafc;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  
+  /* Bias Colors - Light Mode */
+  --color-bias-left: #dc2626;
+  --color-bias-center: #059669;
+  --color-bias-right: #2563eb;
+  --color-bias-mixed: #7c3aed;
+}
+
+.dark {
+  /* Dark Mode Colors */
+  --color-primary: #3b82f6;
+  --color-secondary: #94a3b8;
+  --color-background: #0f172a;
+  --color-surface: #1e293b;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  
+  /* Bias Colors - Dark Mode */
+  --color-bias-left: #ef4444;
+  --color-bias-center: #10b981;
+  --color-bias-right: #3b82f6;
+  --color-bias-mixed: #8b5cf6;
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+/* Focus Styles for Accessibility */
+*:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Custom Component Classes */
+@layer components {
+  .btn-primary {
+    @apply bg-primary-600 dark:bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  }
+  
+  .btn-secondary {
+    @apply bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity;
+  }
+  
+  .card {
+    @apply bg-surface-light dark:bg-surface-dark rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-5 md:p-6;
+  }
+  
+  .text-primary {
+    @apply text-text-primary-light dark:text-text-primary-dark;
+  }
+  
+  .text-secondary {
+    @apply text-text-secondary-light dark:text-text-secondary-dark;
+  }
+  
+  .bg-surface {
+    @apply bg-surface-light dark:bg-surface-dark;
+  }
+  
+  .bg-background {
+    @apply bg-background-light dark:bg-background-dark;
+  }
+}
+
+/* Responsive Typography Utilities */
+@layer utilities {
+  .text-responsive-headline {
+    @apply text-headline sm:text-headline-sm md:text-headline-md lg:text-headline-lg;
+  }
+  
+  .text-responsive-body {
+    @apply text-body sm:text-body-sm md:text-body-md;
+  }
+}
+
+/* Bias Visualization Styles */
+.bias-bar {
+  @apply relative h-2 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700;
+}
+
+.bias-indicator {
+  @apply inline-flex items-center justify-center rounded-full text-white text-xs font-semibold;
+}
+
+.bias-indicator.left {
+  background-color: var(--color-bias-left);
+}
+
+.bias-indicator.center {
+  background-color: var(--color-bias-center);
+}
+
+.bias-indicator.right {
+  background-color: var(--color-bias-right);
+}
+
+.bias-indicator.mixed {
+  background-color: var(--color-bias-mixed);
+}
+
+/* Animation Classes */
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
