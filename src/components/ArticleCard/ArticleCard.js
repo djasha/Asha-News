@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BiasIndicator from '../BiasVisualization/BiasIndicator';
 import CoverageIndicator from '../BiasVisualization/CoverageIndicator';
@@ -20,7 +20,6 @@ const ArticleCard = ({
 
 
   const handleArticleClick = () => {
-    console.log('Article clicked:', article.id, article.title);
     navigate(`/article/${article.id}`);
   };
 
@@ -239,4 +238,4 @@ const ArticleCard = ({
   );
 };
 
-export default ArticleCard;
+export default memo(ArticleCard);

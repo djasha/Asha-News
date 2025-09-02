@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 
 const BiasIndicator = ({ 
   bias = 'center', 
@@ -148,4 +148,4 @@ const BiasIndicator = ({
   );
 };
 
-export default BiasIndicator;
+export default memo(BiasIndicator);

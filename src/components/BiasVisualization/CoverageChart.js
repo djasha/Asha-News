@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getBiasSegmentData, handleTooltipMouseEnter, handleTooltipMouseLeave, calculateBiasPercentages } from '../../utils/biasUtils';
 
 const CoverageChart = ({ 
   leftCount = 0, 
@@ -14,7 +15,7 @@ const CoverageChart = ({
   const [hoveredSegment, setHoveredSegment] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   
-  const total = leftCount + centerCount + rightCount;
+  const { leftPercentage, centerPercentage, rightPercentage, total } = calculateBiasPercentages(leftCount, centerCount, rightCount);
   
   if (total === 0) {
     return (
@@ -25,10 +26,6 @@ const CoverageChart = ({
       </div>
     );
   }
-
-  const leftPercentage = (leftCount / total) * 100;
-  const centerPercentage = (centerCount / total) * 100;
-  const rightPercentage = (rightCount / total) * 100;
 
   const sizeClasses = {
     small: 'w-16 h-16',
@@ -52,32 +49,11 @@ const CoverageChart = ({
   const rightOffset = ((leftPercentage + centerPercentage) / 100) * circumference;
 
   const handleMouseEnter = (segment, event) => {
-    if (!interactive || !showTooltip) return;
-    
-    setHoveredSegment(segment);
-    const rect = event.currentTarget.getBoundingClientRect();
-    setTooltipPosition({
-      x: rect.left + rect.width / 2,
-      y: rect.top - 10
-    });
+    handleTooltipMouseEnter(segment, event, setHoveredSegment, setTooltipPosition, interactive, showTooltip);
   };
 
   const handleMouseLeave = () => {
-    if (!interactive) return;
-    setHoveredSegment(null);
-  };
-
-  const getSegmentData = (segment) => {
-    switch (segment) {
-      case 'left':
-        return { count: leftCount, percentage: leftPercentage, label: 'Left-leaning sources', color: 'bias-left' };
-      case 'center':
-        return { count: centerCount, percentage: centerPercentage, label: 'Center sources', color: 'bias-center' };
-      case 'right':
-        return { count: rightCount, percentage: rightPercentage, label: 'Right-leaning sources', color: 'bias-right' };
-      default:
-        return null;
-    }
+    handleTooltipMouseLeave(setHoveredSegment, interactive);
   };
 
   const getBlindspotColor = (risk) => {
@@ -247,10 +223,10 @@ const CoverageChart = ({
           }}
         >
           {(() => {
-            const data = getSegmentData(hoveredSegment);
+            const data = getBiasSegmentData(hoveredSegment, leftCount, centerCount, rightCount);
             return data ? (
               <div className="text-center">
-                <div className="font-semibold">{data.label}</div>
+                <div className="font-semibold">{data.fullLabel}</div>
                 <div>{data.count} sources ({Math.round(data.percentage)}%)</div>
                 <div className="text-gray-300 mt-1">
                   {data.percentage > 60 ? 'Dominant perspective' :

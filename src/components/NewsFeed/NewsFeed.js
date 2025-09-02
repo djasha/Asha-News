@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { mockArticles } from '../../data/mockArticles';
 import { useDebounce } from '../../hooks/useDebounce';
 import ArticleCard from '../ArticleCard/ArticleCard';
@@ -155,13 +155,13 @@ const NewsFeed = ({
   );
   
   // Clear all filters function
-  const handleClearAll = () => {
+  const handleClearAll = useCallback(() => {
     setSearchQuery('');
-    setFilterBias(null);
     setFilterTopic([]);
+    setFilterBias(null);
     setFilterDateRange('all');
     setFilterSources([]);
-  };
+  }, []);
 
   return (
     <div className={`${className}`}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 
 const SourceLogo = ({ sourceName, size = 'sm', className = '' }) => {
   const [imageError, setImageError] = useState(false);
@@ -65,4 +65,4 @@ const SourceLogo = ({ sourceName, size = 'sm', className = '' }) => {
   );
 };
 
-export default SourceLogo;
+export default memo(SourceLogo);
