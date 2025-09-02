@@ -1,6 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Paper texture background */
+.paper-texture {
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(80, 80, 80, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(80, 80, 80, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(80, 80, 80, 0.02) 0%, transparent 50%),
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 2px,
+      rgba(80, 80, 80, 0.01) 2px,
+      rgba(80, 80, 80, 0.01) 4px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 2px,
+      rgba(80, 80, 80, 0.008) 2px,
+      rgba(80, 80, 80, 0.008) 4px
+    );
+}
 
 /* CSS Custom Properties for Theme Switching */
 :root {
@@ -60,18 +84,34 @@ body {
   outline-offset: 2px;
 }
 
+/* Paper texture background */
+body {
+  background-color: theme('colors.background.light');
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(212, 196, 168, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(212, 196, 168, 0.03) 0%, transparent 50%);
+}
+
+.dark body {
+  background-color: theme('colors.background.dark');
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(143, 114, 73, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(143, 114, 73, 0.05) 0%, transparent 50%);
+}
+
 /* Custom Component Classes */
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 dark:bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    @apply bg-primary-600 dark:bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 dark:hover:bg-primary-600 transition-colors focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
   }
   
   .btn-secondary {
-    @apply bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity;
+    @apply bg-accent-paper-light dark:bg-accent-paper-dark text-text-primary-light dark:text-text-primary-dark px-4 py-2 rounded-lg font-medium hover:bg-accent-warm-light dark:hover:bg-accent-warm-dark transition-colors;
   }
   
+  /* Card Component */
   .card {
-    @apply bg-surface-light dark:bg-surface-dark rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-5 md:p-6;
+    @apply bg-surface-light dark:bg-surface-dark p-4 sm:p-6 rounded-lg border border-primary-200 dark:border-primary-800 shadow-sm backdrop-blur-sm;
   }
   
   .text-primary {
@@ -94,11 +134,11 @@ body {
 /* Responsive Typography Utilities */
 @layer utilities {
   .text-responsive-headline {
-    @apply text-headline sm:text-headline-sm md:text-headline-md lg:text-headline-lg;
+    @apply text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold;
   }
   
   .text-responsive-body {
-    @apply text-body sm:text-body-sm md:text-body-md;
+    @apply text-sm sm:text-base md:text-lg;
   }
 }
 

@@ -1,0 +1,31 @@
+[
+  {"id":"cnn","name":"CNN","bias":"left","rss":"http://rss.cnn.com/rss/edition.rss"},
+  {"id":"msnbc","name":"MSNBC","bias":"left","rss":"https://www.msnbc.com/feeds/latest"},
+  {"id":"guardian","name":"The Guardian","bias":"left","rss":"https://www.theguardian.com/world/rss"},
+  {"id":"vice","name":"VICE","bias":"left","rss":"https://www.vice.com/en/rss"},
+  {"id":"huffpost","name":"HuffPost","bias":"left","rss":"https://www.huffpost.com/section/front-page/feed"},
+
+  {"id":"reuters","name":"Reuters","bias":"center","rss":"http://feeds.reuters.com/reuters/topNews"},
+  {"id":"ap","name":"AP News","bias":"center","rss":"https://apnews.com/hub/apf-topnews?utm_source=apnews.com&utm_medium=referral&utm_campaign=ap-rss&utm_source=apnews&utm_medium=apnews&utm_campaign=ap-rss&output=rss"},
+  {"id":"bbc","name":"BBC News","bias":"center","rss":"http://feeds.bbci.co.uk/news/rss.xml"},
+  {"id":"npr","name":"NPR","bias":"center","rss":"https://feeds.npr.org/1001/rss.xml"},
+  {"id":"usa-today","name":"USA Today","bias":"center","rss":"http://rssfeeds.usatoday.com/usatoday-NewsTopStories"},
+
+  {"id":"fox","name":"Fox News","bias":"right","rss":"https://moxie.foxnews.com/google-publisher/latest.xml"},
+  {"id":"wsj","name":"Wall Street Journal","bias":"right","rss":"https://feeds.a.dj.com/rss/RSSWorldNews.xml"},
+  {"id":"nypost","name":"New York Post","bias":"right","rss":"https://nypost.com/feed/"},
+  {"id":"wash-examiner","name":"Washington Examiner","bias":"right","rss":"https://www.washingtonexaminer.com/section/politics/feed"},
+  {"id":"national-review","name":"National Review","bias":"right","rss":"https://www.nationalreview.com/feed/"},
+
+  {"id":"aljazeera","name":"Al Jazeera","bias":"center","rss":"https://www.aljazeera.com/xml/rss/all.xml"},
+  {"id":"economist","name":"The Economist","bias":"center","rss":"https://www.economist.com/sections/the-world-this-week/rss.xml"},
+  {"id":"bloomberg","name":"Bloomberg","bias":"center","rss":"https://www.bloomberg.com/feed/podcast/etf-report.xml"},
+  {"id":"ft","name":"Financial Times","bias":"center","rss":"https://www.ft.com/?format=rss"},
+  {"id":"time","name":"TIME","bias":"center","rss":"https://time.com/feed/"},
+
+  {"id":"latimes","name":"LA Times","bias":"left","rss":"https://www.latimes.com/world-nation/rss2.0.xml"},
+  {"id":"washpost","name":"Washington Post","bias":"left","rss":"http://feeds.washingtonpost.com/rss/world"},
+  {"id":"abc","name":"ABC News","bias":"center","rss":"https://abcnews.go.com/abcnews/topstories"},
+  {"id":"sky","name":"Sky News","bias":"center","rss":"https://feeds.skynews.com/feeds/rss/world.xml"},
+  {"id":"dw","name":"DW","bias":"center","rss":"https://rss.dw.com/rdf/rss-en-all"}
+]

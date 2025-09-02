@@ -1,89 +1,149 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const BiasIndicator = ({ 
   bias = 'center', 
   confidence = 0.8, 
   size = 'medium',
   showConfidence = true,
+  showTooltip = false,
+  interactive = false,
+  abbreviated = false,
   className = '' 
 }) => {
-  const sizeClasses = {
-    small: 'w-4 h-4 text-xs',
-    medium: 'w-6 h-6 text-sm',
-    large: 'w-8 h-8 text-base'
-  };
+  const [showTooltipState, setShowTooltipState] = useState(false);
 
   const getBiasColor = (biasType) => {
     switch (biasType) {
       case 'left':
-        return 'var(--color-bias-left)';
+        return 'text-white bg-bias-left border-bias-left';
       case 'right':
-        return 'var(--color-bias-right)';
-      case 'mixed':
-        return 'var(--color-bias-mixed)';
+        return 'text-white bg-bias-right border-bias-right';
       default:
-        return 'var(--color-bias-center)';
+        return 'text-white bg-bias-center border-bias-center';
     }
   };
 
   const getBiasShape = (biasType) => {
     switch (biasType) {
       case 'left':
-        return (
-          <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
-            <path d="M12 2L2 12l10 10V2z" />
-          </svg>
-        );
+        return '◀'; // Triangle pointing left
       case 'right':
-        return (
-          <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
-            <path d="M12 2v20l10-10L12 2z" />
-          </svg>
-        );
-      case 'mixed':
-        return (
-          <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
-            <path d="M12 2L2 7v10l10 5 10-5V7l-10-5z" />
-          </svg>
-        );
+        return '▶'; // Triangle pointing right
       default:
-        return (
-          <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
-            <circle cx="12" cy="12" r="10" />
-          </svg>
-        );
+        return '●'; // Circle for center
     }
   };
 
-  const getBiasLabel = (biasType) => {
+  const getBiasLabel = (biasType, abbreviated = false) => {
+    if (abbreviated) {
+      switch (biasType) {
+        case 'left':
+          return 'L';
+        case 'right':
+          return 'R';
+        default:
+          return 'C';
+      }
+    }
+    
     switch (biasType) {
       case 'left':
-        return 'Left Bias';
+        return 'Left-leaning';
       case 'right':
-        return 'Right Bias';
-      case 'mixed':
-        return 'Mixed Coverage';
+        return 'Right-leaning';
       default:
-        return 'Center/Neutral';
+        return 'Center';
+    }
+  };
+
+  const sizeClasses = {
+    small: 'w-4 h-4 text-xs',
+    medium: 'w-5 h-5 md:w-6 md:h-6 text-xs md:text-sm',
+    large: 'w-6 h-6 md:w-8 md:h-8 text-sm md:text-base'
+  };
+
+  const confidenceColor = confidence >= 0.8 ? 'text-green-600 dark:text-green-400' : 
+                          confidence >= 0.6 ? 'text-yellow-600 dark:text-yellow-400' : 
+                          'text-red-600 dark:text-red-400';
+
+  const confidenceLabel = confidence >= 0.8 ? 'High confidence' :
+                         confidence >= 0.6 ? 'Medium confidence' :
+                         'Low confidence';
+
+  const handleMouseEnter = () => {
+    if (interactive && showTooltip) {
+      setShowTooltipState(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (interactive) {
+      setShowTooltipState(false);
+    }
+  };
+
+  const handleKeyDown = (event) => {
+    if (interactive && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      setShowTooltipState(!showTooltipState);
     }
   };
 
   return (
-    <div className={`bias-indicator-container inline-flex items-center space-x-2 ${className}`}>
+    <div className={`flex items-center gap-2 relative ${className}`}>
+      {/* Bias indicator circle */}
       <div 
-        className={`bias-indicator ${sizeClasses[size]} flex items-center justify-center rounded-full text-white`}
-        style={{ backgroundColor: getBiasColor(bias) }}
-        aria-label={`${getBiasLabel(bias)}${showConfidence ? ` with ${Math.round(confidence * 100)}% confidence` : ''}`}
-        title={`${getBiasLabel(bias)}${showConfidence ? ` (${Math.round(confidence * 100)}% confidence)` : ''}`}
+        className={`
+          ${sizeClasses[size]} 
+          ${getBiasColor(bias)} 
+          rounded-full 
+          border-2
+          flex items-center justify-center 
+          font-bold
+          shadow-sm
+          transition-all duration-200 ease-in-out
+          ${interactive ? 'hover:scale-110 hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50' : ''}
+        `}
+        role={interactive ? 'button' : 'img'}
+        tabIndex={interactive ? 0 : -1}
+        aria-label={`${getBiasLabel(bias)} bias with ${Math.round(confidence * 100)}% confidence`}
+        title={showTooltip ? undefined : `Bias: ${getBiasLabel(bias)} (${Math.round(confidence * 100)}% confidence)`}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onKeyDown={handleKeyDown}
       >
-        {getBiasShape(bias)}
+        <span aria-hidden="true">{getBiasShape(bias)}</span>
       </div>
-      
+
+      {/* Confidence indicator */}
       {showConfidence && (
-        <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark font-medium">
-          {Math.round(confidence * 100)}%
-        </span>
+        <div className="flex flex-col items-start min-w-0">
+          <span className={`text-xs font-medium ${confidenceColor} truncate`}>
+            {Math.round(confidence * 100)}%
+          </span>
+          <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark capitalize truncate">
+            {getBiasLabel(bias, abbreviated)}
+          </span>
+        </div>
       )}
+
+      {/* Tooltip */}
+      {showTooltip && (showTooltipState || !interactive) && (
+        <div className="absolute z-50 px-3 py-2 text-xs font-medium text-text-primary-dark bg-surface-dark rounded-lg shadow-lg pointer-events-none transform -translate-x-1/2 left-1/2 -top-12 min-w-max">
+          <div className="text-center">
+            <div className="font-semibold">{getBiasLabel(bias)}</div>
+            <div className="text-text-secondary-dark">{confidenceLabel}</div>
+            <div className="text-text-secondary-dark">{Math.round(confidence * 100)}% confidence</div>
+          </div>
+          {/* Tooltip arrow */}
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-surface-dark"></div>
+        </div>
+      )}
+
+      {/* Screen reader only detailed description */}
+      <div className="sr-only">
+        Political bias indicator showing {getBiasLabel(bias)} orientation with {confidenceLabel} at {Math.round(confidence * 100)} percent accuracy.
+      </div>
     </div>
   );
 };
