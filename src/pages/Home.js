@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import NewsFeed from "../components/NewsFeed/NewsFeed";
 import SEOHead from "../components/SEO/SEOHead";
+import newsApiService from "../services/newsApiService";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -14,17 +15,23 @@ const Home = () => {
     async function load() {
       try {
         setLoading(true);
-        const res = await fetch("/data/articles.json", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const list = Array.isArray(json.articles) ? json.articles : [];
-        if (alive) setArticles(list);
+        setError(null);
+        
+        // Use cached articles with intelligent refresh
+        const cachedArticles = await newsApiService.getCachedArticles({
+          limit: 50,
+          apiSources: ['rss', 'newsapi', 'newsapi-ai']
+        });
+        
+        if (alive) {
+          setArticles(cachedArticles);
+          console.log(`Loaded ${cachedArticles.length} articles from cache/APIs`);
+        }
       } catch (e) {
-        console.error("Failed to load articles.json", e);
-        if (alive)
-          setError(
-            "Failed to load latest articles. Showing nothing until fetch succeeds."
-          );
+        console.error("Failed to load articles", e);
+        if (alive) {
+          setError("Failed to load latest articles. Please try refreshing the page.");
+        }
       } finally {
         if (alive) setLoading(false);
       }
