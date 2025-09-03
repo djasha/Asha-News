@@ -2,16 +2,21 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ExpandedMenu from "./ExpandedMenu";
 import TrendingTopicsBar from "./TrendingTopicsBar";
+import { useAuth } from "../../contexts/AuthContext";
+import AuthModal from "../Auth/AuthModal";
 
 const ResponsiveHeader = ({ onMenuToggle, isMenuOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isScrolled, setIsScrolled] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const [isExpandedMenuOpen, setIsExpandedMenuOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login');
 
   // Hide header on scroll down, show on scroll up (mobile only)
   useEffect(() => {
@@ -234,10 +239,54 @@ const ResponsiveHeader = ({ onMenuToggle, isMenuOpen }) => {
                 </svg>
               </button>
 
-              {/* Sign In Button */}
-              <button className="px-4 py-2 bg-primary-600 dark:bg-primary-500 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 active:bg-primary-800 dark:active:bg-primary-700 transition-colors font-medium">
-                Sign In
-              </button>
+              {/* Authentication UI */}
+              {isAuthenticated ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-medium">
+                        {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                      </span>
+                    </div>
+                    <span className="text-text-primary-light dark:text-text-primary-dark font-medium">
+                      {user?.name || 'User'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => navigate('/dashboard')}
+                    className="px-3 py-2 bg-surface-elevated-light dark:bg-surface-elevated-dark text-text-primary-light dark:text-text-primary-dark rounded-lg hover:bg-interactive-hover-light dark:hover:bg-interactive-hover-dark transition-colors font-medium"
+                  >
+                    Dashboard
+                  </button>
+                  <button
+                    onClick={logout}
+                    className="px-3 py-2 text-text-secondary-light dark:text-text-secondary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark transition-colors font-medium"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setAuthModalMode('login');
+                      setIsAuthModalOpen(true);
+                    }}
+                    className="px-4 py-2 text-text-primary-light dark:text-text-primary-dark hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAuthModalMode('register');
+                      setIsAuthModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-primary-600 dark:bg-primary-500 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 active:bg-primary-800 dark:active:bg-primary-700 transition-colors font-medium"
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -287,6 +336,13 @@ const ResponsiveHeader = ({ onMenuToggle, isMenuOpen }) => {
       <ExpandedMenu
         isOpen={isExpandedMenuOpen}
         onClose={() => setIsExpandedMenuOpen(false)}
+      />
+
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        defaultMode={authModalMode}
       />
     </header>
   );

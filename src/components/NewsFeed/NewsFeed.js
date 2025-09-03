@@ -1,20 +1,26 @@
-import React, { useCallback, useMemo, useState } from "react";
-import { useDebounce } from "../../hooks/useDebounce";
+import React, { useCallback, useMemo, useState, useEffect } from "react";
 import ArticleCard from "../ArticleCard/ArticleCard";
+import CompactArticleCard from "../ArticleCard/CompactArticleCard";
 import HeroSection from "../HeroSection/HeroSection";
-import DailyBriefs from '../Home/DailyBriefs';
+import useDebounce from "../../hooks/useDebounce";
+import rssService from '../../services/rssService';
+import { useNavigate } from 'react-router-dom';
 
 const NewsFeed = ({
-  articles = [],
+  articles: propArticles = [],
   layout = "adaptive",
   showBiasOverview = true,
   searchQuery: propSearchQuery = "",
   className = "",
   showFilters = true,
   showSidebar = true,
+  isHomePage = false,
+  maxArticles = null,
 }) => {
-  console.log("NewsFeed received articles:", articles.length);
-
+  const navigate = useNavigate();
+  const [rssArticles, setRssArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState(propSearchQuery);
   const [sortBy] = useState("date");
   const [filterTopic, setFilterTopic] = useState([]);
@@ -22,6 +28,30 @@ const NewsFeed = ({
   const [filterDateRange, setFilterDateRange] = useState("all");
   const [filterSources, setFilterSources] = useState([]);
   const [isFiltering] = useState(false);
+
+  // Fetch RSS articles on component mount
+  useEffect(() => {
+    const fetchRSSData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await rssService.getArticles({ sortBy: 'date' });
+        setRssArticles(data.articles);
+        console.log(`Loaded ${data.articles.length} RSS articles`);
+      } catch (err) {
+        setError(err.message);
+        console.error('Failed to load RSS articles:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRSSData();
+  }, []);
+
+  // Use RSS articles if available, fallback to prop articles
+  const articles = rssArticles.length > 0 ? rssArticles : propArticles;
+  console.log("NewsFeed using articles:", articles.length, rssArticles.length > 0 ? "(RSS)" : "(props)");
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
@@ -82,63 +112,49 @@ const NewsFeed = ({
               );
           }
 
-          // Handle topic filters
-          if (searchData.metadata.topics) {
-            matches =
-              matches &&
-              searchData.metadata.topics.some((topic) =>
-                article.topic.toLowerCase().includes(topic.toLowerCase())
-              );
-          }
-
           return matches;
         });
       }
     }
 
-    // Topic filter (multi-select)
+    // Topic filter
     if (filterTopic.length > 0) {
-      filtered = filtered.filter((article) =>
-        filterTopic.includes(article.topic)
-      );
+      filtered = filtered.filter(article => filterTopic.includes(article.topic));
     }
 
     // Bias filter
     if (filterBias) {
-      filtered = filtered.filter(
-        (article) => article.political_bias === filterBias
-      );
+      filtered = filtered.filter(article => article.political_bias === filterBias);
     }
 
     // Date range filter
     if (filterDateRange !== "all") {
-      const now = new Date();
-      const cutoffDate = new Date();
-
-      switch (filterDateRange) {
-        case "today":
-          cutoffDate.setHours(0, 0, 0, 0);
-          break;
-        case "week":
-          cutoffDate.setDate(now.getDate() - 7);
-          break;
-        case "month":
-          cutoffDate.setMonth(now.getMonth() - 1);
-          break;
-        default:
-          break;
-      }
-
-      filtered = filtered.filter(
-        (article) => new Date(article.publication_date) >= cutoffDate
-      );
+      filtered = filtered.filter(article => {
+        const articleDate = new Date(article.publication_date);
+        const now = new Date();
+        const daysDiff = Math.floor((now - articleDate) / (1000 * 60 * 60 * 24));
+        
+        switch (filterDateRange) {
+          case "today":
+            return daysDiff <= 0;
+          case "week":
+            return daysDiff <= 7;
+          case "month":
+            return daysDiff <= 30;
+          default:
+            return true;
+        }
+      });
     }
 
     // Sources filter
     if (filterSources.length > 0) {
-      filtered = filtered.filter((article) =>
-        filterSources.includes(article.source_id)
-      );
+      filtered = filtered.filter(article => filterSources.includes(article.source_name));
+    }
+
+    // Limit articles if maxArticles is specified (for home page)
+    if (maxArticles && filtered.length > maxArticles) {
+      filtered = filtered.slice(0, maxArticles);
     }
 
     // Sort articles
@@ -167,6 +183,7 @@ const NewsFeed = ({
     filterDateRange,
     filterSources,
     sortBy,
+    maxArticles,
   ]);
 
   // Separate articles by image availability
@@ -215,17 +232,38 @@ const NewsFeed = ({
   return (
     <div className={`${className}`}>
       {/* Loading State */}
-      {isFiltering && (
+      {(loading || isFiltering) && (
         <div className="flex justify-center items-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           <span className="ml-3 text-text-secondary-light dark:text-text-secondary-dark">
-            Filtering articles...
+            {loading ? 'Loading articles...' : 'Filtering articles...'}
           </span>
         </div>
       )}
 
+      {/* Error State */}
+      {error && !loading && (
+        <div className="flex justify-center items-center py-8">
+          <div className="text-center">
+            <div className="text-red-500 mb-2">
+              <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-text-primary-light dark:text-text-primary-dark mb-2">Failed to load articles</p>
+            <p className="text-text-secondary-light dark:text-text-secondary-dark text-sm">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-3 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
-      {!isFiltering && (
+      {!loading && !error && (
         <div className="transition-opacity duration-300 ease-in-out">
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             {/* Main Content Area */}
@@ -240,11 +278,21 @@ const NewsFeed = ({
               {/* Top News Stories with Images */}
               {articlesWithImages.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark mb-4 lg:mb-6 pb-2 border-b border-primary-200 dark:border-primary-700">
-                    Top News Stories
-                  </h3>
+                  <div className="flex items-center justify-between mb-4 lg:mb-6">
+                    <h3 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark pb-2 border-b border-primary-200 dark:border-primary-700">
+                      Top News Stories
+                    </h3>
+                    {isHomePage && articlesWithImages.length > 6 && (
+                      <button
+                        onClick={() => navigate('/news/top-stories')}
+                        className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                      >
+                        Read More →
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-                    {articlesWithImages.slice(0, 6).map((article) => (
+                    {articlesWithImages.slice(0, isHomePage ? 6 : articlesWithImages.length).map((article) => (
                       <ArticleCard
                         key={article.id}
                         article={article}
@@ -254,6 +302,19 @@ const NewsFeed = ({
                       />
                     ))}
                   </div>
+                  {isHomePage && articlesWithImages.length > 6 && (
+                    <div className="mt-6 text-center">
+                      <button
+                        onClick={() => navigate('/news/top-stories')}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        Read More Stories ({articlesWithImages.length - 6} more)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -262,13 +323,23 @@ const NewsFeed = ({
                 (article) => article.topic === "Politics"
               ).length > 0 && (
                 <div>
-                  <h3 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark mb-4 lg:mb-6 pb-2 border-b border-primary-200 dark:border-primary-700">
-                    Politics
-                  </h3>
+                  <div className="flex items-center justify-between mb-4 lg:mb-6">
+                    <h3 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark pb-2 border-b border-primary-200 dark:border-primary-700">
+                      Politics
+                    </h3>
+                    {isHomePage && articlesWithImages.filter(a => a.topic === "Politics").length > 4 && (
+                      <button
+                        onClick={() => navigate('/news/politics')}
+                        className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                      >
+                        Read More →
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                     {articlesWithImages
                       .filter((article) => article.topic === "Politics")
-                      .slice(0, 4)
+                      .slice(0, isHomePage ? 4 : articlesWithImages.filter(a => a.topic === "Politics").length)
                       .map((article) => (
                         <ArticleCard
                           key={article.id}
@@ -279,28 +350,59 @@ const NewsFeed = ({
                         />
                       ))}
                   </div>
+                  {isHomePage && articlesWithImages.filter(a => a.topic === "Politics").length > 4 && (
+                    <div className="mt-6 text-center">
+                      <button
+                        onClick={() => navigate('/news/politics')}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        Read More Politics ({articlesWithImages.filter(a => a.topic === "Politics").length - 4} more)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Articles Without Images - Text-only Section */}
+              {/* Articles Without Images - Compact Cards */}
               {articlesWithoutImages.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark mb-4 lg:mb-6 pb-2 border-b border-primary-200 dark:border-primary-700">
-                    Latest Updates
-                  </h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                  <div className="flex items-center justify-between mb-4 lg:mb-6">
+                    <h3 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark pb-2 border-b border-primary-200 dark:border-primary-700">
+                      Latest Updates
+                    </h3>
+                    {!isHomePage && articlesWithoutImages.length > 6 && (
+                      <button
+                        onClick={() => navigate('/news')}
+                        className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                      >
+                        Read More →
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-3">
                     {articlesWithoutImages
-                      .slice(5) // Skip first 5 already shown in sidebar
+                      .slice(0, isHomePage ? 6 : articlesWithoutImages.length)
                       .map((article) => (
-                        <ArticleCard
+                        <CompactArticleCard
                           key={article.id}
                           article={article}
-                          showBiasOverview={showBiasOverview}
-                          layout="compact"
-                          size="compact"
+                          showBias={showBiasOverview}
                         />
                       ))}
                   </div>
+                  {isHomePage && articlesWithoutImages.length > 6 && (
+                    <div className="mt-6 text-center">
+                      <button
+                        onClick={() => navigate('/news')}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        Read More Articles ({articlesWithoutImages.length - 6} more)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -309,13 +411,23 @@ const NewsFeed = ({
                 (article) => article.topic === "Technology"
               ).length > 0 && (
                 <div>
-                  <h3 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark mb-4 lg:mb-6 pb-2 border-b border-primary-200 dark:border-primary-700">
-                    Technology
-                  </h3>
+                  <div className="flex items-center justify-between mb-4 lg:mb-6">
+                    <h3 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark pb-2 border-b border-primary-200 dark:border-primary-700">
+                      Technology
+                    </h3>
+                    {isHomePage && articlesWithImages.filter(a => a.topic === "Technology").length > 4 && (
+                      <button
+                        onClick={() => navigate('/news/technology')}
+                        className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                      >
+                        Read More →
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                     {articlesWithImages
                       .filter((article) => article.topic === "Technology")
-                      .slice(0, 6)
+                      .slice(0, isHomePage ? 4 : articlesWithImages.filter(a => a.topic === "Technology").length)
                       .map((article) => (
                         <ArticleCard
                           key={article.id}
@@ -326,6 +438,16 @@ const NewsFeed = ({
                         />
                       ))}
                   </div>
+                  {isHomePage && articlesWithImages.filter(a => a.topic === "Technology").length > 4 && (
+                    <div className="mt-6 text-center">
+                      <button
+                        onClick={() => navigate('/news/technology')}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        Read More Technology ({articlesWithImages.filter(a => a.topic === "Technology").length - 4} more)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -334,13 +456,23 @@ const NewsFeed = ({
                 (article) => article.topic === "Business"
               ).length > 0 && (
                 <div>
-                  <h3 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark mb-4 lg:mb-6 pb-2 border-b border-primary-200 dark:border-primary-700">
-                    Business
-                  </h3>
+                  <div className="flex items-center justify-between mb-4 lg:mb-6">
+                    <h3 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark pb-2 border-b border-primary-200 dark:border-primary-700">
+                      Business
+                    </h3>
+                    {isHomePage && articlesWithImages.filter(a => a.topic === "Business").length > 4 && (
+                      <button
+                        onClick={() => navigate('/news/business')}
+                        className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                      >
+                        Read More →
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                     {articlesWithImages
                       .filter((article) => article.topic === "Business")
-                      .slice(0, 6)
+                      .slice(0, isHomePage ? 4 : articlesWithImages.filter(a => a.topic === "Business").length)
                       .map((article) => (
                         <ArticleCard
                           key={article.id}
@@ -351,6 +483,16 @@ const NewsFeed = ({
                         />
                       ))}
                   </div>
+                  {isHomePage && articlesWithImages.filter(a => a.topic === "Business").length > 4 && (
+                    <div className="mt-6 text-center">
+                      <button
+                        onClick={() => navigate('/news/business')}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        Read More Business ({articlesWithImages.filter(a => a.topic === "Business").length - 4} more)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -462,7 +604,27 @@ const NewsFeed = ({
 
                 {/* Daily Briefing */}
                 <div>
-                  <DailyBriefs articles={filteredArticles} />
+                  <h3 className="text-sm font-bold text-text-primary-light dark:text-text-primary-dark mb-3 pb-1 border-b border-primary-200 dark:border-primary-700">
+                    Daily Brief
+                  </h3>
+                  <div className="space-y-2">
+                    {filteredArticles
+                      .slice(0, 3)
+                      .map((article) => (
+                        <div
+                          key={article.id}
+                          className="pb-2 border-b border-primary-100 dark:border-primary-800 last:border-b-0"
+                        >
+                          <h4 className="text-xs font-medium text-text-primary-light dark:text-text-primary-dark leading-tight mb-1 hover:text-text-secondary-light dark:hover:text-text-secondary-dark cursor-pointer line-clamp-2">
+                            {article.title}
+                          </h4>
+                          <div className="text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                            {article.source_name} •{" "}
+                            {new Date(article.publication_date).toLocaleDateString()}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
                 </div>
 
                 {/* Breaking News */}

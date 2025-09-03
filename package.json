@@ -14,6 +14,7 @@
     "react-helmet-async": "^2.0.5",
     "react-router-dom": "^6.30.1",
     "react-scripts": "5.0.1",
+    "rss-parser": "^3.13.0",
     "sqlite3": "^5.1.7",
     "web-vitals": "^2.1.4"
   },
@@ -28,7 +29,9 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "fetch:rss": "node scripts/fetch_rss.js",
-    "generate:sitemap": "node scripts/generate_sitemap.js"
+    "generate:sitemap": "node scripts/generate_sitemap.js",
+    "update:content": "npm run fetch:rss && npm run generate:sitemap",
+    "dev:with-fresh-data": "npm run update:content && npm start"
   },
   "eslintConfig": {
     "extends": [

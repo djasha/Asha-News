@@ -5,8 +5,10 @@ import ImageBoard from '../components/Home/ImageBoard';
 import AnalysisSection from '../components/Home/AnalysisSection';
 import TopicCarousel from '../components/Home/TopicCarousel';
 import StoryClusters from '../components/Home/StoryClusters';
+import GazaIsraelNews from '../components/Home/GazaIsraelNews';
 import NewsFeed from "../components/NewsFeed/NewsFeed";
 import SEOHead from "../components/SEO/SEOHead";
+import rssService from '../services/rssService';
 
 const Home = () => {
   const [articles, setArticles] = useState([]);
@@ -20,17 +22,28 @@ const Home = () => {
         setLoading(true);
         setError(null);
         
-        const res = await fetch("/data/articles.json", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const list = Array.isArray(json.articles) ? json.articles : [];
-        console.log(`Loaded ${list.length} articles from static data`);
+        // Use RSS service for fresh categorized data
+        const data = await rssService.getArticles({ sortBy: 'date' });
+        const list = Array.isArray(data.articles) ? data.articles : [];
+        console.log(`Loaded ${list.length} articles from RSS service`);
+        console.log('Categories available:', [...new Set(list.map(a => a.topic))]);
         console.log('Sample article:', list[0]);
         if (alive) setArticles(list);
       } catch (e) {
-        console.error("Failed to load articles", e);
-        if (alive) {
-          setError("Failed to load latest articles. Please try refreshing the page.");
+        console.error("Failed to load articles from RSS service", e);
+        // Fallback to static data
+        try {
+          const res = await fetch("/data/articles.json", { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          const list = Array.isArray(json.articles) ? json.articles : [];
+          console.log(`Fallback: Loaded ${list.length} articles from static data`);
+          if (alive) setArticles(list);
+        } catch (fallbackError) {
+          console.error("Fallback also failed", fallbackError);
+          if (alive) {
+            setError("Failed to load latest articles. Please try refreshing the page.");
+          }
         }
       } finally {
         if (alive) setLoading(false);
@@ -112,6 +125,8 @@ const Home = () => {
                   loading={loading}
                   error={error}
                   className=""
+                  isHomePage={true}
+                  maxArticles={null}
                 />
               </div>
 
@@ -127,6 +142,11 @@ const Home = () => {
               {/* Story Clusters - Featured section */}
               <div className="mb-8">
                 <StoryClusters articles={articles} />
+              </div>
+
+              {/* Gaza/Israel News Section */}
+              <div className="mb-8">
+                <GazaIsraelNews />
               </div>
 
               {/* Desktop-only additional content sections */}

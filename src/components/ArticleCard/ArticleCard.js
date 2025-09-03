@@ -1,5 +1,6 @@
-import React, { memo, useState } from "react";
+import React, { memo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import { getSourceById } from "../../data/mockSources";
 import BiasIndicator from "../BiasVisualization/BiasIndicator";
 import CoverageIndicator from "../BiasVisualization/CoverageIndicator";
@@ -13,12 +14,45 @@ const ArticleCard = ({
   layout = "standard",
   className = "",
 }) => {
+  const { 
+    isAuthenticated, 
+    toggleSaveArticle, 
+    addToReadingHistory, 
+    isArticleSaved,
+    toggleFollowSource,
+    isFollowingSource
+  } = useAuth();
+  
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [isFollowingThisSource, setIsFollowingThisSource] = useState(false);
   const navigate = useNavigate();
   const source = getSourceById(article.source_id);
 
+  // Check if article is saved and if source is followed
+  useEffect(() => {
+    if (isAuthenticated && article.id) {
+      setIsBookmarked(isArticleSaved(article.id));
+    }
+    if (isAuthenticated && source?.id) {
+      setIsFollowingThisSource(isFollowingSource(source.id));
+    }
+  }, [isAuthenticated, article.id, source?.id, isArticleSaved, isFollowingSource]);
+
   const handleArticleClick = () => {
+    // Add to reading history when article is clicked
+    if (isAuthenticated) {
+      addToReadingHistory({
+        id: article.id,
+        title: article.title,
+        summary: article.summary,
+        source: source?.name || article.source_name || "Unknown",
+        category: article.topic || "General",
+        bias: article.political_bias,
+        readTime: `${estimateReadingTime(article.summary)} min read`,
+        url: article.url
+      });
+    }
     navigate(`/article/${article.id}`);
   };
 
@@ -45,7 +79,38 @@ const ArticleCard = ({
   };
 
   const toggleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
+    if (isAuthenticated) {
+      const articleData = {
+        id: article.id,
+        title: article.title,
+        summary: article.summary,
+        source: source?.name || article.source_name || "Unknown",
+        category: article.topic || "General",
+        bias: article.political_bias,
+        readTime: `${estimateReadingTime(article.summary)} min read`,
+        url: article.url,
+        image: article.image_url,
+        publishedAt: article.publication_date
+      };
+      
+      toggleSaveArticle(articleData);
+      setIsBookmarked(!isBookmarked);
+    }
+  };
+
+  const handleFollowSource = (e) => {
+    e.stopPropagation();
+    if (isAuthenticated && source) {
+      const sourceData = {
+        id: source.id,
+        name: source.name,
+        bias: source.bias || 'center',
+        description: source.description || `${source.name} news source`
+      };
+      
+      toggleFollowSource(sourceData);
+      setIsFollowingThisSource(!isFollowingThisSource);
+    }
   };
 
   const estimateReadingTime = (content) => {
@@ -120,9 +185,23 @@ const ArticleCard = ({
             className="flex-shrink-0"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-text-primary-light dark:text-text-primary-dark truncate">
-              {source?.name || "Unknown Source"}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-medium text-text-primary-light dark:text-text-primary-dark truncate">
+                {source?.name || "Unknown Source"}
+              </p>
+              {isAuthenticated && (
+                <button
+                  onClick={handleFollowSource}
+                  className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+                    isFollowingThisSource
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {isFollowingThisSource ? 'Following' : 'Follow'}
+                </button>
+              )}
+            </div>
             <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">
               {formatDate(article.publication_date)} •{" "}
               {estimateReadingTime(article.summary)} min read •{" "}
@@ -139,10 +218,11 @@ const ArticleCard = ({
             }}
             className={`p-1.5 rounded-full transition-colors ${
               isBookmarked
-                ? "text-text-primary-light dark:text-text-primary-dark bg-gray-100 dark:bg-gray-700"
+                ? "text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900"
                 : "text-text-secondary-light dark:text-text-secondary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark hover:bg-gray-100 dark:hover:bg-gray-700"
             }`}
             aria-label={isBookmarked ? "Remove bookmark" : "Add bookmark"}
+            disabled={!isAuthenticated}
           >
             <svg
               className="w-4 h-4"

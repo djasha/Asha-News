@@ -65,6 +65,71 @@ function hash(str) {
   return h.toString(36);
 }
 
+function categorizeArticle(title, summary) {
+  const text = `${title} ${summary}`.toLowerCase();
+  
+  // Politics keywords
+  if (text.match(/\b(politics|political|election|vote|congress|senate|president|government|policy|democrat|republican|biden|trump|campaign|legislation)\b/)) {
+    return 'Politics';
+  }
+  
+  // Technology keywords
+  if (text.match(/\b(technology|tech|ai|artificial intelligence|software|hardware|startup|silicon valley|apple|google|microsoft|meta|tesla|crypto|blockchain)\b/)) {
+    return 'Technology';
+  }
+  
+  // Business keywords
+  if (text.match(/\b(business|economy|economic|finance|financial|stock|market|trade|company|corporate|earnings|revenue|investment|banking)\b/)) {
+    return 'Business';
+  }
+  
+  // Health keywords
+  if (text.match(/\b(health|medical|medicine|hospital|doctor|disease|covid|pandemic|vaccine|healthcare|pharmaceutical|fda)\b/)) {
+    return 'Health';
+  }
+  
+  // Science keywords
+  if (text.match(/\b(science|research|study|climate|environment|space|nasa|discovery|breakthrough|experiment|scientific)\b/)) {
+    return 'Science';
+  }
+  
+  // Sports keywords
+  if (text.match(/\b(sports|football|basketball|baseball|soccer|olympics|nfl|nba|mlb|fifa|championship|tournament|athlete)\b/)) {
+    return 'Sports';
+  }
+  
+  // Entertainment keywords
+  if (text.match(/\b(entertainment|celebrity|movie|film|tv|television|music|hollywood|netflix|disney|streaming|concert)\b/)) {
+    return 'Entertainment';
+  }
+  
+  // International keywords
+  if (text.match(/\b(international|world|global|china|russia|europe|ukraine|israel|gaza|palestine|nato|un|united nations)\b/)) {
+    return 'International';
+  }
+  
+  return 'General';
+}
+
+function determineSection(title, summary, pubDate) {
+  const text = `${title} ${summary}`.toLowerCase();
+  const articleDate = new Date(pubDate);
+  const now = new Date();
+  const hoursDiff = (now - articleDate) / (1000 * 60 * 60);
+  
+  // Breaking news - recent articles with urgent keywords
+  if (hoursDiff < 2 && text.match(/\b(breaking|urgent|alert|just in|developing|live|emergency|crisis)\b/)) {
+    return 'breaking';
+  }
+  
+  // Local news keywords
+  if (text.match(/\b(local|city|county|mayor|school district|community|neighborhood|town|municipal)\b/)) {
+    return 'local';
+  }
+  
+  return 'featured';
+}
+
 function extractImage(item) {
   // Try multiple RSS image fields
   let imageUrl = item.enclosure?.url || 
@@ -74,16 +139,17 @@ function extractImage(item) {
                  item.image ||
                  item['itunes:image']?.href;
   
-  // If no image found, use a placeholder based on topic/source
-  if (!imageUrl) {
-    const placeholders = [
-      'https://picsum.photos/400/300?random=1',
-      'https://picsum.photos/400/300?random=2', 
-      'https://picsum.photos/400/300?random=3',
-      'https://picsum.photos/400/300?random=4',
-      'https://picsum.photos/400/300?random=5'
-    ];
-    imageUrl = placeholders[Math.floor(Math.random() * placeholders.length)];
+  // Also try to extract from content
+  if (!imageUrl && item.content) {
+    const imgMatch = item.content.match(/<img[^>]+src="([^"]+)"/i);
+    if (imgMatch) {
+      imageUrl = imgMatch[1];
+    }
+  }
+  
+  // Validate image URL
+  if (imageUrl && !imageUrl.startsWith('http')) {
+    imageUrl = null;
   }
   
   return imageUrl;
@@ -112,6 +178,10 @@ async function fetchFeed(source) {
         }
       }
       
+      // Categorize article based on title and content
+      const topic = categorizeArticle(title, summary);
+      const section = determineSection(title, summary, pubDate);
+      
       const article = {
         id: `${source.id}-${hash(idSeed)}`,
         title,
@@ -121,8 +191,8 @@ async function fetchFeed(source) {
         source_id: source.id,
         source_name: source.name,
         political_bias: source.bias, // Original source bias
-        topic: 'General',
-        section: 'featured',
+        topic: topic,
+        section: section,
         author: item.creator || item.author || source.name,
         image_url: extractImage(item),
         factual_quality: 0.8,
@@ -141,31 +211,63 @@ async function fetchFeed(source) {
 }
 
 async function main() {
-  const started = Date.now();
-  console.log('Asha.News RSS fetcher starting...');
-  const sources = await loadSources();
-  const results = [];
-
-  // fetch sequentially with small delay to be polite
-  for (const s of sources) {
-    console.log(`Fetching ${s.name}...`);
-    const { items } = await fetchFeed(s);
-    results.push(...items);
-    console.log(`  -> ${items.length} articles (${items.filter(a => a.ai_analysis).length} with AI analysis)`);
-    await sleep(400);
-  }
-
-  // Sort by publication_date desc
-  results.sort((a, b) => new Date(b.publication_date) - new Date(a.publication_date));
-
-  ensureDir(OUTPUT_DIR);
-  fs.writeFileSync(OUTPUT_PATH, JSON.stringify({ fetched_at: new Date().toISOString(), count: results.length, articles: results }, null, 2));
-  console.log(`Saved ${results.length} articles to ${path.relative(ROOT, OUTPUT_PATH)} in ${(Date.now() - started) / 1000}s`);
+  const startTime = Date.now();
+  console.log('Starting RSS feed fetch...');
   
-  // Generate sitemap after fetching articles
+  const allArticles = [];
+  const articlesWithoutImages = [];
+  
+  const sources = await loadSources();
+  
+  for (const source of sources) {
+    console.log(`Fetching ${source.name}...`);
+    const result = await fetchFeed(source);
+    if (result && result.items) {
+      allArticles.push(...result.items);
+      
+      // Track articles without images
+      const noImageArticles = result.items.filter(article => !article.image_url);
+      articlesWithoutImages.push(...noImageArticles);
+      
+      console.log(`  -> ${result.items.length} articles (${result.items.filter(a => a.ai_analysis).length} with AI analysis, ${noImageArticles.length} without images)`);
+    }
+  }
+  
+  // Sort articles by date (newest first)
+  allArticles.sort((a, b) => new Date(b.publication_date) - new Date(a.publication_date));
+  
+  // Log category breakdown
+  const categoryBreakdown = {};
+  allArticles.forEach(article => {
+    categoryBreakdown[article.topic] = (categoryBreakdown[article.topic] || 0) + 1;
+  });
+  
+  console.log(`Saved ${allArticles.length} articles to public/data/articles.json in ${((Date.now() - startTime) / 1000).toFixed(3)}s`);
+  console.log(`${articlesWithoutImages.length} articles without images`);
+  console.log('Category breakdown:', categoryBreakdown);
+  console.log(`Breaking news articles: ${allArticles.filter(a => a.section === 'breaking').length}`);
+  
+  // Save to JSON file
+  const output = {
+    fetched_at: new Date().toISOString(),
+    count: allArticles.length,
+    articles: allArticles,
+    categories: categoryBreakdown,
+    breaking_news: allArticles.filter(a => a.section === 'breaking'),
+    articles_without_images: articlesWithoutImages.map(a => ({
+      id: a.id,
+      title: a.title,
+      source: a.source_name,
+      url: a.url
+    }))
+  };
+  
+  fs.writeFileSync(path.join(__dirname, '../public/data/articles.json'), JSON.stringify(output, null, 2));
+  
+  // Generate sitemap
   try {
     const { generateSitemap } = require('./generate_sitemap');
-    generateSitemap();
+    generateSitemap(allArticles);
   } catch (error) {
     console.warn('Failed to generate sitemap:', error.message);
   }

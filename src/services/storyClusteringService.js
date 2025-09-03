@@ -2,6 +2,7 @@
  * Story Clustering Service
  * Groups related articles from different sources using AI-based similarity detection
  */
+import rssService from './rssService';
 
 class StoryClusteringService {
   constructor() {
@@ -363,6 +364,36 @@ class StoryClusteringService {
     const nonZeroCount = Object.values(biasDistribution).filter(count => count > 0).length;
     return nonZeroCount / 3; // Max diversity is all 3 perspectives
   }
+
+  /**
+   * Get clustered stories from live RSS data
+   */
+  async getClusteredStories(options = {}) {
+    try {
+      // Fetch articles from RSS service
+      const rssData = await rssService.getArticles({
+        sortBy: 'date',
+        limit: options.limit || 200
+      });
+
+      if (!rssData.articles || rssData.articles.length === 0) {
+        return { clusters: [], totalArticles: 0 };
+      }
+
+      // Cluster the articles
+      const clusters = this.clusterArticles(rssData.articles);
+
+      return {
+        clusters,
+        totalArticles: rssData.articles.length,
+        lastUpdated: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Failed to get clustered stories:', error);
+      throw new Error(`Story clustering failed: ${error.message}`);
+    }
+  }
 }
 
-export default new StoryClusteringService();
+const storyClusteringService = new StoryClusteringService();
+export default storyClusteringService;

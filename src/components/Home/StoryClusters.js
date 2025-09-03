@@ -6,28 +6,30 @@ import storyClusteringService from '../../services/storyClusteringService';
 const StoryClusters = ({ articles }) => {
   const [storyClusters, setStoryClusters] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (articles && articles.length > 0) {
-      clusterArticles();
-    }
-  }, [articles]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Always fetch live RSS data for clustering, ignore prop articles
+    clusterArticles();
+  }, []); // Only run once on mount
 
   const clusterArticles = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      // Use a subset of articles for home page (performance)
-      const articlesForClustering = articles.slice(0, 50);
-      
-      // Cluster the articles
-      const clusters = storyClusteringService.clusterArticles(articlesForClustering);
+      // Get clustered stories from live RSS data
+      const result = await storyClusteringService.getClusteredStories({
+        limit: 100 // Use more articles for better clustering
+      });
       
       // Show only top 3 clusters on home page
-      setStoryClusters(clusters.slice(0, 3));
+      setStoryClusters(result.clusters.slice(0, 3));
+      console.log(`Loaded ${result.clusters.length} story clusters from ${result.totalArticles} articles`);
     } catch (error) {
       console.error('Error clustering articles:', error);
+      setError(error.message);
       setStoryClusters([]);
     } finally {
       setLoading(false);
@@ -66,6 +68,42 @@ const StoryClusters = ({ articles }) => {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-text-primary-light dark:text-text-primary-dark mb-1">
+              Story Clusters
+            </h2>
+            <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">
+              See how different sources cover the same stories
+            </p>
+          </div>
+        </div>
+        <div className="bg-surface-elevated-light dark:bg-surface-elevated-dark rounded-lg p-8 border border-gray-200 dark:border-gray-700 text-center">
+          <div className="text-red-500 mb-4">
+            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-text-primary-light dark:text-text-primary-dark mb-2">
+            Failed to load story clusters
+          </h3>
+          <p className="text-text-secondary-light dark:text-text-secondary-dark mb-4">
+            {error}
+          </p>
+          <button 
+            onClick={clusterArticles}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
