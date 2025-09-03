@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import DailyBriefs from '../components/Home/DailyBriefs';
+import TrendingGrid from '../components/Home/TrendingGrid';
+import ImageBoard from '../components/Home/ImageBoard';
+import AnalysisSection from '../components/Home/AnalysisSection';
+import TopicCarousel from '../components/Home/TopicCarousel';
+import StoryClusters from '../components/Home/StoryClusters';
 import NewsFeed from "../components/NewsFeed/NewsFeed";
 import SEOHead from "../components/SEO/SEOHead";
-import newsApiService from "../services/newsApiService";
 
 const Home = () => {
-  const navigate = useNavigate();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,16 +20,13 @@ const Home = () => {
         setLoading(true);
         setError(null);
         
-        // Use cached articles with intelligent refresh
-        const cachedArticles = await newsApiService.getCachedArticles({
-          limit: 50,
-          apiSources: ['rss', 'newsapi', 'newsapi-ai']
-        });
-        
-        if (alive) {
-          setArticles(cachedArticles);
-          console.log(`Loaded ${cachedArticles.length} articles from cache/APIs`);
-        }
+        const res = await fetch("/data/articles.json", { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const list = Array.isArray(json.articles) ? json.articles : [];
+        console.log(`Loaded ${list.length} articles from static data`);
+        console.log('Sample article:', list[0]);
+        if (alive) setArticles(list);
       } catch (e) {
         console.error("Failed to load articles", e);
         if (alive) {
@@ -101,12 +101,71 @@ const Home = () => {
         </div>
       )}
       {!loading && (
-        <NewsFeed
-          articles={articles}
-          showBiasOverview={false}
-          showFilters={false}
-          showSidebar={true}
-        />
+        <div className="px-4 sm:px-6 lg:px-8 pt-6 lg:pt-8">
+          <div className="max-w-7xl mx-auto">
+            {/* Main Content Area */}
+            <div className="flex-1">
+              {/* Hero NewsFeed */}
+              <div className="mb-8">
+                <NewsFeed 
+                  articles={articles}
+                  loading={loading}
+                  error={error}
+                  className=""
+                />
+              </div>
+
+              {/* Mobile-only sections */}
+              <div className="lg:hidden space-y-8 mb-8">
+                <DailyBriefs articles={articles} />
+                <TrendingGrid articles={articles} />
+                <ImageBoard />
+                <AnalysisSection articles={articles} />
+                <TopicCarousel articles={articles} />
+              </div>
+
+              {/* Story Clusters - Featured section */}
+              <div className="mb-8">
+                <StoryClusters articles={articles} />
+              </div>
+
+              {/* Desktop-only additional content sections */}
+              <div className="hidden lg:block space-y-8">
+                <TrendingGrid articles={articles} />
+                <ImageBoard />
+                <AnalysisSection articles={articles} />
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <footer className="max-w-7xl mx-auto mt-16 pt-8 pb-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-6">
+                  <span className="text-lg font-serif font-bold text-text-primary-light dark:text-text-primary-dark">
+                    Asha.News
+                  </span>
+                  <div className="flex gap-4 text-sm text-text-secondary-light dark:text-text-secondary-dark">
+                    <button className="hover:text-primary-600 dark:hover:text-primary-400">
+                      About
+                    </button>
+                    <button className="hover:text-primary-600 dark:hover:text-primary-400">
+                      Privacy
+                    </button>
+                    <button className="hover:text-primary-600 dark:hover:text-primary-400">
+                      Terms
+                    </button>
+                    <button className="hover:text-primary-600 dark:hover:text-primary-400">
+                      Contact
+                    </button>
+                  </div>
+                </div>
+                <div className="text-sm text-text-secondary-light dark:text-text-secondary-dark">
+                  &copy; 2024 Asha.News. All rights reserved.
+                </div>
+              </div>
+            </footer>
+          </div>
+        </div>
       )}
     </>
   );

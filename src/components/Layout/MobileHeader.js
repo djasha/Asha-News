@@ -73,15 +73,18 @@ const MobileHeader = ({ isMenuOpen, onMenuToggle, isSearchOpen, onSearchToggle }
           aria-expanded={isMenuOpen}
         >
           <div className="relative w-5 h-5">
-            <span className={`absolute block w-5 h-0.5 bg-text-primary-light dark:bg-text-primary-dark transition-all duration-300 ${
-              isMenuOpen ? 'rotate-45 top-2' : 'top-1'
-            }`} />
-            <span className={`absolute block w-5 h-0.5 bg-text-primary-light dark:bg-text-primary-dark transition-all duration-300 top-2 ${
-              isMenuOpen ? 'opacity-0' : 'opacity-100'
-            }`} />
-            <span className={`absolute block w-5 h-0.5 bg-text-primary-light dark:bg-text-primary-dark transition-all duration-300 ${
-              isMenuOpen ? '-rotate-45 top-2' : 'top-3'
-            }`} />
+            {isMenuOpen ? (
+              <>
+                <span className="absolute block w-5 h-0.5 bg-text-primary-light dark:bg-text-primary-dark transition-all duration-300 rotate-45 top-2" />
+                <span className="absolute block w-5 h-0.5 bg-text-primary-light dark:bg-text-primary-dark transition-all duration-300 -rotate-45 top-2" />
+              </>
+            ) : (
+              <div className="w-5 h-5 flex flex-col justify-center space-y-1">
+                <div className="w-4 h-0.5 bg-text-primary-light dark:bg-text-primary-dark rounded-full"></div>
+                <div className="w-5 h-0.5 bg-text-primary-light dark:bg-text-primary-dark rounded-full"></div>
+                <div className="w-3 h-0.5 bg-text-primary-light dark:bg-text-primary-dark rounded-full"></div>
+              </div>
+            )}
           </div>
         </button>
 

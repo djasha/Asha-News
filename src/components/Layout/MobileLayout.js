@@ -30,7 +30,7 @@ const MobileLayout = ({ children }) => {
       />
 
       {/* Main Content */}
-      <main className="pt-14 pb-20 lg:pb-safe min-h-screen">
+      <main className="pt-32 lg:pt-36 pb-20 lg:pb-safe min-h-screen">
         {children}
       </main>
 
