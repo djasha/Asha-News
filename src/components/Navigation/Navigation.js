@@ -38,10 +38,10 @@ const Navigation = () => {
                 Sources
               </a>
               <a
-                href="/blindspots"
+                href="/fact-check"
                 className="text-text-secondary-light dark:text-text-secondary-dark hover:text-primary-600 dark:hover:text-primary-500 px-3 py-2 rounded-md text-sm font-medium transition-colors"
               >
-                Blindspots
+                Fact Checker
               </a>
               <a
                 href="/about"
@@ -112,10 +112,10 @@ const Navigation = () => {
               Sources
             </a>
             <a
-              href="/blindspots"
+              href="/fact-check"
               className="text-text-secondary-light dark:text-text-secondary-dark hover:text-primary-600 dark:hover:text-primary-500 block px-3 py-2 rounded-md text-base font-medium transition-colors"
             >
-              Blindspots
+              Fact Checker
             </a>
             <a
               href="/about"

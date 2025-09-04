@@ -74,7 +74,7 @@ const ResponsiveHeader = ({ onMenuToggle, isMenuOpen }) => {
     { name: "Home", path: "/" },
     { name: "For You", path: "/for-you" },
     { name: "Local", path: "/local" },
-    { name: "Blindspot", path: "/blindspots" },
+    { name: "Fact Checker", path: "/fact-check" },
   ];
 
   return (

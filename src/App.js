@@ -10,6 +10,7 @@ import ArticleDetailPage from './pages/ArticleDetailPage';
 import SearchPage from './pages/SearchPage';
 import StoriesPage from './pages/StoriesPage';
 import BiasMethodologyPage from './pages/BiasMethodologyPage';
+import FactCheckerPage from './pages/FactCheckerPage';
 import TopicPage from './pages/TopicPage';
 import AuthPage from './pages/AuthPage';
 import PreferencesPage from './pages/PreferencesPage';
@@ -32,6 +33,7 @@ function App() {
                   <Route path="/search" element={<SearchPage />} />
                   <Route path="/stories" element={<StoriesPage />} />
                   <Route path="/bias-methodology" element={<BiasMethodologyPage />} />
+                  <Route path="/fact-check" element={<FactCheckerPage />} />
                   <Route path="/topic/:slug" element={<TopicPage />} />
                   <Route path="/auth/signin" element={<AuthPage />} />
                   <Route path="/auth/signup" element={<AuthPage />} />
@@ -40,7 +42,6 @@ function App() {
                   <Route path="/for-you" element={<ForYou />} />
                   <Route path="/api-test" element={<ApiTestDashboard />} />
                   <Route path="/sources" element={<div className="text-center py-20 text-text-primary-light dark:text-text-primary-dark">Sources page coming soon...</div>} />
-                  <Route path="/blindspots" element={<div className="text-center py-20 text-text-primary-light dark:text-text-primary-dark">Blindspots page coming soon...</div>} />
                   <Route path="/about" element={<div className="text-center py-20 text-text-primary-light dark:text-text-primary-dark">About page coming soon...</div>} />
                 </Routes>
               </MobileLayout>

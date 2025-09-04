@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.15",
+    "concurrently": "^9.2.1",
     "postcss": "^8.4.29",
     "tailwindcss": "^3.3.3"
   },
@@ -31,7 +32,10 @@
     "fetch:rss": "node scripts/fetch_rss.js",
     "generate:sitemap": "node scripts/generate_sitemap.js",
     "update:content": "npm run fetch:rss && npm run generate:sitemap",
-    "dev:with-fresh-data": "npm run update:content && npm start"
+    "dev:with-fresh-data": "npm run update:content && npm start",
+    "server": "cd server && npm run dev",
+    "dev:full": "concurrently \"npm run server\" \"npm start\"",
+    "install:server": "cd server && npm install"
   },
   "eslintConfig": {
     "extends": [

@@ -35,9 +35,9 @@
     <priority>0.6</priority>
   </url>
   
-  <!-- Blindspots Page -->
+  <!-- Fact Checker Page -->
   <url>
-    <loc>https://asha.news/blindspots</loc>
+    <loc>https://asha.news/fact-check</loc>
     <lastmod>2025-09-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -5721,14 +5721,6 @@
     <lastmod>2025-08-27</lastmod>
     <changefreq>never</changefreq>
     <priority>0.6</priority>
-    <news:news>
-      <news:publication>
-        <news:name>Asha.News</news:name>
-        <news:language>en</news:language>
-      </news:publication>
-      <news:publication_date>2025-08-27T21:38:08.000Z</news:publication_date>
-      <news:title><![CDATA[Padilla sidesteps questions about a possible run for governor, says he is focused on redistricting]]></news:title>
-    </news:news>
   </url>
   <!-- Article: Trump administration presses rollback of 'Roadless... -->
   <url>
@@ -5736,14 +5728,6 @@
     <lastmod>2025-08-27</lastmod>
     <changefreq>never</changefreq>
     <priority>0.6</priority>
-    <news:news>
-      <news:publication>
-        <news:name>Asha.News</news:name>
-        <news:language>en</news:language>
-      </news:publication>
-      <news:publication_date>2025-08-27T21:32:26.000Z</news:publication_date>
-      <news:title><![CDATA[Trump administration presses rollback of 'Roadless Rule' on wildlands]]></news:title>
-    </news:news>
   </url>
   <!-- Article: No evidence of politicians linked to Sinaloa carte... -->
   <url>
@@ -5751,14 +5735,6 @@
     <lastmod>2025-08-27</lastmod>
     <changefreq>never</changefreq>
     <priority>0.6</priority>
-    <news:news>
-      <news:publication>
-        <news:name>Asha.News</news:name>
-        <news:language>en</news:language>
-      </news:publication>
-      <news:publication_date>2025-08-27T21:32:09.000Z</news:publication_date>
-      <news:title><![CDATA[No evidence of politicians linked to Sinaloa cartel, Sheinbaum says]]></news:title>
-    </news:news>
   </url>
   <!-- Article: WATCH: Student at Minneapolis Catholic school desc... -->
   <url>
@@ -5766,14 +5742,6 @@
     <lastmod>2025-08-27</lastmod>
     <changefreq>never</changefreq>
     <priority>0.6</priority>
-    <news:news>
-      <news:publication>
-        <news:name>Asha.News</news:name>
-        <news:language>en</news:language>
-      </news:publication>
-      <news:publication_date>2025-08-27T19:20:48.000Z</news:publication_date>
-      <news:title><![CDATA[WATCH: Student at Minneapolis Catholic school describes shooting]]></news:title>
-    </news:news>
   </url>
   <!-- Article: German government passes military service bill... -->
   <url>
@@ -5781,14 +5749,6 @@
     <lastmod>2025-08-27</lastmod>
     <changefreq>never</changefreq>
     <priority>0.6</priority>
-    <news:news>
-      <news:publication>
-        <news:name>Asha.News</news:name>
-        <news:language>en</news:language>
-      </news:publication>
-      <news:publication_date>2025-08-27T19:05:00.000Z</news:publication_date>
-      <news:title><![CDATA[German government passes military service bill]]></news:title>
-    </news:news>
   </url>
   <!-- Article: 'Door to the EU is open,' Merz tells Moldova... -->
   <url>
@@ -5796,14 +5756,6 @@
     <lastmod>2025-08-27</lastmod>
     <changefreq>never</changefreq>
     <priority>0.6</priority>
-    <news:news>
-      <news:publication>
-        <news:name>Asha.News</news:name>
-        <news:language>en</news:language>
-      </news:publication>
-      <news:publication_date>2025-08-27T17:14:00.000Z</news:publication_date>
-      <news:title><![CDATA['Door to the EU is open,' Merz tells Moldova]]></news:title>
-    </news:news>
   </url>
   <!-- Article: Germany: Rheinmetall opens new artillery ammunitio... -->
   <url>
@@ -5811,14 +5763,6 @@
     <lastmod>2025-08-27</lastmod>
     <changefreq>never</changefreq>
     <priority>0.6</priority>
-    <news:news>
-      <news:publication>
-        <news:name>Asha.News</news:name>
-        <news:language>en</news:language>
-      </news:publication>
-      <news:publication_date>2025-08-27T16:39:00.000Z</news:publication_date>
-      <news:title><![CDATA[Germany: Rheinmetall opens new artillery ammunition factory]]></news:title>
-    </news:news>
   </url>
   <!-- Article: U.S. envoy's mention of 'animalistic' behavior spa... -->
   <url>
@@ -5826,14 +5770,6 @@
     <lastmod>2025-08-27</lastmod>
     <changefreq>never</changefreq>
     <priority>0.6</priority>
-    <news:news>
-      <news:publication>
-        <news:name>Asha.News</news:name>
-        <news:language>en</news:language>
-      </news:publication>
-      <news:publication_date>2025-08-27T16:14:48.000Z</news:publication_date>
-      <news:title><![CDATA[U.S. envoy's mention of 'animalistic' behavior sparks press corps outrage]]></news:title>
-    </news:news>
   </url>
   <!-- Article: Germany to boost military with new voluntary servi... -->
   <url>
@@ -5841,14 +5777,6 @@
     <lastmod>2025-08-27</lastmod>
     <changefreq>never</changefreq>
     <priority>0.6</priority>
-    <news:news>
-      <news:publication>
-        <news:name>Asha.News</news:name>
-        <news:language>en</news:language>
-      </news:publication>
-      <news:publication_date>2025-08-27T14:42:00.000Z</news:publication_date>
-      <news:title><![CDATA[Germany to boost military with new voluntary service bill]]></news:title>
-    </news:news>
   </url>
   <!-- Article: Neo-Nazi's trans identity sparks debate over Germa... -->
   <url>

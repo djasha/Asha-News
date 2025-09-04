@@ -26,7 +26,7 @@ const MobileFooter = () => {
       items: [
         { label: 'Features', path: '/features' },
         { label: 'Sources', path: '/sources' },
-        { label: 'Blindspots', path: '/blindspots' },
+        { label: 'Fact Checker', path: '/fact-check' },
         { label: 'API', path: '/api' }
       ]
     },
@@ -58,13 +58,13 @@ const MobileFooter = () => {
           </button>
           
           <button
-            onClick={() => navigate('/blindspots')}
+            onClick={() => navigate('/fact-check')}
             className="flex items-center justify-center gap-2 p-4 bg-surface-light dark:bg-surface-dark border border-primary-200 dark:border-primary-700 text-text-primary-light dark:text-text-primary-dark rounded-mobile hover:bg-interactive-hover-light dark:hover:bg-interactive-hover-dark active:bg-interactive-active-light dark:active:bg-interactive-active-dark transition-colors touch-manipulation"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
             </svg>
-            <span className="font-medium">Blindspots</span>
+            <span className="font-medium">Fact Checker</span>
           </button>
         </div>
       </div>

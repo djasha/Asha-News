@@ -56,9 +56,9 @@ function generateSitemap() {
     <priority>0.6</priority>
   </url>
   
-  <!-- Blindspots Page -->
+  <!-- Fact Checker Page -->
   <url>
-    <loc>${BASE_URL}/blindspots</loc>
+    <loc>${BASE_URL}/fact-check</loc>
     <lastmod>${now}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>

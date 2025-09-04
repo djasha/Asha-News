@@ -23,7 +23,7 @@ const ExpandedMenu = ({ isOpen, onClose }) => {
       items: [
         { name: 'Sources', path: '/sources' },
         { name: 'Bias Analysis', path: '/bias-methodology' },
-        { name: 'Fact Check', path: '/fact-check' },
+        { name: 'Fact Checker', path: '/fact-check' },
         { name: 'Trending', path: '/trending' }
       ]
     },

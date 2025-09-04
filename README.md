@@ -14,6 +14,7 @@ Asha.News is similar to Ground News but enhanced with AI analysis to help users 
 - **Story Clustering** - Group related articles from different perspectives
 - **Personalized Feed** - User preferences balanced with diversity goals
 - **Source Transparency** - Comprehensive source information and bias ratings
+- **Fact Checker** - Claim verification and evidence analysis tools
 - **Blindspot Detection** - Identify stories covered by only one political side
 
 ### Design System
