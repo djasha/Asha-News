@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "directus": {
+      "command": "node",
+      "args": ["server/server.js"],
+      "env": {
+        "NODE_ENV": "production",
+        "DIRECTUS_URL": "${DIRECTUS_URL}",
+        "DIRECTUS_TOKEN": "${DIRECTUS_TOKEN}"
+      }
+    }
+  }
+}
