@@ -178,4 +178,5 @@ class BrowserCacheService {
   }
 }
 
-export default new BrowserCacheService();
+const browserCacheServiceInstance = new BrowserCacheService();
+export default browserCacheServiceInstance;

@@ -1,5 +1,4 @@
 // News API Service - Unified interface for multiple news aggregators
-import MediaStackAdapter from '../adapters/mediastackAdapter.js';
 import RSSAdapter from '../adapters/rssAdapter.js';
 import NewsAPIAdapter from '../adapters/newsApiAdapter.js';
 import NewsApiAiAdapter from '../adapters/newsApiAiAdapter.js';

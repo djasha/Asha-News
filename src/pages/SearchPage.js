@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import NewsFeed from '../components/NewsFeed/NewsFeed';
 import ArticleCard from '../components/ArticleCard/ArticleCard';
-import SEOHead from '../components/SEO/SEOHead';
-import { searchArticles } from '../services/newsApiService';
 import { mockArticles } from '../data/mockArticles';
 import { useDebounce } from '../hooks/useDebounce';
 

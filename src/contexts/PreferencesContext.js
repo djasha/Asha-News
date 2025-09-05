@@ -214,15 +214,15 @@ export const PreferencesProvider = ({ children }) => {
     }));
   };
 
-  const updateMobilePreference = (setting, value) => {
-    updatePreferences(prev => ({
-      ...prev,
-      mobile: {
-        ...prev.mobile,
-        [setting]: value
-      }
-    }));
-  };
+  // const updateMobilePreference = (setting, value) => {
+  //   updatePreferences(prev => ({
+  //     ...prev,
+  //     mobile: {
+  //       ...prev.mobile,
+  //       [setting]: value
+  //     }
+  //   }));
+  // };
 
   const completeSetup = () => {
     updatePreferences({
@@ -273,7 +273,6 @@ export const PreferencesProvider = ({ children }) => {
     updateNotificationPreference,
     updateDisplayPreference,
     updateBiasPreference,
-    updateMobilePreference,
     completeSetup,
     resetPreferences,
     savePreferences,

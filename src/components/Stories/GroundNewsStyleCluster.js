@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import BiasChart from '../BiasVisualization/BiasChart';
 
 const GroundNewsStyleCluster = ({ cluster, onArticleClick }) => {
   const [isExpanded, setIsExpanded] = useState(false);
