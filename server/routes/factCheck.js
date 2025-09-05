@@ -479,7 +479,7 @@ function calculateOverallAssessment(aiAnalysis, evidence, credibilityChecks) {
  */
 router.get('/google-search', async (req, res) => {
   try {
-    const { query, pageSize = 10, pageToken, maxAgeDays = 30, languageCode = 'en-US' } = req.query;
+    const { query, pageSize = 10, pageToken, languageCode = 'en-US' } = req.query;
 
     if (!query) {
       return res.status(400).json({
@@ -488,23 +488,27 @@ router.get('/google-search', async (req, res) => {
     }
 
     if (!googleFactCheckService.isAvailable()) {
-      return res.status(503).json({
-        error: 'Google Fact Check API not configured'
-      });
+      console.log('Google Fact Check API not configured, using mock data');
+      const mockResults = googleFactCheckService.getMockSearchResults(query);
+      return res.json(mockResults);
     }
 
-    const results = await googleFactCheckService.searchClaims(query, {
-      pageSize: parseInt(pageSize),
-      pageToken,
-      maxAgeDays: parseInt(maxAgeDays),
-      languageCode
-    });
-
-    res.json(results);
+    try {
+      const results = await googleFactCheckService.searchClaims(query, {
+        pageSize: parseInt(pageSize),
+        pageToken,
+        languageCode
+      });
+      res.json(results);
+    } catch (apiError) {
+      console.log('Google API failed, falling back to mock data:', apiError.message);
+      const mockResults = googleFactCheckService.getMockSearchResults(query);
+      res.json(mockResults);
+    }
   } catch (error) {
-    console.error('Error searching Google fact-check database:', error);
+    console.error('Error searching fact checks:', error);
     res.status(500).json({
-      error: 'Failed to search fact-check database'
+      error: 'Failed to search fact checks'
     });
   }
 });

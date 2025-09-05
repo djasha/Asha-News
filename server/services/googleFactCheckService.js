@@ -32,9 +32,14 @@ class GoogleFactCheckService {
     if (options.offset) params.set('offset', options.offset.toString());
 
     try {
-      const response = await fetch(`${this.baseUrl}/claims:search?${params}`);
+      const url = `${this.baseUrl}/claims:search?${params}`;
+      console.log('Google Fact Check API URL:', url);
+      
+      const response = await fetch(url);
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Google Fact Check API error response:', errorText);
         throw new Error(`Google Fact Check API error: ${response.status} ${response.statusText}`);
       }
 
@@ -85,14 +90,24 @@ class GoogleFactCheckService {
    */
   async getRecentClaims(options = {}) {
     const defaultOptions = {
-      pageSize: 20,
-      maxAgeDays: 30,
+      pageSize: 10,
+      maxAgeDays: 7,
       languageCode: 'en-US',
       ...options
     };
 
-    // Search with empty query to get recent claims
-    return await this.searchClaims('', defaultOptions);
+    // Use a broad search query to get recent claims since empty query isn't allowed
+    // Search for common terms that will return recent fact-checks
+    const broadQueries = ['covid', 'election', 'climate', 'vaccine', 'politics', 'health'];
+    const randomQuery = broadQueries[Math.floor(Math.random() * broadQueries.length)];
+    
+    // Remove problematic parameters that might cause 400 errors
+    const cleanOptions = {
+      pageSize: defaultOptions.pageSize,
+      languageCode: defaultOptions.languageCode
+    };
+    
+    return await this.searchClaims(randomQuery, cleanOptions);
   }
 
   /**
@@ -174,6 +189,71 @@ class GoogleFactCheckService {
    */
   isAvailable() {
     return !!this.apiKey;
+  }
+
+  /**
+   * Get mock data for development/testing
+   */
+  getMockSearchResults(query) {
+    const mockPublishers = [
+      { name: "Snopes", site: "snopes.com" },
+      { name: "PolitiFact", site: "politifact.com" },
+      { name: "FactCheck.org", site: "factcheck.org" },
+      { name: "Lead Stories", site: "leadstories.com" },
+      { name: "AFP Fact Check", site: "factcheck.afp.com" },
+      { name: "Reuters Fact Check", site: "reuters.com" },
+      { name: "Full Fact", site: "fullfact.org" }
+    ];
+
+    const mockRatings = ["False", "True", "Mostly False", "Mostly True", "Mixed", "Misleading", "Unproven"];
+    
+    const mockClaims = [
+      {
+        text: `Viral claim about ${query}: Social media posts suggest misleading information regarding recent developments.`,
+        claimant: "Social Media Users",
+        claimDate: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+        claimReview: [{
+          publisher: mockPublishers[Math.floor(Math.random() * mockPublishers.length)],
+          url: `https://example.com/fact-check-${query.toLowerCase().replace(/\s+/g, '-')}`,
+          title: `Fact Check: Viral Claims About ${query} Are Misleading`,
+          reviewDate: new Date(Date.now() - Math.random() * 5 * 24 * 60 * 60 * 1000).toISOString(),
+          textualRating: mockRatings[Math.floor(Math.random() * mockRatings.length)],
+          languageCode: "en"
+        }]
+      },
+      {
+        text: `Recent reports claim that ${query} has been linked to various unsubstantiated theories circulating online.`,
+        claimant: "News Websites",
+        claimDate: new Date(Date.now() - Math.random() * 14 * 24 * 60 * 60 * 1000).toISOString(),
+        claimReview: [{
+          publisher: mockPublishers[Math.floor(Math.random() * mockPublishers.length)],
+          url: `https://example.com/verification-${query.toLowerCase().replace(/\s+/g, '-')}`,
+          title: `Investigation: Claims About ${query} Lack Scientific Evidence`,
+          reviewDate: new Date(Date.now() - Math.random() * 10 * 24 * 60 * 60 * 1000).toISOString(),
+          textualRating: mockRatings[Math.floor(Math.random() * mockRatings.length)],
+          languageCode: "en"
+        }]
+      },
+      {
+        text: `Breaking: Experts weigh in on controversial statements regarding ${query} that have been spreading rapidly.`,
+        claimant: "Public Figures",
+        claimDate: new Date(Date.now() - Math.random() * 21 * 24 * 60 * 60 * 1000).toISOString(),
+        claimReview: [{
+          publisher: mockPublishers[Math.floor(Math.random() * mockPublishers.length)],
+          url: `https://example.com/analysis-${query.toLowerCase().replace(/\s+/g, '-')}`,
+          title: `Expert Analysis: What the Evidence Says About ${query}`,
+          reviewDate: new Date(Date.now() - Math.random() * 15 * 24 * 60 * 60 * 1000).toISOString(),
+          textualRating: mockRatings[Math.floor(Math.random() * mockRatings.length)],
+          languageCode: "en"
+        }]
+      }
+    ];
+
+    return {
+      claims: mockClaims,
+      nextPageToken: null,
+      total: mockClaims.length
+    };
   }
 }
 

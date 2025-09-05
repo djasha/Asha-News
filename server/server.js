@@ -37,6 +37,87 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// === Directus Proxy (CMS) ===
+// Minimal helper to call Directus with server-side secret
+const DIRECTUS_URL = process.env.DIRECTUS_URL;
+const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN;
+
+async function directusFetch(pathname, init = {}) {
+  if (!DIRECTUS_URL || !DIRECTUS_TOKEN) {
+    throw new Error('Directus not configured: set DIRECTUS_URL and DIRECTUS_TOKEN in server environment');
+  }
+  const url = `${DIRECTUS_URL.replace(/\/$/, '')}${pathname}`;
+  const headers = Object.assign(
+    {
+      Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    init.headers || {}
+  );
+  const resp = await fetch(url, { ...init, headers });
+  const text = await resp.text();
+  let json;
+  try { json = text ? JSON.parse(text) : {}; } catch { json = { raw: text }; }
+  if (!resp.ok) {
+    const msg = json?.errors?.[0]?.message || resp.statusText;
+    const err = new Error(`Directus ${resp.status}: ${msg}`);
+    err.status = resp.status;
+    err.body = json;
+    throw err;
+  }
+  return json;
+}
+
+// GET /api/cms/settings - returns singleton settings object
+app.get('/api/cms/settings', async (req, res) => {
+  try {
+    const data = await directusFetch('/items/global_settings');
+    // Handle both singleton (object) and non-singleton (array) responses
+    const settings = Array.isArray(data?.data) ? data.data[0] || null : data?.data ?? null;
+    res.json({ data: settings });
+  } catch (err) {
+    if (err && err.status === 404) {
+      // Singleton record not created yet
+      return res.json({ data: null });
+    }
+    console.error('CMS settings error:', err);
+    res.status(err.status || 500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+// GET /api/cms/rss-sources - returns enabled sources ordered by name
+app.get('/api/cms/rss-sources', async (req, res) => {
+  try {
+    // Avoid boolean filter ambiguity across DBs by fetching and filtering client-side
+    const data = await directusFetch(`/items/rss_sources?limit=200&sort=name`);
+    const items = (data?.data || []).filter(it => it && it.enabled === true);
+    res.json({ data: items });
+  } catch (err) {
+    if (err && err.status === 404) {
+      // Collection exists with no table yet or not found
+      return res.json({ data: [] });
+    }
+    console.error('CMS rss-sources error:', err);
+    res.status(err.status || 500).json({ error: 'Failed to fetch rss sources' });
+  }
+});
+
+// GET /api/cms/feature-flags - returns all flags; optional map=true to map {name: enabled}
+app.get('/api/cms/feature-flags', async (req, res) => {
+  try {
+    const data = await directusFetch('/items/feature_flags?limit=200');
+    const items = data?.data || [];
+    if (String(req.query.map).toLowerCase() === 'true') {
+      const mapped = items.reduce((acc, it) => { if (it?.name) acc[it.name] = !!it.enabled; return acc; }, {});
+      return res.json({ data: mapped });
+    }
+    res.json({ data: items });
+  } catch (err) {
+    console.error('CMS feature-flags error:', err);
+    res.status(err.status || 500).json({ error: 'Failed to fetch feature flags' });
+  }
+});
+
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../build')));
@@ -66,13 +147,14 @@ app.use('/api/*', (req, res) => {
 // For non-API routes, return a helpful message
 app.use('*', (req, res) => {
   res.json({
-    message: 'Asha.News API Server',
-    version: '1.0.0',
+    message: "Asha.News API Server",
+    version: "1.0.0",
     endpoints: {
-      health: '/api/health',
-      factCheck: '/api/fact-check/*'
+      health: "/api/health",
+      factCheck: "/api/fact-check/*",
+      cms: "/api/cms/*",
     },
-    frontend: 'http://localhost:3000'
+    frontend: "http://localhost:3000",
   });
 });
 
