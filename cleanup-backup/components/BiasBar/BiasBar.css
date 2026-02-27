@@ -1,0 +1,258 @@
+.bias-bar {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  margin: 12px 0;
+}
+
+.bias-bar__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.bias-bar__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.bias-bar__value {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: #F3F4F6;
+  color: #6B7280;
+}
+
+.bias-bar__container {
+  position: relative;
+  height: 32px;
+  margin: 8px 0;
+}
+
+.bias-bar__track {
+  display: flex;
+  height: 20px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #E5E7EB;
+  background-color: #F9FAFB;
+}
+
+.bias-bar__section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bias-bar__section--left {
+  background: linear-gradient(90deg, #DBEAFE 0%, #F3F4F6 100%);
+  color: #3B82F6;
+}
+
+.bias-bar__section--center {
+  background: linear-gradient(90deg, #F3F4F6 0%, #D1FAE5 50%, #F3F4F6 100%);
+  color: #10B981;
+  border-left: 1px solid #E5E7EB;
+  border-right: 1px solid #E5E7EB;
+}
+
+.bias-bar__section--right {
+  background: linear-gradient(90deg, #F3F4F6 0%, #FEE2E2 100%);
+  color: #EF4444;
+}
+
+.bias-bar__section-label {
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.bias-bar__indicator {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.bias-bar__indicator:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.bias-bar__indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: white;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.bias-bar__center-line {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: #9CA3AF;
+  transform: translateX(-50%);
+  opacity: 0.5;
+}
+
+.bias-bar__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.bias-bar__confidence {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bias-bar__confidence-label {
+  font-size: 12px;
+  color: #6B7280;
+}
+
+.bias-bar__confidence-value {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.bias-bar__confidence-value--low {
+  background-color: #FEF2F2;
+  color: #DC2626;
+}
+
+.bias-bar__confidence-value--medium {
+  background-color: #FFFBEB;
+  color: #D97706;
+}
+
+.bias-bar__confidence-value--high {
+  background-color: #F0FDF4;
+  color: #16A34A;
+}
+
+/* Size variants */
+.bias-bar--small {
+  margin: 8px 0;
+}
+
+.bias-bar--small .bias-bar__container {
+  height: 24px;
+}
+
+.bias-bar--small .bias-bar__track {
+  height: 16px;
+}
+
+.bias-bar--small .bias-bar__indicator {
+  width: 12px;
+  height: 12px;
+}
+
+.bias-bar--small .bias-bar__section {
+  font-size: 10px;
+}
+
+.bias-bar--small .bias-bar__label,
+.bias-bar--small .bias-bar__value {
+  font-size: 12px;
+}
+
+.bias-bar--large {
+  margin: 16px 0;
+}
+
+.bias-bar--large .bias-bar__container {
+  height: 40px;
+}
+
+.bias-bar--large .bias-bar__track {
+  height: 24px;
+}
+
+.bias-bar--large .bias-bar__indicator {
+  width: 20px;
+  height: 20px;
+}
+
+.bias-bar--large .bias-bar__section {
+  font-size: 12px;
+}
+
+.bias-bar--large .bias-bar__label {
+  font-size: 16px;
+}
+
+.bias-bar--large .bias-bar__value {
+  font-size: 14px;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .bias-bar__label {
+    color: #F3F4F6;
+  }
+  
+  .bias-bar__value {
+    background-color: #374151;
+    color: #D1D5DB;
+  }
+  
+  .bias-bar__track {
+    border-color: #4B5563;
+    background-color: #1F2937;
+  }
+  
+  .bias-bar__section--center {
+    border-color: #4B5563;
+  }
+  
+  .bias-bar__center-line {
+    background-color: #6B7280;
+  }
+  
+  .bias-bar__confidence-label {
+    color: #D1D5DB;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .bias-bar__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .bias-bar__section-label {
+    display: none;
+  }
+  
+  .bias-bar--small .bias-bar__section-label {
+    display: none;
+  }
+}

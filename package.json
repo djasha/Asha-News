@@ -1,0 +1,67 @@
+{
+  "name": "asha-news",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@directus/sdk": "^20.0.3",
+    "@heroicons/react": "^2.2.0",
+    "@netlify/functions": "^4.2.5",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^14.5.2",
+    "axios": "^1.11.0",
+    "fast-xml-parser": "^5.2.5",
+    "firebase": "^12.4.0",
+    "google-auth-library": "^10.3.0",
+    "groq-sdk": "^0.32.0",
+    "lucide-react": "^0.543.0",
+    "node-fetch": "^3.3.2",
+    "openai": "^4.104.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-helmet-async": "^2.0.5",
+    "react-router-dom": "^6.30.1",
+    "react-scripts": "5.0.1",
+    "rss-parser": "^3.13.0",
+    "web-vitals": "^2.1.4"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.15",
+    "concurrently": "^9.2.1",
+    "postcss": "^8.4.29",
+    "tailwindcss": "^3.3.3"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "fetch:rss": "node scripts/fetch_rss.js",
+    "generate:sitemap": "node scripts/generate_sitemap.js",
+    "generate:rss": "node scripts/generate_rss.js",
+    "update:content": "npm run fetch:rss && npm run generate:sitemap && npm run generate:rss",
+    "dev:with-fresh-data": "npm run update:content && npm start",
+    "server": "cd server && npm run dev",
+    "dev:full": "concurrently \"npm run server\" \"npm start\"",
+    "install:server": "cd server && npm install"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "proxy": "http://localhost:3001"
+}

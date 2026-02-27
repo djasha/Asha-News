@@ -1,0 +1,12 @@
+server/
+scripts/
+setup-archive/
+cleanup-backup/
+*.md
+.env*
+docker-compose.yml
+directus-schema.json
+*.sh
+todo.md
+vps-deployment-safe.md
+mcp.json

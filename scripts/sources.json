@@ -1,0 +1,479 @@
+[
+  {
+    "id": "cnn",
+    "name": "CNN",
+    "bias": "left",
+    "rss": "http://rss.cnn.com/rss/edition.rss",
+    "category": "general",
+    "region": "us",
+    "credibility": 7
+  },
+  {
+    "id": "msnbc",
+    "name": "MSNBC",
+    "bias": "left",
+    "rss": "https://www.msnbc.com/feeds/latest",
+    "category": "general",
+    "region": "us",
+    "credibility": 6
+  },
+  {
+    "id": "guardian",
+    "name": "The Guardian",
+    "bias": "left",
+    "rss": "https://www.theguardian.com/world/rss",
+    "category": "general",
+    "region": "uk",
+    "credibility": 8
+  },
+  {
+    "id": "huffpost",
+    "name": "HuffPost",
+    "bias": "left",
+    "rss": "https://www.huffpost.com/section/front-page/feed",
+    "category": "general",
+    "region": "us",
+    "credibility": 5
+  },
+  {
+    "id": "latimes",
+    "name": "LA Times",
+    "bias": "left",
+    "rss": "https://www.latimes.com/world-nation/rss2.0.xml",
+    "category": "general",
+    "region": "us",
+    "credibility": 7
+  },
+  {
+    "id": "washpost",
+    "name": "Washington Post",
+    "bias": "left",
+    "rss": "http://feeds.washingtonpost.com/rss/world",
+    "category": "general",
+    "region": "us",
+    "credibility": 8
+  },
+  {
+    "id": "nytimes",
+    "name": "New York Times",
+    "bias": "left",
+    "rss": "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+    "category": "general",
+    "region": "us",
+    "credibility": 9
+  },
+  {
+    "id": "politico",
+    "name": "Politico",
+    "bias": "left",
+    "rss": "https://www.politico.com/rss/politicopicks.xml",
+    "category": "politics",
+    "region": "us",
+    "credibility": 7
+  },
+  {
+    "id": "salon",
+    "name": "Salon",
+    "bias": "left",
+    "rss": "https://www.salon.com/feed/",
+    "category": "general",
+    "region": "us",
+    "credibility": 5
+  },
+  {
+    "id": "vox",
+    "name": "Vox",
+    "bias": "left",
+    "rss": "https://www.vox.com/rss/index.xml",
+    "category": "general",
+    "region": "us",
+    "credibility": 6
+  },
+  {
+    "id": "slate",
+    "name": "Slate",
+    "bias": "left",
+    "rss": "https://slate.com/feeds/all.rss",
+    "category": "general",
+    "region": "us",
+    "credibility": 6
+  },
+  {
+    "id": "thenation",
+    "name": "The Nation",
+    "bias": "left",
+    "rss": "https://www.thenation.com/feed/",
+    "category": "politics",
+    "region": "us",
+    "credibility": 6
+  },
+  {
+    "id": "motherjones",
+    "name": "Mother Jones",
+    "bias": "left",
+    "rss": "https://www.motherjones.com/feed/",
+    "category": "politics",
+    "region": "us",
+    "credibility": 6
+  },
+  {
+    "id": "thedailybeast",
+    "name": "The Daily Beast",
+    "bias": "left",
+    "rss": "https://www.thedailybeast.com/rss",
+    "category": "general",
+    "region": "us",
+    "credibility": 5
+  },
+  {
+    "id": "independent",
+    "name": "The Independent",
+    "bias": "left",
+    "rss": "https://www.independent.co.uk/rss",
+    "category": "general",
+    "region": "uk",
+    "credibility": 6
+  },
+  {
+    "id": "reuters",
+    "name": "Reuters",
+    "bias": "center",
+    "rss": "http://feeds.reuters.com/reuters/topNews",
+    "category": "general",
+    "region": "global",
+    "credibility": 9
+  },
+  {
+    "id": "ap",
+    "name": "AP News",
+    "bias": "center",
+    "rss": "https://feeds.apnews.com/ApNews/World",
+    "category": "general",
+    "region": "us",
+    "credibility": 9
+  },
+  {
+    "id": "bbc",
+    "name": "BBC News",
+    "bias": "center",
+    "rss": "http://feeds.bbci.co.uk/news/rss.xml",
+    "category": "general",
+    "region": "uk",
+    "credibility": 8
+  },
+  {
+    "id": "npr",
+    "name": "NPR",
+    "bias": "center",
+    "rss": "https://feeds.npr.org/1001/rss.xml",
+    "category": "general",
+    "region": "us",
+    "credibility": 8
+  },
+  {
+    "id": "usa-today",
+    "name": "USA Today",
+    "bias": "center",
+    "rss": "http://rssfeeds.usatoday.com/usatoday-NewsTopStories",
+    "category": "general",
+    "region": "us",
+    "credibility": 7
+  },
+  {
+    "id": "abc",
+    "name": "ABC News",
+    "bias": "center",
+    "rss": "https://abcnews.go.com/abcnews/topstories",
+    "category": "general",
+    "region": "us",
+    "credibility": 7
+  },
+  {
+    "id": "cbs",
+    "name": "CBS News",
+    "bias": "center",
+    "rss": "https://www.cbsnews.com/latest/rss/main",
+    "category": "general",
+    "region": "us",
+    "credibility": 7
+  },
+  {
+    "id": "nbc",
+    "name": "NBC News",
+    "bias": "center",
+    "rss": "https://feeds.nbcnews.com/nbcnews/public/world",
+    "category": "general",
+    "region": "us",
+    "credibility": 7
+  },
+  {
+    "id": "aljazeera",
+    "name": "Al Jazeera",
+    "bias": "center",
+    "rss": "https://www.aljazeera.com/xml/rss/all.xml",
+    "category": "general",
+    "region": "global",
+    "credibility": 7
+  },
+  {
+    "id": "economist",
+    "name": "The Economist",
+    "bias": "center",
+    "rss": "https://www.economist.com/sections/the-world-this-week/rss.xml",
+    "category": "business",
+    "region": "global",
+    "credibility": 9
+  },
+  {
+    "id": "bloomberg",
+    "name": "Bloomberg",
+    "bias": "center",
+    "rss": "https://feeds.bloomberg.com/politics/news.rss",
+    "category": "business",
+    "region": "us",
+    "credibility": 8
+  },
+  {
+    "id": "time",
+    "name": "TIME",
+    "bias": "center",
+    "rss": "https://time.com/feed/",
+    "category": "general",
+    "region": "us",
+    "credibility": 7
+  },
+  {
+    "id": "sky",
+    "name": "Sky News",
+    "bias": "center",
+    "rss": "https://feeds.skynews.com/feeds/rss/world.xml",
+    "category": "general",
+    "region": "uk",
+    "credibility": 7
+  },
+  {
+    "id": "dw",
+    "name": "Deutsche Welle",
+    "bias": "center",
+    "rss": "https://rss.dw.com/rdf/rss-en-all",
+    "category": "general",
+    "region": "global",
+    "credibility": 8
+  },
+  {
+    "id": "france24",
+    "name": "France 24",
+    "bias": "center",
+    "rss": "https://www.france24.com/en/rss",
+    "category": "general",
+    "region": "global",
+    "credibility": 7
+  },
+  {
+    "id": "pbs",
+    "name": "PBS NewsHour",
+    "bias": "center",
+    "rss": "https://www.pbs.org/newshour/feeds/rss/headlines",
+    "category": "general",
+    "region": "us",
+    "credibility": 8
+  },
+  {
+    "id": "csmonitor",
+    "name": "Christian Science Monitor",
+    "bias": "center",
+    "rss": "https://rss.csmonitor.com/feeds/all",
+    "category": "general",
+    "region": "us",
+    "credibility": 8
+  },
+  {
+    "id": "fox",
+    "name": "Fox News",
+    "bias": "right",
+    "rss": "https://moxie.foxnews.com/google-publisher/latest.xml",
+    "category": "general",
+    "region": "us",
+    "credibility": 5
+  },
+  {
+    "id": "wsj",
+    "name": "Wall Street Journal",
+    "bias": "right",
+    "rss": "https://feeds.a.dj.com/rss/RSSWorldNews.xml",
+    "category": "business",
+    "region": "us",
+    "credibility": 8
+  },
+  {
+    "id": "nypost",
+    "name": "New York Post",
+    "bias": "right",
+    "rss": "https://nypost.com/feed/",
+    "category": "general",
+    "region": "us",
+    "credibility": 5
+  },
+  {
+    "id": "wash-examiner",
+    "name": "Washington Examiner",
+    "bias": "right",
+    "rss": "https://www.washingtonexaminer.com/section/politics/feed",
+    "category": "politics",
+    "region": "us",
+    "credibility": 6
+  },
+  {
+    "id": "national-review",
+    "name": "National Review",
+    "bias": "right",
+    "rss": "https://www.nationalreview.com/feed/",
+    "category": "politics",
+    "region": "us",
+    "credibility": 6
+  },
+  {
+    "id": "breitbart",
+    "name": "Breitbart",
+    "bias": "right",
+    "rss": "https://feeds.feedburner.com/breitbart",
+    "category": "politics",
+    "region": "us",
+    "credibility": 4
+  },
+  {
+    "id": "dailywire",
+    "name": "The Daily Wire",
+    "bias": "right",
+    "rss": "https://www.dailywire.com/feeds/rss.xml",
+    "category": "politics",
+    "region": "us",
+    "credibility": 5
+  },
+  {
+    "id": "federalist",
+    "name": "The Federalist",
+    "bias": "right",
+    "rss": "https://thefederalist.com/feed/",
+    "category": "politics",
+    "region": "us",
+    "credibility": 5
+  },
+  {
+    "id": "townhall",
+    "name": "Townhall",
+    "bias": "right",
+    "rss": "https://townhall.com/feeds/rss/",
+    "category": "politics",
+    "region": "us",
+    "credibility": 5
+  },
+  {
+    "id": "redstate",
+    "name": "RedState",
+    "bias": "right",
+    "rss": "https://www.redstate.com/feed/",
+    "category": "politics",
+    "region": "us",
+    "credibility": 5
+  },
+  {
+    "id": "dailycaller",
+    "name": "The Daily Caller",
+    "bias": "right",
+    "rss": "https://dailycaller.com/feed/",
+    "category": "politics",
+    "region": "us",
+    "credibility": 5
+  },
+  {
+    "id": "telegraph",
+    "name": "The Telegraph",
+    "bias": "right",
+    "rss": "https://www.telegraph.co.uk/rss.xml",
+    "category": "general",
+    "region": "uk",
+    "credibility": 7
+  },
+  {
+    "id": "spectator",
+    "name": "The Spectator",
+    "bias": "right",
+    "rss": "https://www.spectator.co.uk/feed/",
+    "category": "politics",
+    "region": "uk",
+    "credibility": 6
+  },
+  {
+    "id": "reason",
+    "name": "Reason",
+    "bias": "right",
+    "rss": "https://reason.com/feed/",
+    "category": "politics",
+    "region": "us",
+    "credibility": 7
+  },
+  {
+    "id": "ft",
+    "name": "Financial Times",
+    "bias": "center",
+    "rss": "https://www.ft.com/world?format=rss",
+    "category": "business",
+    "region": "global",
+    "credibility": 9
+  },
+  {
+    "id": "cnbc",
+    "name": "CNBC",
+    "bias": "center",
+    "rss": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+    "category": "business",
+    "region": "us",
+    "credibility": 7
+  },
+  {
+    "id": "marketwatch",
+    "name": "MarketWatch",
+    "bias": "center",
+    "rss": "http://feeds.marketwatch.com/marketwatch/topstories/",
+    "category": "business",
+    "region": "us",
+    "credibility": 7
+  },
+  {
+    "id": "techcrunch",
+    "name": "TechCrunch",
+    "bias": "center",
+    "rss": "http://feeds.feedburner.com/TechCrunch",
+    "category": "technology",
+    "region": "us",
+    "credibility": 7
+  },
+  {
+    "id": "ars-technica",
+    "name": "Ars Technica",
+    "bias": "center",
+    "rss": "http://feeds.arstechnica.com/arstechnica/index/",
+    "category": "technology",
+    "region": "us",
+    "credibility": 8
+  },
+  {
+    "id": "wired",
+    "name": "WIRED",
+    "bias": "center",
+    "rss": "https://www.wired.com/feed/rss",
+    "category": "technology",
+    "region": "us",
+    "credibility": 7
+  },
+  {
+    "id": "verge",
+    "name": "The Verge",
+    "bias": "center",
+    "rss": "https://www.theverge.com/rss/index.xml",
+    "category": "technology",
+    "region": "us",
+    "credibility": 7
+  }
+]

@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "--yes",
+        "--force",
+        "@modelcontextprotocol/server-filesystem@latest",
+        "/Users/Djasha/CascadeProjects/Asha News"
+      ]
+    },
+    "git": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git", "--repository", "."]
+    },
+    "fetch": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"]
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "directus": {
+      "command": "npx",
+      "args": ["@directus/content-mcp@latest"],
+      "env": {
+        "DIRECTUS_URL": "http://168.231.111.192:8055",
+        "DIRECTUS_TOKEN": "rwK92lpHPcnQZR7Di-PmCxuwe33P8G9z"
+      }
+    }
+  }
+}

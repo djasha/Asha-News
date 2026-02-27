@@ -1,0 +1,57 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        run: npm ci
+        working-directory: server
+
+      - name: Lint server
+        run: npx eslint . --format compact
+        working-directory: server
+
+      - name: Run server tests
+        run: npm test -- --passWithNoTests
+        working-directory: server
+        env:
+          NODE_ENV: test
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          CI: false
+
+  deploy:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd ${{ secrets.APP_DIR || '/opt/asha-news' }}
+            git pull origin main
+            cd server && npm ci --production
+            cd .. && npm ci && npm run build
+            pm2 restart asha-server || pm2 start server/server.js --name asha-server
+            echo "Deploy complete at $(date)"

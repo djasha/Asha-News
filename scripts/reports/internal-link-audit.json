@@ -1,0 +1,32 @@
+{
+  "generated_at": "2025-09-13T19:52:43+03:00",
+  "summary": {
+    "total_links_checked": 20,
+    "placeholders": 9,
+    "content_ok": 7,
+    "requires_auth": 2,
+    "unknown_or_external": 2
+  },
+  "links": [
+    { "path": "/about", "status": "ok", "placeholder": true, "notes": "CMS-backed; fallback shown" },
+    { "path": "/api", "status": "ok", "placeholder": true },
+    { "path": "/bias-methodology", "status": "ok", "placeholder": false },
+    { "path": "/blog", "status": "ok", "placeholder": false },
+    { "path": "/careers", "status": "ok", "placeholder": true },
+    { "path": "/contact", "status": "ok", "placeholder": true },
+    { "path": "/cookies", "status": "ok", "placeholder": true },
+    { "path": "/fact-check", "status": "ok", "placeholder": false },
+    { "path": "/features", "status": "ok", "placeholder": true },
+    { "path": "/for-you", "status": "ok", "placeholder": false },
+    { "path": "/gdpr", "status": "ok", "placeholder": true },
+    { "path": "/local", "status": "ok", "placeholder": false },
+    { "path": "/privacy", "status": "ok", "placeholder": true },
+    { "path": "/rss", "status": "ok", "placeholder": true, "notes": "UI message with /rss.xml link" },
+    { "path": "/rss.xml", "status": "ok", "placeholder": false, "notes": "RSS feed generated" },
+    { "path": "/sources", "status": "ok", "placeholder": true },
+    { "path": "/stories", "status": "ok", "placeholder": false },
+    { "path": "/subscription", "status": "ok", "requires_auth": true, "notes": "Subscription dashboard; shows Sign In Required when logged out" },
+    { "path": "/subscribe", "status": "ok", "requires_auth": true, "notes": "Alias to subscription dashboard" },
+    { "path": "/article/cms-1", "status": "unknown", "notes": "Articles API returned 0; this may 404 if not seeded" }
+  ]
+}

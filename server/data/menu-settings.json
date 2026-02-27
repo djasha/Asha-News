@@ -1,0 +1,133 @@
+{
+  "desktop": [
+    {
+      "id": 2,
+      "label": "Stories",
+      "path": "/stories",
+      "enabled": true,
+      "sort_order": 1,
+      "fontSize": "16",
+      "fontWeight": "500"
+    },
+    {
+      "id": 1,
+      "label": "Home",
+      "path": "/",
+      "enabled": false,
+      "sort_order": 2,
+      "fontSize": "16",
+      "fontWeight": "500"
+    },
+    {
+      "id": 3,
+      "label": "For You",
+      "path": "/for-you",
+      "enabled": true,
+      "sort_order": 3,
+      "fontSize": "16",
+      "fontWeight": "500"
+    },
+    {
+      "id": 4,
+      "label": "Local",
+      "path": "/local",
+      "enabled": true,
+      "sort_order": 4,
+      "fontSize": "16",
+      "fontWeight": "500"
+    },
+    {
+      "id": 5,
+      "label": "Fact Checker",
+      "path": "/fact-check",
+      "enabled": true,
+      "sort_order": 5,
+      "fontSize": "16",
+      "fontWeight": "500"
+    }
+  ],
+  "mobile": [
+    {
+      "id": 1,
+      "label": "News",
+      "path": "/",
+      "icon": "newspaper",
+      "enabled": true,
+      "sort_order": 1
+    },
+    {
+      "id": 2,
+      "label": "Stories",
+      "path": "/stories",
+      "icon": "layers",
+      "enabled": true,
+      "sort_order": 2
+    },
+    {
+      "id": 3,
+      "label": "Search",
+      "path": "/search",
+      "icon": "search",
+      "enabled": true,
+      "sort_order": 3
+    },
+    {
+      "id": 4,
+      "label": "Fact Checker",
+      "path": "/fact-check",
+      "icon": "eye",
+      "enabled": true,
+      "sort_order": 4
+    },
+    {
+      "id": 5,
+      "label": "Local",
+      "path": "/local",
+      "icon": "location",
+      "enabled": true,
+      "sort_order": 5
+    }
+  ],
+  "sideMenuCategories": [
+    {
+      "id": 1,
+      "title": "Topics",
+      "enabled": true,
+      "sort_order": 1,
+      "items": [],
+      "description": "Topics are managed in the Topics section"
+    },
+    {
+      "id": 2,
+      "title": "Features",
+      "enabled": true,
+      "sort_order": 2,
+      "items": [
+        {
+          "label": "Sources",
+          "path": "/sources",
+          "enabled": true,
+          "sort_order": 1
+        },
+        {
+          "label": "Bias Analysis",
+          "path": "/bias-methodology",
+          "enabled": true,
+          "sort_order": 2
+        },
+        {
+          "label": "Fact Checker",
+          "path": "/fact-check",
+          "enabled": true,
+          "sort_order": 3
+        },
+        {
+          "label": "Trending",
+          "path": "/trending",
+          "enabled": true,
+          "sort_order": 4
+        }
+      ]
+    }
+  ]
+}

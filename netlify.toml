@@ -1,0 +1,15 @@
+[build]
+  functions = "netlify/functions"
+  publish = "build"
+
+[build.environment]
+  NODE_VERSION = "18"
+  DIRECTUS_URL = "http://168.231.111.192:8055"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[functions]
+  directory = "netlify/functions"

@@ -1,0 +1,211 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Paper texture background */
+.paper-texture {
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(80, 80, 80, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(80, 80, 80, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(80, 80, 80, 0.02) 0%, transparent 50%),
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 2px,
+      rgba(80, 80, 80, 0.01) 2px,
+      rgba(80, 80, 80, 0.01) 4px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 2px,
+      rgba(80, 80, 80, 0.008) 2px,
+      rgba(80, 80, 80, 0.008) 4px
+    );
+}
+
+/* CSS Custom Properties for Theme Switching */
+:root {
+  /* Light Mode Colors */
+  --color-primary: #f59e0b;
+  --color-secondary: #64748b;
+  --color-background: #fefefe;
+  --color-surface: #ffffff;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #666666;
+  
+  /* Bias Colors - Light Mode */
+  --color-bias-left: #dc2626;
+  --color-bias-center: #059669;
+  --color-bias-right: #2563eb;
+  --color-bias-mixed: #7c3aed;
+}
+
+.dark {
+  /* Dark Mode Colors */
+  --color-primary: #fbbf24;
+  --color-secondary: #94a3b8;
+  --color-background: #0f0f0f;
+  --color-surface: #1a1a1a;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a0a0a0;
+  
+  /* Bias Colors - Dark Mode */
+  --color-bias-left: #ef4444;
+  --color-bias-center: #10b981;
+  --color-bias-right: #3b82f6;
+  --color-bias-mixed: #8b5cf6;
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+/* Focus Styles for Accessibility */
+*:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Paper texture background */
+body {
+  background-color: theme('colors.background.light');
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(212, 196, 168, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(212, 196, 168, 0.03) 0%, transparent 50%);
+}
+
+.dark body {
+  background-color: theme('colors.background.dark');
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(143, 114, 73, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(143, 114, 73, 0.05) 0%, transparent 50%);
+}
+
+/* Custom Component Classes */
+@layer components {
+  .btn-primary {
+    @apply bg-primary-600 dark:bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 dark:hover:bg-primary-600 transition-colors focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  }
+  
+  .btn-secondary {
+    @apply bg-surface-elevated-light dark:bg-surface-elevated-dark text-text-secondary-light dark:text-text-secondary-dark px-4 py-2 rounded-lg font-medium border border-border-light/80 dark:border-border-dark/80 hover:bg-primary-50 dark:hover:bg-primary-900 hover:text-primary-700 dark:hover:text-primary-300 transition-colors;
+  }
+  
+  /* Card Component */
+  .card {
+    @apply bg-surface-light dark:bg-surface-dark p-4 sm:p-6 rounded-lg border border-primary-200 dark:border-primary-800 shadow-sm backdrop-blur-sm;
+  }
+  
+  .text-primary {
+    @apply text-text-primary-light dark:text-text-primary-dark;
+  }
+  
+  .text-secondary {
+    @apply text-text-secondary-light dark:text-text-secondary-dark;
+  }
+  
+  .bg-surface {
+    @apply bg-surface-light dark:bg-surface-dark;
+  }
+  
+  .bg-background {
+    @apply bg-background-light dark:bg-background-dark;
+  }
+}
+
+/* Responsive Typography Utilities */
+@layer utilities {
+  .text-responsive-headline {
+    @apply text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold;
+  }
+  
+  .text-responsive-body {
+    @apply text-sm sm:text-base md:text-lg;
+  }
+}
+
+/* Bias Visualization Styles */
+.bias-bar {
+  @apply relative h-2 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700;
+}
+
+.bias-indicator {
+  @apply inline-flex items-center justify-center rounded-full text-white text-xs font-semibold;
+}
+
+.bias-indicator.left {
+  background-color: var(--color-bias-left);
+}
+
+.bias-indicator.center {
+  background-color: var(--color-bias-center);
+}
+
+.bias-indicator.right {
+  background-color: var(--color-bias-right);
+}
+
+.bias-indicator.mixed {
+  background-color: var(--color-bias-mixed);
+}
+
+/* Animation Classes */
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Trending Topics Scrolling Animation */
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 60s linear infinite;
+}

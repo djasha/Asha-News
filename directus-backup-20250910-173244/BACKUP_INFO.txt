@@ -1,0 +1,25 @@
+Directus VPS Backup - FINAL
+===========================
+Backup Date: Wed Sep 10 17:32:47 UTC 2025
+Backup Location: /tmp/directus-backup-20250910-173244
+VPS IP: 168.231.111.192
+Directus URL: http://localhost:8055
+
+Container Configuration:
+- Directus: directus-app
+- PostgreSQL: directus-postgres
+- Database: directus
+- DB User: directus
+
+Files Included:
+- directus-schema.json (488K)
+- directus-database.sql (8.3M)
+- directus-uploads.tar.gz (224K)
+- directus-extensions.tar.gz (642K)
+- Collections: 72 files
+- Users, roles, permissions: ✅
+
+Total Backup Size: 12M
+
+Download Command (run from your local computer):
+scp -r root@168.231.111.192:/tmp/directus-backup-20250910-173244 ./

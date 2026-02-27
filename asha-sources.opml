@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="1.1">
+  <head>
+    <title>Asha.News Sources</title>
+    <dateCreated>2025-09-26T12:14:40.258Z</dateCreated>
+  </head>
+  <body>
+    <outline text="general" title="general">
+      <outline type="rss" text="CNN" title="CNN" xmlUrl="http://rss.cnn.com/rss/edition.rss" />
+      <outline type="rss" text="MSNBC" title="MSNBC" xmlUrl="https://www.msnbc.com/feeds/latest" />
+      <outline type="rss" text="The Guardian" title="The Guardian" xmlUrl="https://www.theguardian.com/world/rss" />
+      <outline type="rss" text="HuffPost" title="HuffPost" xmlUrl="https://www.huffpost.com/section/front-page/feed" />
+      <outline type="rss" text="LA Times" title="LA Times" xmlUrl="https://www.latimes.com/world-nation/rss2.0.xml" />
+      <outline type="rss" text="Washington Post" title="Washington Post" xmlUrl="http://feeds.washingtonpost.com/rss/world" />
+      <outline type="rss" text="New York Times" title="New York Times" xmlUrl="https://rss.nytimes.com/services/xml/rss/nyt/World.xml" />
+      <outline type="rss" text="Salon" title="Salon" xmlUrl="https://www.salon.com/feed/" />
+      <outline type="rss" text="Vox" title="Vox" xmlUrl="https://www.vox.com/rss/index.xml" />
+      <outline type="rss" text="Slate" title="Slate" xmlUrl="https://slate.com/feeds/all.rss" />
+      <outline type="rss" text="The Daily Beast" title="The Daily Beast" xmlUrl="https://www.thedailybeast.com/rss" />
+      <outline type="rss" text="The Independent" title="The Independent" xmlUrl="https://www.independent.co.uk/rss" />
+      <outline type="rss" text="Reuters" title="Reuters" xmlUrl="http://feeds.reuters.com/reuters/topNews" />
+      <outline type="rss" text="AP News" title="AP News" xmlUrl="https://feeds.apnews.com/ApNews/World" />
+      <outline type="rss" text="BBC News" title="BBC News" xmlUrl="http://feeds.bbci.co.uk/news/rss.xml" />
+      <outline type="rss" text="NPR" title="NPR" xmlUrl="https://feeds.npr.org/1001/rss.xml" />
+      <outline type="rss" text="USA Today" title="USA Today" xmlUrl="http://rssfeeds.usatoday.com/usatoday-NewsTopStories" />
+      <outline type="rss" text="ABC News" title="ABC News" xmlUrl="https://abcnews.go.com/abcnews/topstories" />
+      <outline type="rss" text="CBS News" title="CBS News" xmlUrl="https://www.cbsnews.com/latest/rss/main" />
+      <outline type="rss" text="NBC News" title="NBC News" xmlUrl="https://feeds.nbcnews.com/nbcnews/public/world" />
+      <outline type="rss" text="Al Jazeera" title="Al Jazeera" xmlUrl="https://www.aljazeera.com/xml/rss/all.xml" />
+      <outline type="rss" text="TIME" title="TIME" xmlUrl="https://time.com/feed/" />
+      <outline type="rss" text="Sky News" title="Sky News" xmlUrl="https://feeds.skynews.com/feeds/rss/world.xml" />
+      <outline type="rss" text="Deutsche Welle" title="Deutsche Welle" xmlUrl="https://rss.dw.com/rdf/rss-en-all" />
+      <outline type="rss" text="France 24" title="France 24" xmlUrl="https://www.france24.com/en/rss" />
+      <outline type="rss" text="PBS NewsHour" title="PBS NewsHour" xmlUrl="https://www.pbs.org/newshour/feeds/rss/headlines" />
+      <outline type="rss" text="Christian Science Monitor" title="Christian Science Monitor" xmlUrl="https://rss.csmonitor.com/feeds/all" />
+      <outline type="rss" text="Fox News" title="Fox News" xmlUrl="https://moxie.foxnews.com/google-publisher/latest.xml" />
+      <outline type="rss" text="New York Post" title="New York Post" xmlUrl="https://nypost.com/feed/" />
+      <outline type="rss" text="The Telegraph" title="The Telegraph" xmlUrl="https://www.telegraph.co.uk/rss.xml" />
+    </outline>
+    <outline text="politics" title="politics">
+      <outline type="rss" text="Politico" title="Politico" xmlUrl="https://www.politico.com/rss/politicopicks.xml" />
+      <outline type="rss" text="The Nation" title="The Nation" xmlUrl="https://www.thenation.com/feed/" />
+      <outline type="rss" text="Mother Jones" title="Mother Jones" xmlUrl="https://www.motherjones.com/feed/" />
+      <outline type="rss" text="Washington Examiner" title="Washington Examiner" xmlUrl="https://www.washingtonexaminer.com/section/politics/feed" />
+      <outline type="rss" text="National Review" title="National Review" xmlUrl="https://www.nationalreview.com/feed/" />
+      <outline type="rss" text="Breitbart" title="Breitbart" xmlUrl="https://feeds.feedburner.com/breitbart" />
+      <outline type="rss" text="The Daily Wire" title="The Daily Wire" xmlUrl="https://www.dailywire.com/feeds/rss.xml" />
+      <outline type="rss" text="The Federalist" title="The Federalist" xmlUrl="https://thefederalist.com/feed/" />
+      <outline type="rss" text="Townhall" title="Townhall" xmlUrl="https://townhall.com/feeds/rss/" />
+      <outline type="rss" text="RedState" title="RedState" xmlUrl="https://www.redstate.com/feed/" />
+      <outline type="rss" text="The Daily Caller" title="The Daily Caller" xmlUrl="https://dailycaller.com/feed/" />
+      <outline type="rss" text="The Spectator" title="The Spectator" xmlUrl="https://www.spectator.co.uk/feed/" />
+      <outline type="rss" text="Reason" title="Reason" xmlUrl="https://reason.com/feed/" />
+    </outline>
+    <outline text="business" title="business">
+      <outline type="rss" text="The Economist" title="The Economist" xmlUrl="https://www.economist.com/sections/the-world-this-week/rss.xml" />
+      <outline type="rss" text="Bloomberg" title="Bloomberg" xmlUrl="https://feeds.bloomberg.com/politics/news.rss" />
+      <outline type="rss" text="Wall Street Journal" title="Wall Street Journal" xmlUrl="https://feeds.a.dj.com/rss/RSSWorldNews.xml" />
+      <outline type="rss" text="Financial Times" title="Financial Times" xmlUrl="https://www.ft.com/world?format=rss" />
+      <outline type="rss" text="CNBC" title="CNBC" xmlUrl="https://www.cnbc.com/id/100003114/device/rss/rss.html" />
+      <outline type="rss" text="MarketWatch" title="MarketWatch" xmlUrl="http://feeds.marketwatch.com/marketwatch/topstories/" />
+    </outline>
+    <outline text="technology" title="technology">
+      <outline type="rss" text="TechCrunch" title="TechCrunch" xmlUrl="http://feeds.feedburner.com/TechCrunch" />
+      <outline type="rss" text="Ars Technica" title="Ars Technica" xmlUrl="http://feeds.arstechnica.com/arstechnica/index/" />
+      <outline type="rss" text="WIRED" title="WIRED" xmlUrl="https://www.wired.com/feed/rss" />
+      <outline type="rss" text="The Verge" title="The Verge" xmlUrl="https://www.theverge.com/rss/index.xml" />
+    </outline>
+  </body>
+</opml>
