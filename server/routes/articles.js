@@ -2,14 +2,13 @@ const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
 const RSSProcessingService = require('../services/rssProcessingService');
-const DirectusService = require('../services/directusService');
+const contentRepository = require('../services/contentRepository');
 const ArticleContentScraper = require('../services/articleContentScraper');
 const { calculateReadingTime, calculateWordCount } = require('../utils/readingTimeCalculator');
 const { checkReadLimit, trackRead, getReadStats } = require('../middleware/readCountGating');
 const { optionalAuth } = require('../middleware/authMiddleware');
 
 const rssService = new RSSProcessingService();
-const directusService = new DirectusService();
 const contentScraper = new ArticleContentScraper();
 
 /**
@@ -30,12 +29,12 @@ router.get('/', async (req, res) => {
     
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
-    // Always fetch from Directus CMS for consistent data
+    // Always fetch from the canonical content repository for consistent data.
     let articles = [];
     let totalCount = 0;
     
     try {
-      const cmsArticles = await directusService.getArticles({
+      const cmsArticles = await contentRepository.getArticles({
         limit: parseInt(limit),
         offset,
         category,
@@ -43,9 +42,9 @@ router.get('/', async (req, res) => {
         status: 'published'
       });
       articles = cmsArticles;
-      totalCount = await directusService.getArticleCount({ category, source, status: 'published' });
+      totalCount = await contentRepository.getArticleCount({ category, source, status: 'published' });
     } catch (error) {
-      logger.error({ err: error }, 'Error fetching from CMS');
+      logger.error({ err: error }, 'Error fetching from content repository');
       articles = [];
       totalCount = 0;
     }
@@ -129,7 +128,7 @@ router.get('/read-stats', optionalAuth, (req, res) => {
  * GET /api/articles/:id
  * Get specific article by ID
  */
-router.get('/:id', optionalAuth, checkReadLimit, trackRead, async (req, res) => {
+router.get('/:id((?!trending$|read-stats$|category$|source$|debug$).+)', optionalAuth, checkReadLimit, trackRead, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -141,12 +140,12 @@ router.get('/:id', optionalAuth, checkReadLimit, trackRead, async (req, res) => 
       article = articles.find(a => a.id === id || a.guid === id);
     }
     
-    // Fallback to CMS
+    // Fallback to content repository
     if (!article) {
       try {
-        article = await directusService.getArticleById(id);
+        article = await contentRepository.getArticleById(id);
       } catch (error) {
-        logger.error({ err: error }, 'Error fetching from CMS');
+        logger.error({ err: error }, 'Error fetching from content repository');
       }
     }
     
@@ -313,12 +312,12 @@ router.get('/:id/full-content', async (req, res) => {
       article = articles.find(a => a.id === id || a.guid === id);
     }
     
-    // Fallback to CMS
+    // Fallback to content repository
     if (!article) {
       try {
-        article = await directusService.getArticleById(id);
+        article = await contentRepository.getArticleById(id);
       } catch (error) {
-        logger.error({ err: error }, 'Error fetching article from CMS');
+        logger.error({ err: error }, 'Error fetching article from content repository');
       }
     }
     
@@ -390,8 +389,8 @@ router.get('/:id/full-content', async (req, res) => {
  */
 router.get('/debug/categories', async (req, res) => {
   try {
-    // Fetch all articles from Directus
-    const allArticles = await directusService.getArticles({ limit: 1000, status: 'published' });
+    // Fetch all articles from content repository
+    const allArticles = await contentRepository.getArticles({ limit: 1000, status: 'published' });
     
     // Extract unique categories
     const categories = [...new Set(allArticles.map(a => a.category).filter(Boolean))];

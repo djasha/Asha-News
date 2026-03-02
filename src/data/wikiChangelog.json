@@ -1,0 +1,67 @@
+[
+  {
+    "date": "2026-03-02",
+    "scope": "conflict-ops",
+    "change": "Expanded conflict extraction with hit-location patterns, weapon/technology taxonomy, identity signal parsing, and official announcement type classification."
+  },
+  {
+    "date": "2026-03-02",
+    "scope": "conflict-ops",
+    "change": "Added stale agent-run reconciliation endpoint and runbook workflow for historical running-state cleanup."
+  },
+  {
+    "date": "2026-03-02",
+    "scope": "conflict-ops",
+    "change": "Added functional smoke script for RSS ingest -> conflict ingest -> review queue -> stats verification."
+  },
+  {
+    "date": "2026-03-02",
+    "scope": "conflict-ops",
+    "change": "Documented operational bootstrap workflow and Supabase REST compatibility for RSS/article/conflict pipelines."
+  },
+  {
+    "date": "2026-03-02",
+    "scope": "conflict-ops",
+    "change": "Added in-app wiki route, docs hub, API reference, and OpenAPI endpoint for conflict ops."
+  },
+  {
+    "date": "2026-03-02",
+    "scope": "conflict-ops",
+    "change": "Added admin Conflict Ops page with autonomy trends, source approvals, and review queue actions."
+  },
+  {
+    "date": "2026-03-02",
+    "scope": "conflict-ops",
+    "change": "Added guarded autonomy cycle with scout/ingestion/verification/theory/forecast/reliability agents."
+  },
+  {
+    "date": "2026-03-02",
+    "scope": "wiki",
+    "change": "Added wiki index page and discoverability links in footer and expanded menu."
+  },
+  {
+    "date": "2026-03-02",
+    "scope": "ai-checker",
+    "change": "Published AI Checker wiki page with route/API workflow and safety notes."
+  },
+  {
+    "date": "2026-03-02",
+    "scope": "markets",
+    "change": "Published Markets wiki page with instrument data flow and endpoint references."
+  },
+  {
+    "date": "2026-03-02",
+    "scope": "agent-api",
+    "change": "Published Agent API wiki page documenting /api/v1 contract and auth model."
+  },
+  {
+    "date": "2026-03-02",
+    "scope": "wiki",
+    "change": "Added shared wiki status/version banner powered by feature flags."
+  },
+  {
+    "date": "2026-03-02",
+    "scope": "wiki",
+    "change": "Added configurable docs issue reporting via REACT_APP_DOCS_ISSUE_URL."
+  }
+]

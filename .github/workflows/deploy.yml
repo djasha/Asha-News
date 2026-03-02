@@ -16,27 +16,18 @@ jobs:
           cache: npm
           cache-dependency-path: server/package-lock.json
 
+      - name: Install frontend dependencies
+        run: npm ci
+
       - name: Install server dependencies
         run: npm ci
         working-directory: server
 
-      - name: Lint server
-        run: npx eslint . --format compact
-        working-directory: server
-
-      - name: Run server tests
-        run: npm test -- --passWithNoTests
-        working-directory: server
+      - name: Run release candidate gate
+        run: npm run release:check
         env:
-          NODE_ENV: test
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Build frontend
-        run: npm run build
-        env:
-          CI: false
+          AUTH_TOKEN: ${{ secrets.AUTH_SMOKE_TOKEN }}
+          REQUIRE_AUTH_SMOKE: "true"
 
   deploy:
     needs: lint-and-test

@@ -4,11 +4,11 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  DIRECTUS_URL = "http://168.231.111.192:8055"
+  BACKEND_URL = "http://localhost:3001"
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  to = "/.netlify/functions/api/:splat"
   status = 200
 
 [functions]

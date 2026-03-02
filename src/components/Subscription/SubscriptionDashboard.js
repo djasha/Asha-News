@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { buildAuthHeaders } from '../../utils/authHeaders';
 
 const SubscriptionDashboard = () => {
   const { isAuthenticated } = useAuth();
@@ -21,10 +22,9 @@ const SubscriptionDashboard = () => {
       setIsLoading(true);
       
       // Fetch subscription status
+      const authHeaders = await buildAuthHeaders();
       const subResponse = await fetch('/api/subscription/status', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('asha_token')}`
-        },
+        headers: authHeaders,
         credentials: 'include'
       });
       
@@ -36,9 +36,7 @@ const SubscriptionDashboard = () => {
 
       // Fetch usage statistics
       const usageResponse = await fetch('/api/subscription/usage', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('asha_token')}`
-        },
+        headers: authHeaders,
         credentials: 'include'
       });
       
@@ -60,11 +58,10 @@ const SubscriptionDashboard = () => {
     try {
       setActionLoading(true);
       
+      const authHeaders = await buildAuthHeaders();
       const response = await fetch('/api/subscription/create-portal-session', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('asha_token')}`
-        },
+        headers: authHeaders,
         credentials: 'include'
       });
       
@@ -92,11 +89,10 @@ const SubscriptionDashboard = () => {
     try {
       setActionLoading(true);
       
+      const authHeaders = await buildAuthHeaders();
       const response = await fetch('/api/subscription/cancel', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('asha_token')}`
-        },
+        headers: authHeaders,
         credentials: 'include'
       });
       
@@ -119,11 +115,10 @@ const SubscriptionDashboard = () => {
     try {
       setActionLoading(true);
       
+      const authHeaders = await buildAuthHeaders();
       const response = await fetch('/api/subscription/reactivate', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('asha_token')}`
-        },
+        headers: authHeaders,
         credentials: 'include'
       });
       

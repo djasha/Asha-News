@@ -19,6 +19,10 @@ class RSSProcessingService {
     this.enableScraping = process.env.RSS_ENABLE_CONTENT_SCRAPING !== 'false'; // default true
   }
 
+  getSourceUrl(source) {
+    return source?.rss_url || source?.url || null;
+  }
+
   /**
    * Process RSS feeds from enabled sources
    * @param {Array} rssSources - Array of RSS source objects from CMS
@@ -41,10 +45,15 @@ class RSSProcessingService {
 
     try {
       for (const source of rssSources) {
-        if (!source.enabled || !source.rss_url) continue;
+        const sourceUrl = this.getSourceUrl(source);
+        if (!source?.enabled || !sourceUrl) continue;
 
         try {
-          const feedResult = await this.processSingleFeed(source);
+          const feedResult = await this.processSingleFeed({
+            ...source,
+            url: sourceUrl,
+            rss_url: sourceUrl,
+          });
           results.processed_feeds++;
           results.new_articles += feedResult.new_articles;
           results.updated_articles += feedResult.updated_articles;
@@ -53,7 +62,7 @@ class RSSProcessingService {
           logger.error(`Failed to process feed ${source.name}:`, error);
           results.errors.push({
             source: source.name,
-            url: source.rss_url,
+            url: sourceUrl,
             error: error.message
           });
         }
@@ -72,7 +81,11 @@ class RSSProcessingService {
    * @returns {Object} Processing results for this feed
    */
   async processSingleFeed(source) {
-    const feed = await this.parser.parseURL(source.rss_url);
+    const sourceUrl = this.getSourceUrl(source);
+    if (!sourceUrl) {
+      throw new Error('RSS source URL is required');
+    }
+    const feed = await this.parser.parseURL(sourceUrl);
     const results = {
       source_name: source.name,
       new_articles: 0,

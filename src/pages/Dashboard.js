@@ -4,6 +4,7 @@ import { ArrowLeftIcon, LinkIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import useUserRole from '../hooks/useUserRole';
 import { API_BASE } from '../config/api';
+import { buildAuthHeaders } from '../utils/authHeaders';
 
 // Bias Donut Chart Component
 const BiasDonutChart = ({ data }) => {
@@ -297,13 +298,19 @@ const AccountInformationTab = ({ user }) => {
         // Update Firebase profile
         const { firebaseAuthService } = await import('../services/firebase');
         await firebaseAuthService.updateUserProfile({ displayName: formData.name });
+        const token = await firebaseAuthService.getUserToken();
+        const headers = await buildAuthHeaders({
+          'Content-Type': 'application/json'
+        }, token);
         
         // Update backend
         await fetch(`${API_BASE}/users`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
+            provider_uid: authUser?.id,
             firebase_uid: authUser?.id,
+            provider: 'supabase',
             email: authUser?.email,
             displayName: formData.name,
             firstName: formData.name.split(' ')[0],

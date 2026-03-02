@@ -1,16 +1,43 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
-const DirectusService = require('../services/directusService');
+const contentRepository = require('../services/contentRepository');
 const Parser = require('rss-parser');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
+const strictAuth = process.env.NODE_ENV === 'production' || process.env.STRICT_AUTH === 'true';
 
-const directusService = new DirectusService();
 const parser = new Parser({
   timeout: 10000,
   headers: {
     'User-Agent': 'Mozilla/5.0 (compatible; AshaNews/1.0; +https://asha.news)'
   }
 });
+
+const getSourceUrl = (source) => source?.rss_url || source?.url || null;
+const RSS_SOURCE_ALLOWED_FIELDS = new Set([
+  'name',
+  'url',
+  'enabled',
+  'political_bias',
+  'category',
+  'description',
+  'status',
+  'sort',
+  'last_fetched',
+]);
+
+function pickAllowedSourceFields(input = {}) {
+  const out = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (RSS_SOURCE_ALLOWED_FIELDS.has(key)) out[key] = value;
+  }
+  return out;
+}
+
+const requireAdminIfStrict = (req, res, next) => {
+  if (!strictAuth) return next();
+  return authenticateToken(req, res, () => requireAdmin(req, res, next));
+};
 
 /**
  * GET /api/rss/sources
@@ -32,7 +59,7 @@ router.get('/sources', async (req, res) => {
       filter.political_bias = bias;
     }
 
-    const sources = await directusService.getRSSSources(filter);
+    const sources = await contentRepository.getRSSSources(filter);
     
     res.json({
       success: true,
@@ -53,10 +80,10 @@ router.get('/sources', async (req, res) => {
  * GET /api/rss/sources/:id
  * Get specific RSS source by ID
  */
-router.get('/sources/:id', async (req, res) => {
+router.get('/sources/:id((?!stats$).+)', async (req, res) => {
   try {
     const { id } = req.params;
-    const source = await directusService.getRSSSourceById(id);
+    const source = await contentRepository.getRSSSourceById(id);
     
     if (!source) {
       return res.status(404).json({
@@ -83,21 +110,22 @@ router.get('/sources/:id', async (req, res) => {
  * POST /api/rss/sources
  * Create new RSS source
  */
-router.post('/sources', async (req, res) => {
+router.post('/sources', requireAdminIfStrict, async (req, res) => {
   try {
     const sourceData = req.body;
+    const sourceUrl = sourceData.rss_url || sourceData.url;
     
     // Validate required fields
-    if (!sourceData.name || !sourceData.rss_url) {
+    if (!sourceData.name || !sourceUrl) {
       return res.status(400).json({
         success: false,
-        error: 'Name and RSS URL are required'
+        error: 'Name and RSS URL are required (rss_url or url)'
       });
     }
 
     // Validate URL format
     try {
-      new URL(sourceData.rss_url);
+      new URL(sourceUrl);
     } catch (err) {
       return res.status(400).json({
         success: false,
@@ -106,20 +134,18 @@ router.post('/sources', async (req, res) => {
     }
 
     // Set defaults
-    const newSource = {
+    const newSource = pickAllowedSourceFields({
       name: sourceData.name,
-      rss_url: sourceData.rss_url,
+      url: sourceUrl,
       category: sourceData.category || 'general',
       political_bias: sourceData.political_bias || 'center',
-      credibility_score: sourceData.credibility_score || 7,
-      region: sourceData.region || 'global',
       enabled: sourceData.enabled !== undefined ? sourceData.enabled : true,
-      fetch_frequency: sourceData.fetch_frequency || 30,
       description: sourceData.description || '',
-      status: 'active'
-    };
+      status: sourceData.status || 'active',
+      sort: Number.isFinite(Number(sourceData.sort)) ? Number(sourceData.sort) : 0,
+    });
 
-    const created = await directusService.createRSSSource(newSource);
+    const created = await contentRepository.createRSSSource(newSource);
     
     res.status(201).json({
       success: true,
@@ -140,15 +166,20 @@ router.post('/sources', async (req, res) => {
  * PUT /api/rss/sources/:id
  * Update RSS source
  */
-router.put('/sources/:id', async (req, res) => {
+router.put('/sources/:id', requireAdminIfStrict, async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    const updates = { ...(req.body || {}) };
+    if (updates.rss_url && !updates.url) {
+      updates.url = updates.rss_url;
+    }
+    delete updates.rss_url;
+    const sanitizedUpdates = pickAllowedSourceFields(updates);
 
     // Validate URL if provided
-    if (updates.rss_url) {
+    if (sanitizedUpdates.url) {
       try {
-        new URL(updates.rss_url);
+        new URL(sanitizedUpdates.url);
       } catch (err) {
         return res.status(400).json({
           success: false,
@@ -157,7 +188,7 @@ router.put('/sources/:id', async (req, res) => {
       }
     }
 
-    const updated = await directusService.updateRSSSource(id, updates);
+    const updated = await contentRepository.updateRSSSource(id, sanitizedUpdates);
     
     if (!updated) {
       return res.status(404).json({
@@ -185,11 +216,11 @@ router.put('/sources/:id', async (req, res) => {
  * DELETE /api/rss/sources/:id
  * Delete RSS source
  */
-router.delete('/sources/:id', async (req, res) => {
+router.delete('/sources/:id', requireAdminIfStrict, async (req, res) => {
   try {
     const { id } = req.params;
     
-    await directusService.deleteRSSSource(id);
+    await contentRepository.deleteRSSSource(id);
     
     res.json({
       success: true,
@@ -209,20 +240,20 @@ router.delete('/sources/:id', async (req, res) => {
  * POST /api/rss/test
  * Test RSS feed connectivity and validity
  */
-router.post('/test', async (req, res) => {
+router.post('/test', requireAdminIfStrict, async (req, res) => {
   try {
-    const { rss_url } = req.body;
+    const rssUrl = getSourceUrl(req.body || {});
 
-    if (!rss_url) {
+    if (!rssUrl) {
       return res.status(400).json({
         success: false,
-        error: 'RSS URL is required'
+        error: 'RSS URL is required (rss_url or url)'
       });
     }
 
     // Validate URL format
     try {
-      new URL(rss_url);
+      new URL(rssUrl);
     } catch (err) {
       return res.status(400).json({
         success: false,
@@ -230,10 +261,10 @@ router.post('/test', async (req, res) => {
       });
     }
 
-    logger.info(`[RSS Test] Testing feed: ${rss_url}`);
+    logger.info(`[RSS Test] Testing feed: ${rssUrl}`);
 
     // Try to parse the RSS feed
-    const feed = await parser.parseURL(rss_url);
+    const feed = await parser.parseURL(rssUrl);
 
     if (!feed || !feed.items || feed.items.length === 0) {
       return res.json({
@@ -271,10 +302,10 @@ router.post('/test', async (req, res) => {
  * POST /api/rss/sources/:id/fetch
  * Manually trigger fetch for specific source
  */
-router.post('/sources/:id/fetch', async (req, res) => {
+router.post('/sources/:id/fetch', requireAdminIfStrict, async (req, res) => {
   try {
     const { id } = req.params;
-    const source = await directusService.getRSSSourceById(id);
+    const source = await contentRepository.getRSSSourceById(id);
     
     if (!source) {
       return res.status(404).json({
@@ -291,7 +322,15 @@ router.post('/sources/:id/fetch', async (req, res) => {
     }
 
     // Fetch articles from the RSS feed
-    const feed = await parser.parseURL(source.rss_url);
+    const sourceUrl = getSourceUrl(source);
+    if (!sourceUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'RSS source is missing URL'
+      });
+    }
+
+    const feed = await parser.parseURL(sourceUrl);
     const articleCount = feed.items.length;
 
     // TODO: Process and save articles to Directus
@@ -304,7 +343,8 @@ router.post('/sources/:id/fetch', async (req, res) => {
       source: {
         id: source.id,
         name: source.name,
-        rss_url: source.rss_url
+        url: sourceUrl,
+        rss_url: sourceUrl
       }
     });
   } catch (error) {
@@ -323,7 +363,7 @@ router.post('/sources/:id/fetch', async (req, res) => {
  */
 router.get('/sources/stats', async (req, res) => {
   try {
-    const sources = await directusService.getRSSSources();
+    const sources = await contentRepository.getRSSSources();
     
     const stats = {
       total: sources.length,

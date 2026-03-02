@@ -1,11 +1,26 @@
-const { createProxyMiddleware } = require('http-proxy-middleware');
-
 // Netlify function to proxy API requests to your backend
 exports.handler = async (event, context) => {
   const { path, httpMethod, headers, body } = event;
-  
-  // Extract the API path (remove /api prefix)
-  const apiPath = path.replace("nfp_9rhmJTJVxPKs3FZp7xF6FuUeggRAoS2F31b9", "");
+
+  if (httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      },
+      body: '',
+    };
+  }
+
+  // Supports both:
+  // /.netlify/functions/api/<route>
+  // /api/<route>
+  const strippedPath = path
+    .replace(/^\/\.netlify\/functions\/api/, '')
+    .replace(/^\/api/, '');
+  const apiPath = strippedPath.startsWith('/') || strippedPath === '' ? strippedPath : `/${strippedPath}`;
   
   // Your backend server URL (you'll need to deploy this separately or use serverless functions)
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
@@ -14,7 +29,9 @@ exports.handler = async (event, context) => {
     const response = await fetch(`${backendUrl}/api${apiPath}`, {
       method: httpMethod,
       headers: {
-        ...headers,
+        ...Object.fromEntries(
+          Object.entries(headers || {}).filter(([key]) => key.toLowerCase() !== 'host')
+        ),
         'Content-Type': 'application/json',
       },
       body: httpMethod !== 'GET' ? body : undefined,
@@ -27,7 +44,7 @@ exports.handler = async (event, context) => {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       },
       body: data,

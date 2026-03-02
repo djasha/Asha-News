@@ -3,12 +3,13 @@
  * Hybrid approach: API Ninja Article Extractor (primary) + Jina Reader (fallback)
  * Provides high-quality full article content extraction with caching
  */
+const logger = require('../utils/logger');
 
 class ArticleContentScraperService {
   constructor() {
     // API Ninja configuration
     this.apiNinjaUrl = 'https://api.api-ninjas.com/v1/article';
-    this.apiNinjaKey = process.env.API_NINJA_KEY || 'O/YtHZJo/Hf7uRkpvnxspg==EIqshcukCwyEg0LT';
+    this.apiNinjaKey = process.env.API_NINJA_KEY || '';
     
     // Jina Reader configuration (fallback)
     this.jinaReaderUrl = 'https://r.jina.ai';
@@ -109,6 +110,10 @@ class ArticleContentScraperService {
    * @returns {Promise<Object>} Article content
    */
   async scrapeWithApiNinja(url) {
+    if (!this.apiNinjaKey) {
+      throw new Error('API_NINJA_KEY is not configured');
+    }
+
     const apiUrl = `${this.apiNinjaUrl}?url=${encodeURIComponent(url)}`;
     
     const controller = new AbortController();

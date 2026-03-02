@@ -9,7 +9,8 @@ import {
     CreditCardIcon,
     RssIcon,
     Bars3Icon,
-    XMarkIcon
+    XMarkIcon,
+    ShieldExclamationIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -24,6 +25,7 @@ const AdminLayout = () => {
         { name: 'User Management', href: '/admin/users', icon: UsersIcon },
         { name: 'Content', href: '/admin/content', icon: NewspaperIcon },
         { name: 'RSS Sources', href: '/admin/rss', icon: RssIcon },
+        { name: 'Conflict Ops', href: '/admin/conflicts', icon: ShieldExclamationIcon },
         { name: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCardIcon },
     ];
 

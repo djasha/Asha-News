@@ -7,6 +7,7 @@ import AuthModal from "../Auth/AuthModal";
 import SubscriptionModal from "../Subscription/SubscriptionModal";
 import { useMenuSettings } from "../../hooks/useMenuSettings";
 import { useTheme } from "../../contexts/ThemeContext";
+import { CORE_NAV_ITEMS_DESKTOP, V1_CORE_ONLY } from "../../config/v1";
 
 const ResponsiveHeader = ({ onMenuToggle, isMenuOpen }) => {
   const navigate = useNavigate();
@@ -60,7 +61,12 @@ const ResponsiveHeader = ({ onMenuToggle, isMenuOpen }) => {
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      const encodedQuery = encodeURIComponent(searchQuery.trim());
+      if (V1_CORE_ONLY) {
+        navigate(`/ai-checker?query=${encodedQuery}`);
+      } else {
+        navigate(`/search?q=${encodedQuery}`);
+      }
       setIsSearchExpanded(false);
       setSearchQuery("");
     }
@@ -76,13 +82,7 @@ const ResponsiveHeader = ({ onMenuToggle, isMenuOpen }) => {
   };
 
   // Load desktop menu settings with fallback to defaults
-  const defaultNav = [
-    { label: "Home", path: "/", fontSize: "16", fontWeight: "500" },
-    { label: "Stories", path: "/stories", fontSize: "16", fontWeight: "500" },
-    { label: "For You", path: "/for-you", fontSize: "16", fontWeight: "500" },
-    { label: "Local", path: "/local", fontSize: "16", fontWeight: "500" },
-    { label: "Fact Checker", path: "/fact-check", fontSize: "16", fontWeight: "500" },
-  ];
+  const defaultNav = CORE_NAV_ITEMS_DESKTOP;
 
   const { data: menuData } = useMenuSettings('desktop');
   
@@ -189,7 +189,9 @@ const ResponsiveHeader = ({ onMenuToggle, isMenuOpen }) => {
             {/* Center: Desktop Navigation */}
             <nav className="flex items-center space-x-8">
               {navItems.map((item) => {
-                const isActive = location.pathname === item.path;
+                const isActive = location.pathname === item.path || (
+                  item.path === '/ai-checker' && location.pathname === '/fact-check'
+                );
                 return (
                   <button
                     key={item.path}
@@ -285,7 +287,7 @@ const ResponsiveHeader = ({ onMenuToggle, isMenuOpen }) => {
                     </button>
                   )}
                   <button
-                    onClick={() => navigate('/dashboard')}
+                    onClick={() => navigate(V1_CORE_ONLY ? '/preferences' : '/dashboard')}
                     className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-elevated-light dark:hover:bg-surface-elevated-dark transition-colors"
                   >
                     <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">

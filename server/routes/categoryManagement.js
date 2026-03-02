@@ -1,18 +1,24 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
-const DirectusService = require('../services/directusService');
-const directus = new DirectusService();
+const contentRepository = require('../services/contentRepository');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
+const strictAuth = process.env.NODE_ENV === 'production' || process.env.STRICT_AUTH === 'true';
+
+const requireAdminIfStrict = (req, res, next) => {
+  if (!strictAuth) return next();
+  return authenticateToken(req, res, () => requireAdmin(req, res, next));
+};
 
 /**
  * Get all categories
  */
 router.get('/', async (req, res) => {
   try {
-    // Try to fetch from Directus categories collection
+    // Try to fetch from categories collection
     let categories;
     try {
-      categories = await directus.getItems('categories', {
+      categories = await contentRepository.getItems('categories', {
         sort: ['order', 'name'],
         limit: -1
       });
@@ -31,7 +37,7 @@ router.get('/', async (req, res) => {
       ];
     }
     
-    res.json({ success: true, data: categories, source: Array.isArray(categories) && categories.length > 0 && categories[0].id !== 'politics' ? 'directus' : 'defaults' });
+    res.json({ success: true, data: categories, source: Array.isArray(categories) && categories.length > 0 && categories[0].id !== 'politics' ? 'repository' : 'defaults' });
   } catch (error) {
     logger.error({ err: error }, 'Get categories error');
     res.status(500).json({ error: error.message });
@@ -43,7 +49,7 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const category = await directus.getItemById('categories', req.params.id);
+    const category = await contentRepository.getItemById('categories', req.params.id);
     if (!category) {
       return res.status(404).json({ error: 'Category not found' });
     }
@@ -57,7 +63,7 @@ router.get('/:id', async (req, res) => {
 /**
  * Create new category
  */
-router.post('/', async (req, res) => {
+router.post('/', requireAdminIfStrict, async (req, res) => {
   try {
     // Validate required fields
     if (!req.body.name || !req.body.slug) {
@@ -76,7 +82,7 @@ router.post('/', async (req, res) => {
       featured: req.body.featured || false
     };
     
-    const category = await directus.createItem('categories', categoryData);
+    const category = await contentRepository.createItem('categories', categoryData);
     res.json({ success: true, data: category, message: 'Category created successfully' });
   } catch (error) {
     logger.error({ err: error }, 'Create category error');
@@ -87,9 +93,9 @@ router.post('/', async (req, res) => {
 /**
  * Update category
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAdminIfStrict, async (req, res) => {
   try {
-    const updated = await directus.updateItem('categories', req.params.id, req.body);
+    const updated = await contentRepository.updateItem('categories', req.params.id, req.body);
     res.json({ success: true, data: updated, message: 'Category updated successfully' });
   } catch (error) {
     logger.error({ err: error }, 'Update category error');
@@ -100,9 +106,9 @@ router.put('/:id', async (req, res) => {
 /**
  * Delete category
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAdminIfStrict, async (req, res) => {
   try {
-    await directus.deleteItem('categories', req.params.id);
+    await contentRepository.deleteItem('categories', req.params.id);
     res.json({ success: true, message: 'Category deleted successfully' });
   } catch (error) {
     logger.error({ err: error }, 'Delete category error');

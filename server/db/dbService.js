@@ -2,10 +2,11 @@
  * Database Service — drop-in replacement for DirectusService
  * Uses Drizzle ORM for direct PostgreSQL access (no Directus middleware).
  */
-const { eq, ilike, desc, asc, and, inArray, count } = require('drizzle-orm');
+const { eq, ilike, desc, asc, and, or, inArray, count } = require('drizzle-orm');
 const logger = require('../utils/logger');
 const { getDb } = require('./index');
 const schema = require('./schema');
+const queryBridge = require('./queryBridge');
 
 class DbService {
   get db() {
@@ -47,6 +48,45 @@ class DbService {
   async getArticles(options = {}) {
     try {
       const { limit = 50, offset = 0, category, source, status } = options;
+
+      if (!this.db) {
+        const filter = {};
+        if (status) filter.status = { _eq: status };
+        if (category) filter.category = { _contains: category };
+        if (source) filter.source_name = { _contains: source };
+
+        const rows = await this.getItems('articles', {
+          limit,
+          offset,
+          sort: '-published_at',
+          filter,
+        });
+
+        return (Array.isArray(rows) ? rows : []).map((article) => {
+          let summary = (article.summary || '').trim();
+          if (!summary || summary.length < 10) summary = (article.byline || '').trim();
+          if ((!summary || summary.length < 10) && article.content) {
+            summary = this.extractSummaryFromContent(article.content, 300);
+          }
+          if (summary.length > 350) summary = summary.substring(0, 347) + '...';
+          return {
+            id: article.id,
+            title: article.title || 'Untitled',
+            summary: summary || article.title,
+            content: article.content || '',
+            source_url: article.url || '',
+            source_name: article.source_name || article.author_name || 'Unknown Source',
+            category: article.category || 'General',
+            published_at: article.published_at || article.date_created,
+            political_bias: article.political_bias || 'center',
+            credibility_score: article.credibility_score || 0.7,
+            image_url: article.featured_image_alt,
+            breaking_news: article.breaking_news || false,
+            featured: article.featured || false,
+          };
+        });
+      }
+
       const conditions = [];
       if (status) conditions.push(eq(schema.articles.status, status));
       if (category) conditions.push(ilike(schema.articles.category, `%${category}%`));
@@ -92,6 +132,30 @@ class DbService {
   async getArticleCount(options = {}) {
     try {
       const { status, category, source } = options;
+
+      if (!this.db) {
+        const filter = {};
+        if (status) filter.status = { _eq: status };
+        if (category) filter.category = { _contains: category };
+        if (source) filter.source_name = { _contains: source };
+
+        const pageSize = 500;
+        let offset = 0;
+        let total = 0;
+        for (let i = 0; i < 200; i++) {
+          const rows = await this.getItems('articles', {
+            limit: pageSize,
+            offset,
+            filter,
+          });
+          const countPage = Array.isArray(rows) ? rows.length : 0;
+          total += countPage;
+          if (countPage < pageSize) break;
+          offset += pageSize;
+        }
+        return total;
+      }
+
       const conditions = [];
       if (status) conditions.push(eq(schema.articles.status, status));
       if (category) conditions.push(ilike(schema.articles.category, `%${category}%`));
@@ -111,6 +175,28 @@ class DbService {
 
   async getArticleById(articleId) {
     try {
+      if (!this.db) {
+        const article = await this.getItemById('articles', articleId);
+        if (!article) return null;
+        return {
+          id: article.id,
+          title: article.title || 'Untitled',
+          summary: article.summary || '',
+          content: article.content || '',
+          source_url: article.source_url || article.url || '',
+          source_name: article.source_name || 'Unknown Source',
+          category: article.category || 'General',
+          published_at: article.published_at || article.date_created,
+          bias_score: article.bias_score || 0.5,
+          political_bias: this.mapBiasScore(article.bias_score || 0.5),
+          author_name: article.author_name || 'Asha News',
+          image_url: article.image_url || article.featured_image_alt || null,
+          status: article.status || 'published',
+          date_created: article.date_created,
+          date_updated: article.date_updated,
+        };
+      }
+
       const [article] = await this.db
         .select()
         .from(schema.articles)
@@ -144,6 +230,23 @@ class DbService {
   async findArticleBySourceUrl(sourceUrl) {
     try {
       if (!sourceUrl) return null;
+
+      if (!this.db) {
+        const items = await this.getItems('articles', {
+          limit: 1,
+          filter: { url: { _eq: sourceUrl } },
+        });
+        const article = Array.isArray(items) ? items[0] : null;
+        if (!article) return null;
+        return {
+          id: article.id,
+          title: article.title,
+          source_name: article.source_name,
+          category: article.category,
+          summary: article.summary,
+        };
+      }
+
       const [article] = await this.db
         .select({
           id: schema.articles.id,
@@ -164,6 +267,10 @@ class DbService {
 
   async createArticle(articleData) {
     try {
+      if (!this.db) {
+        return this.createItem('articles', articleData);
+      }
+
       const [created] = await this.db
         .insert(schema.articles)
         .values(articleData)
@@ -177,6 +284,13 @@ class DbService {
 
   async updateArticleById(articleId, updates) {
     try {
+      if (!this.db) {
+        return this.updateItem('articles', articleId, {
+          ...updates,
+          date_updated: new Date().toISOString(),
+        });
+      }
+
       const [updated] = await this.db
         .update(schema.articles)
         .set({ ...updates, date_updated: new Date() })
@@ -218,6 +332,10 @@ class DbService {
 
   async deleteArticle(id) {
     try {
+      if (!this.db) {
+        return this.deleteItem('articles', id);
+      }
+
       await this.db.delete(schema.articles).where(eq(schema.articles.id, id));
       return true;
     } catch (error) {
@@ -410,16 +528,31 @@ class DbService {
 
   async getRSSSources(filter = {}) {
     try {
+      if (!this.db) {
+        const queryFilter = {};
+        if (filter.enabled !== undefined) queryFilter.enabled = { _eq: filter.enabled };
+        if (filter.status) queryFilter.status = { _eq: filter.status };
+        if (filter.category) queryFilter.category = { _eq: filter.category };
+        if (filter.political_bias) queryFilter.political_bias = { _eq: filter.political_bias };
+
+        return this.getItems('rss_sources', {
+          limit: 500,
+          sort: 'name',
+          filter: queryFilter,
+        });
+      }
+
       const conditions = [];
       if (filter.enabled !== undefined) conditions.push(eq(schema.rssSources.enabled, filter.enabled));
       if (filter.status) conditions.push(eq(schema.rssSources.status, filter.status));
+      if (filter.category) conditions.push(eq(schema.rssSources.category, filter.category));
+      if (filter.political_bias) conditions.push(eq(schema.rssSources.political_bias, filter.political_bias));
 
-      const rows = await this.db
+      return await this.db
         .select()
         .from(schema.rssSources)
         .where(conditions.length > 0 ? and(...conditions) : undefined)
         .orderBy(asc(schema.rssSources.name));
-      return rows;
     } catch (error) {
       logger.error('DbService getRSSSources error:', error.message);
       return [];
@@ -428,6 +561,10 @@ class DbService {
 
   async getRSSSourceById(id) {
     try {
+      if (!this.db) {
+        return this.getItemById('rss_sources', id);
+      }
+
       const [source] = await this.db
         .select()
         .from(schema.rssSources)
@@ -442,6 +579,10 @@ class DbService {
 
   async createRSSSource(sourceData) {
     try {
+      if (!this.db) {
+        return this.createItem('rss_sources', sourceData);
+      }
+
       const [created] = await this.db
         .insert(schema.rssSources)
         .values(sourceData)
@@ -455,6 +596,10 @@ class DbService {
 
   async updateRSSSource(id, updates) {
     try {
+      if (!this.db) {
+        return this.updateItem('rss_sources', id, updates);
+      }
+
       const [updated] = await this.db
         .update(schema.rssSources)
         .set(updates)
@@ -469,6 +614,10 @@ class DbService {
 
   async deleteRSSSource(id) {
     try {
+      if (!this.db) {
+        return this.deleteItem('rss_sources', id);
+      }
+
       await this.db.delete(schema.rssSources).where(eq(schema.rssSources.id, id));
       return true;
     } catch (error) {
@@ -492,8 +641,10 @@ class DbService {
       site_configuration: schema.siteConfiguration,
       feature_flags: schema.featureFlags,
       navigation_items: schema.navigationItems,
+      navigation_menus: schema.navigationItems,
       menu_items: schema.menuItems,
       topic_categories: schema.topicCategories,
+      categories: schema.topicCategories,
       homepage_sections: schema.homepageSections,
       breaking_news: schema.breakingNews,
       curated_collections: schema.curatedCollections,
@@ -505,17 +656,73 @@ class DbService {
       news_sources: schema.newsSources,
       trending_topics: schema.trendingTopics,
       users: schema.users,
+      app_users: schema.users,
+      user_preferences: schema.users,
       subscription_tiers: schema.subscriptionTiers,
       user_subscriptions: schema.userSubscriptions,
       api_configs: schema.apiConfigs,
       api_configurations: schema.apiConfigurations,
       refresh_tokens: schema.refreshTokens,
+      site_settings: schema.siteConfiguration,
+      pages: schema.pageContent,
     };
     return tableMap[collection];
   }
 
+  _buildFilterCondition(table, filter) {
+    if (!filter || typeof filter !== 'object') return undefined;
+
+    const conditions = [];
+
+    for (const [key, value] of Object.entries(filter)) {
+      if (key === '_or' && Array.isArray(value)) {
+        const orConditions = value
+          .map(item => this._buildFilterCondition(table, item))
+          .filter(Boolean);
+        if (orConditions.length > 0) {
+          conditions.push(or(...orConditions));
+        }
+        continue;
+      }
+
+      const column = table[key];
+      if (!column) continue;
+
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        if (Object.prototype.hasOwnProperty.call(value, '_eq')) {
+          conditions.push(eq(column, value._eq));
+        }
+        if (Object.prototype.hasOwnProperty.call(value, '_contains')) {
+          conditions.push(ilike(column, `%${value._contains}%`));
+        }
+        if (Object.prototype.hasOwnProperty.call(value, '_icontains')) {
+          conditions.push(ilike(column, `%${value._icontains}%`));
+        }
+        if (Object.prototype.hasOwnProperty.call(value, '_in') && Array.isArray(value._in)) {
+          conditions.push(inArray(column, value._in));
+        }
+        continue;
+      }
+
+      conditions.push(eq(column, value));
+    }
+
+    if (conditions.length === 0) return undefined;
+    if (conditions.length === 1) return conditions[0];
+    return and(...conditions);
+  }
+
   async createItem(collection, data) {
     try {
+      if (!this.db) {
+        const response = await queryBridge(`/items/${collection}`, {
+          method: 'POST',
+          body: JSON.stringify(data)
+        });
+        const payload = response?.data;
+        return Array.isArray(payload) ? payload[0] || null : payload || null;
+      }
+
       const table = this._getTable(collection);
       if (!table) throw new Error(`Unknown collection: ${collection}`);
       const [created] = await this.db.insert(table).values(data).returning();
@@ -528,6 +735,15 @@ class DbService {
 
   async updateItem(collection, id, data) {
     try {
+      if (!this.db) {
+        const response = await queryBridge(`/items/${collection}/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(data)
+        });
+        const payload = response?.data;
+        return Array.isArray(payload) ? payload[0] || null : payload || null;
+      }
+
       const table = this._getTable(collection);
       if (!table) throw new Error(`Unknown collection: ${collection}`);
       // Find the id column — assume first column named 'id'
@@ -542,6 +758,11 @@ class DbService {
 
   async deleteItem(collection, id) {
     try {
+      if (!this.db) {
+        await queryBridge(`/items/${collection}/${id}`, { method: 'DELETE' });
+        return true;
+      }
+
       const table = this._getTable(collection);
       if (!table) throw new Error(`Unknown collection: ${collection}`);
       await this.db.delete(table).where(eq(table.id, id));
@@ -554,6 +775,11 @@ class DbService {
 
   async getItemById(collection, id) {
     try {
+      if (!this.db) {
+        const response = await queryBridge(`/items/${collection}/${id}`);
+        return response?.data || null;
+      }
+
       const table = this._getTable(collection);
       if (!table) throw new Error(`Unknown collection: ${collection}`);
       const [item] = await this.db.select().from(table).where(eq(table.id, id)).limit(1);
@@ -566,16 +792,50 @@ class DbService {
 
   async getItems(collection, options = {}) {
     try {
+      if (!this.db) {
+        const { limit = 100, offset = 0, sort, filter } = options;
+        const params = new URLSearchParams();
+        params.set('limit', String(limit));
+        params.set('offset', String(offset));
+
+        const sortValue = Array.isArray(sort) ? sort[0] : sort;
+        if (sortValue) params.set('sort', String(sortValue));
+
+        if (filter && typeof filter === 'object') {
+          for (const [key, value] of Object.entries(filter)) {
+            if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+            if (Object.prototype.hasOwnProperty.call(value, '_eq')) {
+              params.set(`filter[${key}][_eq]`, String(value._eq));
+            }
+            if (Object.prototype.hasOwnProperty.call(value, '_contains')) {
+              params.set(`filter[${key}][_contains]`, String(value._contains));
+            }
+            if (Object.prototype.hasOwnProperty.call(value, '_icontains')) {
+              params.set(`filter[${key}][_icontains]`, String(value._icontains));
+            }
+          }
+        }
+
+        const response = await queryBridge(`/items/${collection}?${params.toString()}`);
+        return response?.data || [];
+      }
+
       const table = this._getTable(collection);
       if (!table) throw new Error(`Unknown collection: ${collection}`);
-      const { limit = 100, offset = 0, sort } = options;
+      const { limit = 100, offset = 0, sort, filter } = options;
 
       let query = this.db.select().from(table);
 
+      const whereCondition = this._buildFilterCondition(table, filter);
+      if (whereCondition) {
+        query = query.where(whereCondition);
+      }
+
       // Basic sort support
-      if (sort && table[sort.replace('-', '')]) {
-        const colName = sort.replace('-', '');
-        query = query.orderBy(sort.startsWith('-') ? desc(table[colName]) : asc(table[colName]));
+      const sortValue = Array.isArray(sort) ? sort[0] : sort;
+      if (sortValue && table[sortValue.replace('-', '')]) {
+        const colName = sortValue.replace('-', '');
+        query = query.orderBy(sortValue.startsWith('-') ? desc(table[colName]) : asc(table[colName]));
       }
 
       const rows = await query.limit(limit).offset(offset);

@@ -2,9 +2,8 @@ const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
 const EventRegistryService = require('../services/eventRegistryService');
-const DirectusService = require('../services/directusService');
+const contentRepository = require('../services/contentRepository');
 
-const directusService = new DirectusService();
 
 /**
  * POST /api/vendors/event-registry/test
@@ -13,7 +12,7 @@ const directusService = new DirectusService();
  *  - suggestConcept (1)
  *  - getEventsByConcept (1)
  *  - getEventArticles (1)
- * Optional: persist to Directus and create a small cluster.
+ * Optional: persist to content repository and create a small cluster.
  */
 router.post('/event-registry/test', async (req, res) => {
   try {
@@ -87,7 +86,7 @@ router.post('/event-registry/test', async (req, res) => {
         // Save limited articles and create a small cluster
         for (const item of (articles || []).slice(0, maxArticles)) {
           try {
-            const saved = await directusService.upsertArticleBySourceUrl({
+            const saved = await contentRepository.upsertArticleBySourceUrl({
               title: item?.title || item?.titleEng || 'Untitled',
               summary: item?.summary || '',
               content: item?.body || '',
@@ -99,22 +98,22 @@ router.post('/event-registry/test', async (req, res) => {
             });
             if (saved?.id) savedIds.push(saved.id);
           } catch (e) {
-            logger.error({ err: error }, 'Vendors test upsert error');
+            logger.error({ err: e }, 'Vendors test upsert error');
 
           }
         }
         if (savedIds.length > 0) {
-          const savedCluster = await directusService.saveCluster({
+          const savedCluster = await contentRepository.saveCluster({
             cluster_title: event?.title || `Topic: ${topic}`,
             cluster_summary: `EventRegistry test for topic '${topic}'.`,
             article_count: savedIds.length,
             status: 'active'
           });
           clusterId = savedCluster?.id || null;
-          if (clusterId) await directusService.saveClusterArticles(clusterId, savedIds);
+          if (clusterId) await contentRepository.saveClusterArticles(clusterId, savedIds);
         }
       } catch (e) {
-        logger.error({ err: error }, 'Vendors test cluster persist error');
+        logger.error({ err: e }, 'Vendors test cluster persist error');
 
       }
     }

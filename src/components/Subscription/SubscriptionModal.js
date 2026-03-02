@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { buildAuthHeaders } from '../../utils/authHeaders';
 
 const SubscriptionModal = ({ isOpen, onClose, defaultPlan = 'premium' }) => {
   const { isAuthenticated } = useAuth();
@@ -56,12 +57,12 @@ const SubscriptionModal = ({ isOpen, onClose, defaultPlan = 'premium' }) => {
 
     try {
       const plan = plans.find(p => p.id === planId);
+      const headers = await buildAuthHeaders({
+        'Content-Type': 'application/json'
+      });
       const response = await fetch('/api/subscription/create-checkout-session', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('asha_token')}`
-        },
+        headers,
         body: JSON.stringify({
           priceId: plan.priceId
         }),

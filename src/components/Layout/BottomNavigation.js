@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMenuSettings } from '../../hooks/useMenuSettings';
+import { CORE_NAV_ITEMS_MOBILE } from '../../config/v1';
 
 const BottomNavigation = () => {
   const navigate = useNavigate();
@@ -61,17 +62,21 @@ const BottomNavigation = () => {
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
+    ),
+    chart: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3v18h18M7 14l3-3 3 2 4-5" />
+      </svg>
+    ),
+    document: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h8l5 5v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z" />
+      </svg>
     )
   };
 
   // Default fallback
-  const defaultNavItems = [
-    { label: 'News', path: '/', icon: 'newspaper' },
-    { label: 'Stories', path: '/stories', icon: 'layers' },
-    { label: 'Search', path: '/search', icon: 'search' },
-    { label: 'Fact Checker', path: '/fact-check', icon: 'eye' },
-    { label: 'Local', path: '/local', icon: 'location' }
-  ];
+  const defaultNavItems = CORE_NAV_ITEMS_MOBILE;
 
   const navItems = menuData 
     ? menuData
@@ -83,7 +88,9 @@ const BottomNavigation = () => {
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface-elevated-light dark:bg-surface-elevated-dark border-t border-primary-200/20 dark:border-primary-700/20 z-40 pb-safe">
       <div className="flex items-center justify-around px-2 py-2">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive = location.pathname === item.path || (
+            item.path === '/ai-checker' && location.pathname === '/fact-check'
+          );
           return (
             <button
               key={item.path}

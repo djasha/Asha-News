@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useNavigation as useCMSNavigation } from '../../hooks/useCMSData';
+import { CORE_NAV_ITEMS_DESKTOP } from '../../config/v1';
 
 const Section = ({ title, children }) => (
   <div>
@@ -76,16 +77,16 @@ const SiteFooter = () => {
             </p>
             <div className="flex items-center gap-3 mt-4">
               <button
-                onClick={() => navigate("/search")}
+                onClick={() => navigate("/")}
                 className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm"
               >
-                Search
+                Home Feed
               </button>
               <button
-                onClick={() => navigate("/fact-check")}
+                onClick={() => navigate("/ai-checker")}
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 text-text-primary-light dark:text-text-primary-dark rounded-lg text-sm"
               >
-                Fact Checker
+                AI Checker
               </button>
             </div>
           </div>
@@ -93,9 +94,6 @@ const SiteFooter = () => {
           <Section title="Company">
             <li>
               <FooterLink to="/about">About Us</FooterLink>
-            </li>
-            <li>
-              <FooterLink to="/bias-methodology">How We Analyze</FooterLink>
             </li>
             <li>
               <FooterLink to="/contact">Contact</FooterLink>
@@ -116,32 +114,31 @@ const SiteFooter = () => {
           )}
 
           <Section title="Product">
-            <li>
-              <FooterLink to="/stories">Stories</FooterLink>
-            </li>
-            <li>
-              <FooterLink to="/features">Features</FooterLink>
-            </li>
-            <li>
-              <FooterLink to="/sources">Sources</FooterLink>
-            </li>
-            <li>
-              <FooterLink to="/fact-check">Fact Checker</FooterLink>
-            </li>
-            <li>
-              <FooterLink to="/api">API</FooterLink>
-            </li>
+            {CORE_NAV_ITEMS_DESKTOP.map((item) => (
+              <li key={item.path}>
+                <FooterLink to={item.path}>{item.label}</FooterLink>
+              </li>
+            ))}
           </Section>
 
           <Section title="Resources">
             <li>
-              <FooterLink to="/blog">Blog</FooterLink>
+              <FooterLink to="/wiki">Wiki</FooterLink>
             </li>
             <li>
-              <FooterLink to="/for-you">For You</FooterLink>
+              <FooterLink to="/api">API</FooterLink>
             </li>
             <li>
-              <FooterLink to="/local">Local</FooterLink>
+              <FooterLink to="/wiki/conflict-ops">Conflict Ops Wiki</FooterLink>
+            </li>
+            <li>
+              <FooterLink to="/wiki/ai-checker">AI Checker Wiki</FooterLink>
+            </li>
+            <li>
+              <FooterLink to="/wiki/markets">Markets Wiki</FooterLink>
+            </li>
+            <li>
+              <FooterLink to="/wiki/agent-api">Agent API Wiki</FooterLink>
             </li>
             <li>
               <FooterLink to="/rss.xml" external>

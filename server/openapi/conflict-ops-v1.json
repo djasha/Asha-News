@@ -1,0 +1,435 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Asha News Conflict Ops API",
+    "version": "1.0.0",
+    "description": "Conflict operations dashboard, autonomy status, review queues, and related analytics endpoints."
+  },
+  "servers": [
+    {
+      "url": "/api/conflicts"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "InternalKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Internal-Key"
+      }
+    },
+    "schemas": {
+      "Event": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "conflict": { "type": "string" },
+          "event_date": { "type": "string", "format": "date-time" },
+          "source_name": { "type": "string" },
+          "source_tier": { "type": "string", "enum": ["official", "wire", "major", "other"] },
+          "actors": { "type": "array", "items": { "type": "string" } },
+          "fatalities_total": { "type": "integer" },
+          "injured_total": { "type": "integer" },
+          "ids_released_count": { "type": "integer" },
+          "verification_status": { "type": "string" },
+          "confidence": { "type": "number" }
+        }
+      },
+      "Forecast": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "conflict": { "type": "string" },
+          "horizon_hours": { "type": "integer" },
+          "scenario_probabilities": {
+            "type": "object",
+            "properties": {
+              "escalation": { "type": "number" },
+              "stable": { "type": "number" },
+              "de_escalation": { "type": "number" }
+            }
+          },
+          "calibration_score": { "type": "number" },
+          "calibration_note": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      },
+      "Theory": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "conflict": { "type": "string" },
+          "thesis": { "type": "string" },
+          "supporting_evidence": { "type": "array", "items": { "type": "object" } },
+          "counter_evidence": { "type": "array", "items": { "type": "object" } },
+          "uncertainty": { "type": "string" },
+          "confidence": { "type": "number" },
+          "status": { "type": "string" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "const": false },
+          "error": { "type": "string" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/openapi": {
+      "get": {
+        "summary": "Get this OpenAPI document",
+        "responses": {
+          "200": {
+            "description": "OpenAPI JSON"
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "summary": "List conflict events",
+        "parameters": [
+          { "name": "conflict", "in": "query", "schema": { "type": "string" } },
+          { "name": "days", "in": "query", "schema": { "type": "integer" } },
+          { "name": "verification", "in": "query", "schema": { "type": "string" } },
+          { "name": "source_tier", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+          { "name": "include_identities", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } },
+                    "total": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "summary": "Get aggregate conflict stats and comparison",
+        "description": "Returns verified-first aggregate metrics including actor/location counts, weapon & technology taxonomy rollups, and official announcement breakdowns.",
+        "parameters": [
+          { "name": "conflict", "in": "query", "schema": { "type": "string" } },
+          { "name": "days", "in": "query", "schema": { "type": "integer" } },
+          { "name": "verification", "in": "query", "schema": { "type": "string" } },
+          { "name": "source_tier", "in": "query", "schema": { "type": "string" } },
+          { "name": "compare_mode", "in": "query", "schema": { "type": "string" } },
+          { "name": "compare_left", "in": "query", "schema": { "type": "string" } },
+          { "name": "compare_right", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stats payload"
+          }
+        }
+      }
+    },
+    "/related-news": {
+      "get": {
+        "summary": "Get ranked related news with explainable signals",
+        "parameters": [
+          { "name": "conflict", "in": "query", "schema": { "type": "string" } },
+          { "name": "days", "in": "query", "schema": { "type": "integer" } },
+          { "name": "verification", "in": "query", "schema": { "type": "string" } },
+          { "name": "source_tier", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Related news payload" }
+        }
+      }
+    },
+    "/forecasts": {
+      "get": {
+        "summary": "List forecast cards",
+        "description": "Returns published forecast cards. For non-admin/non-internal callers, returns an empty list when feature flag `conflict_ops_forecast_public_v1` is disabled.",
+        "parameters": [
+          { "name": "conflict", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+          { "name": "include_draft", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Forecast list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Forecast" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/theories": {
+      "get": {
+        "summary": "List theory cards",
+        "description": "Returns analyst theory cards. For non-admin/non-internal callers, returns an empty list when feature flag `conflict_ops_theory_public_v1` is disabled.",
+        "parameters": [
+          { "name": "conflict", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+          { "name": "include_draft", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Theory list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Theory" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/autonomy/status": {
+      "get": {
+        "summary": "Get autonomy status and trends",
+        "security": [
+          { "BearerAuth": [] },
+          { "InternalKey": [] }
+        ],
+        "responses": {
+          "200": { "description": "Autonomy status payload" },
+          "401": { "description": "Authentication required" }
+        }
+      }
+    },
+    "/autonomy/run": {
+      "post": {
+        "summary": "Trigger autonomy cycle",
+        "security": [
+          { "BearerAuth": [] },
+          { "InternalKey": [] }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "force": { "type": "boolean" },
+                  "shadowMode": { "type": "boolean" },
+                  "conflict": { "type": "string" },
+                  "limit": { "type": "integer" },
+                  "async": {
+                    "type": "boolean",
+                    "description": "When true, starts run in background and returns 202 accepted response."
+                  },
+                  "maxAgentMs": {
+                    "type": "integer",
+                    "minimum": 1000,
+                    "maximum": 300000,
+                    "description": "Per-agent execution budget in milliseconds."
+                  },
+                  "maxCycleMs": {
+                    "type": "integer",
+                    "minimum": 5000,
+                    "maximum": 900000,
+                    "description": "Total autonomy cycle budget in milliseconds."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Autonomy cycle result" },
+          "202": { "description": "Autonomy cycle accepted and running in background" }
+        }
+      }
+    },
+    "/autonomy/runs": {
+      "get": {
+        "summary": "List recent manual autonomy runs",
+        "security": [
+          { "BearerAuth": [] },
+          { "InternalKey": [] }
+        ],
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } },
+          { "name": "include_result", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": { "description": "Tracked autonomy runs" }
+        }
+      }
+    },
+    "/autonomy/runs/reconcile": {
+      "post": {
+        "summary": "Reconcile stale running agent runs",
+        "security": [
+          { "BearerAuth": [] },
+          { "InternalKey": [] }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dry_run": { "type": "boolean" },
+                  "stale_after_minutes": { "type": "integer", "minimum": 5, "maximum": 10080 },
+                  "stale_after_ms": { "type": "integer", "minimum": 300000, "maximum": 604800000 },
+                  "limit": { "type": "integer", "minimum": 1, "maximum": 5000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Reconciliation summary" }
+        }
+      }
+    },
+    "/autonomy/runs/{triggerId}": {
+      "get": {
+        "summary": "Get tracked manual autonomy run by trigger ID",
+        "security": [
+          { "BearerAuth": [] },
+          { "InternalKey": [] }
+        ],
+        "parameters": [
+          { "name": "triggerId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "include_result", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": { "description": "Tracked run details" },
+          "404": { "description": "Run not found" }
+        }
+      }
+    },
+    "/sources/candidates": {
+      "get": {
+        "summary": "List source candidate queue",
+        "security": [
+          { "BearerAuth": [] },
+          { "InternalKey": [] }
+        ],
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Candidate list" }
+        }
+      }
+    },
+    "/sources/candidates/{id}/approve": {
+      "post": {
+        "summary": "Approve source candidate",
+        "security": [
+          { "BearerAuth": [] },
+          { "InternalKey": [] }
+        ],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Candidate updated" }
+        }
+      }
+    },
+    "/sources/candidates/{id}/reject": {
+      "post": {
+        "summary": "Reject source candidate",
+        "security": [
+          { "BearerAuth": [] },
+          { "InternalKey": [] }
+        ],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Candidate updated" }
+        }
+      }
+    },
+    "/reviews/queue": {
+      "get": {
+        "summary": "Get conflict event review queue",
+        "security": [
+          { "BearerAuth": [] },
+          { "InternalKey": [] }
+        ],
+        "responses": {
+          "200": { "description": "Review queue" }
+        }
+      }
+    },
+    "/reviews/{eventId}": {
+      "post": {
+        "summary": "Verify or reject an event",
+        "security": [
+          { "BearerAuth": [] },
+          { "InternalKey": [] }
+        ],
+        "parameters": [
+          { "name": "eventId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["action"],
+                "properties": {
+                  "action": { "type": "string", "enum": ["verify", "reject"] },
+                  "reason": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Review update result" },
+          "400": { "description": "Validation error" }
+        }
+      }
+    },
+    "/ingest/from-articles": {
+      "post": {
+        "summary": "Run article-to-conflict ingestion",
+        "security": [
+          { "BearerAuth": [] },
+          { "InternalKey": [] }
+        ],
+        "responses": {
+          "200": { "description": "Ingestion result" }
+        }
+      }
+    }
+  }
+}

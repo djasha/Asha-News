@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { useLocation } from 'react-router-dom';
 import ArticleFactChecker from '../components/FactCheck/ArticleFactChecker';
 import SocialMediaChecker from '../components/FactCheck/SocialMediaChecker';
 import BatchFactChecker from '../components/FactCheck/BatchFactChecker';
 import { API_BASE } from '../config/api';
 
 const FactCheckerPage = () => {
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -17,37 +19,46 @@ const FactCheckerPage = () => {
   const [isLoadingFeed, setIsLoadingFeed] = useState(false);
   const [savedClaims, setSavedClaims] = useState([]);
   const [checkHistory, setCheckHistory] = useState([]);
-  const [cmsArticles, setCmsArticles] = useState([]);
-  const [isLoadingCms, setIsLoadingCms] = useState(false);
 
   const siteUrl = process.env.REACT_APP_SITE_URL || 'https://asha.news';
 
-  useEffect(() => {
-    loadRecentClaims();
-    loadCmsArticles();
+  const safeFetch = useCallback(async (url, options) => {
+    try {
+      return await Promise.resolve(fetch(url, options));
+    } catch (_) {
+      return undefined;
+    }
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const query = params.get('query');
+    if (query) {
+      setSearchQuery(query);
+    }
+  }, [location.search]);
+
   // Load recent claims using Google Fact Check API with Perplexity fallback
-  const loadRecentClaims = async () => {
+  const loadRecentClaims = useCallback(async () => {
     setIsLoadingFeed(true);
     try {
       const apiBaseUrl = API_BASE;
       
       // Try Google Fact Check API first
-      let response = await fetch(`${apiBaseUrl}/fact-check/recent-claims?pageSize=10`);
+      let response = await safeFetch(`${apiBaseUrl}/fact-check/recent-claims?pageSize=10`);
       
-      if (!response.ok) {
+      if (!response || !response.ok) {
         // Fallback to Google search
-        response = await fetch(`${apiBaseUrl}/fact-check/google-search?query=covid&pageSize=10`);
+        response = await safeFetch(`${apiBaseUrl}/fact-check/google-search?query=covid&pageSize=10`);
       }
       
-      if (response.ok) {
+      if (response && response.ok) {
         const data = await response.json();
         const claims = data.claims || data.results || [];
         setRecentClaims(claims);
       } else {
         // Final fallback to Perplexity
-        const perplexityResponse = await fetch(`${apiBaseUrl}/fact-check/perplexity-search`, {
+        const perplexityResponse = await safeFetch(`${apiBaseUrl}/fact-check/perplexity-search`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -56,7 +67,7 @@ const FactCheckerPage = () => {
           })
         });
         
-        if (perplexityResponse.ok) {
+        if (perplexityResponse && perplexityResponse.ok) {
           const perplexityData = await perplexityResponse.json();
           setRecentClaims(perplexityData.results?.slice(0, 5) || []);
         }
@@ -67,29 +78,11 @@ const FactCheckerPage = () => {
     } finally {
       setIsLoadingFeed(false);
     }
-  };
+  }, [safeFetch]);
 
-  // Load CMS articles with fact-check status
-  const loadCmsArticles = async () => {
-    setIsLoadingCms(true);
-    try {
-      const apiBaseUrl = API_BASE;
-      const response = await fetch(`${apiBaseUrl}/cms/articles?limit=20&sortBy=date`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        const articlesWithFactCheck = data.articles?.filter(article => 
-          article.fact_check_status && article.fact_check_status !== 'unverified'
-        ) || [];
-        setCmsArticles(articlesWithFactCheck);
-      }
-    } catch (error) {
-      console.error('Error loading CMS articles:', error);
-      setCmsArticles([]);
-    } finally {
-      setIsLoadingCms(false);
-    }
-  };
+  useEffect(() => {
+    loadRecentClaims();
+  }, [loadRecentClaims]);
 
   // Handle unified search (Google Fact Check API + Perplexity fallback)
   const handleSearch = async () => {
@@ -334,15 +327,6 @@ const FactCheckerPage = () => {
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-        </svg>
-      )
-    },
-    {
-      id: 'cms',
-      name: 'CMS Articles',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h10M7 11h10M7 15h6M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
         </svg>
       )
     },
@@ -817,77 +801,6 @@ const FactCheckerPage = () => {
                   <h3 className="mt-2 text-sm font-medium text-text-primary-light dark:text-text-primary-dark">No saved claims</h3>
                   <p className="mt-1 text-sm text-text-secondary-light dark:text-text-secondary-dark">
                     Save interesting claims from search results to review later.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* CMS Articles Tab */}
-          {activeTab === 'cms' && (
-            <div className="bg-surface-light dark:bg-surface-dark rounded-lg p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">
-                  CMS Articles with Fact-Check Status
-                </h3>
-                <button
-                  onClick={loadCmsArticles}
-                  disabled={isLoadingCms}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-sm font-medium rounded-lg transition-colors duration-200 disabled:cursor-not-allowed"
-                >
-                  {isLoadingCms ? 'Loading...' : 'Refresh'}
-                </button>
-              </div>
-
-              {isLoadingCms ? (
-                <div className="text-center py-8">
-                  <svg className="w-8 h-8 animate-spin mx-auto text-blue-600" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <p className="mt-2 text-text-secondary-light dark:text-text-secondary-dark">Loading CMS articles...</p>
-                </div>
-              ) : cmsArticles.length > 0 ? (
-                <div className="space-y-4">
-                  {cmsArticles.map((article, index) => (
-                    <div key={article.id || index} className="bg-surface-elevated-light dark:bg-surface-elevated-dark rounded-lg p-4 border border-gray-200 dark:border-gray-600">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-medium text-text-primary-light dark:text-text-primary-dark">
-                          {article.title}
-                        </h4>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          article.fact_check_status === 'verified' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                          article.fact_check_status === 'disputed' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                          'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                        }`}>
-                          {article.fact_check_status}
-                        </span>
-                      </div>
-                      {article.summary && (
-                        <p className="text-text-secondary-light dark:text-text-secondary-dark text-sm mb-2">
-                          {article.summary.substring(0, 150)}...
-                        </p>
-                      )}
-                      <div className="flex items-center gap-4 text-sm text-text-secondary-light dark:text-text-secondary-dark">
-                        <span>Published: {new Date(article.date).toLocaleDateString()}</span>
-                        {article.political_bias && (
-                          <span>Bias: {article.political_bias}</span>
-                        )}
-                        {article.confidence_score && (
-                          <span>Confidence: {Math.round(article.confidence_score * 100)}%</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <h3 className="mt-2 text-sm font-medium text-text-primary-light dark:text-text-primary-dark">No CMS articles found</h3>
-                  <p className="mt-1 text-sm text-text-secondary-light dark:text-text-secondary-dark">
-                    No articles with fact-check status available.
                   </p>
                 </div>
               )}

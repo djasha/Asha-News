@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { V1_CORE_ONLY } from '../../config/v1';
 
 const BreakingNewsAlert = () => {
   const [breakingNews, setBreakingNews] = useState([]);
@@ -8,10 +9,33 @@ const BreakingNewsAlert = () => {
   const [isMinimized, setIsMinimized] = useState(false);
   const navigate = useNavigate();
 
-  // Fetch breaking news from CMS
+  // Fetch breaking news from active backend APIs.
   useEffect(() => {
     const fetchBreakingNews = async () => {
       try {
+        if (V1_CORE_ONLY) {
+          const response = await fetch('/api/articles?limit=40').catch(() => undefined);
+          if (!response || !response.ok) return;
+          const data = await response.json().catch(() => ({}));
+          const items = Array.isArray(data?.data)
+            ? data.data
+                .filter((item) => item.breaking === true || item.breaking_news === true)
+                .slice(0, 8)
+                .map((item) => ({
+                  id: item.id,
+                  headline: item.title,
+                  summary: item.summary,
+                  article_id: item.id,
+                  article_url: item.url,
+                  created_at: item.published_at || item.publication_date,
+                }))
+            : [];
+
+          setBreakingNews(items);
+          setIsVisible(items.length > 0);
+          return;
+        }
+
         let response;
         try {
           response = await fetch('/api/cms/breaking-news');
@@ -59,6 +83,8 @@ const BreakingNewsAlert = () => {
   const handleNewsClick = (newsItem) => {
     if (newsItem.article_url) {
       window.open(newsItem.article_url, '_blank');
+    } else if (newsItem.article_id) {
+      navigate(`/article/${newsItem.article_id}`);
     } else if (newsItem.topic_slug) {
       navigate(`/topic/${newsItem.topic_slug}`);
     }

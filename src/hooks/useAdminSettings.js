@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { buildAuthHeaders } from '../utils/authHeaders';
 
 // Simple in-memory cache with TTL to avoid duplicate fetches across components
 let cachedSettings = null;
@@ -22,7 +23,8 @@ export default function useAdminSettings() {
     (async () => {
       try {
         setLoading(true);
-        const resp = await fetch('/api/admin-settings');
+        const headers = await buildAuthHeaders();
+        const resp = await fetch('/api/admin-settings', { headers });
         const json = await resp.json().catch(() => ({}));
         const next = json?.settings || json || {};
         if (!cancelled) {

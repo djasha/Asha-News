@@ -1,19 +1,36 @@
 /**
  * Simplified Webhook Routes for Testing
- * Handles automation without Directus updates to avoid 403 errors
+ * Handles automation without content persistence mutations.
  */
 
 const express = require('express');
 const AIAnalysisService = require('../services/aiAnalysisService');
-const DirectusService = require('../services/directusService');
+const contentRepository = require('../services/contentRepository');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 const logger = require('../utils/logger');
 const aiService = new AIAnalysisService();
-const directusService = new DirectusService();
+const strictAuth = process.env.NODE_ENV === 'production' || process.env.STRICT_AUTH === 'true';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
+
+const requireOpsAccess = (req, res, next) => {
+  if (!strictAuth) return next();
+
+  const providedInternal = req.header('X-Internal-Key') || req.header('x-internal-key');
+  if (INTERNAL_API_KEY && providedInternal && providedInternal === INTERNAL_API_KEY) {
+    return next();
+  }
+
+  return authenticateToken(req, res, () => requireAdmin(req, res, next));
+};
+
+if (strictAuth) {
+  router.use(requireOpsAccess);
+}
 
 /**
- * Simplified Article Automation (No Directus Updates)
+ * Simplified Article Automation (analysis-only mode)
  * POST /api/webhooks-simple/article-automation
  */
 router.post('/article-automation', async (req, res) => {
@@ -41,7 +58,7 @@ router.post('/article-automation', async (req, res) => {
       processing_time: Date.now()
     };
 
-    // 1. AI Analysis (No Directus Update)
+    // 1. AI analysis (no persistent mutation)
     try {
       logger.info('🤖 Running comprehensive AI analysis...');
       const aiAnalysis = await aiService.analyzeArticle({
@@ -117,7 +134,7 @@ router.post('/article-automation', async (req, res) => {
       message: 'Article automation completed (analysis only)',
       results: results,
       timestamp: new Date().toISOString(),
-      note: 'This is analysis-only mode. No Directus updates performed.'
+      note: 'This is analysis-only mode. No persisted article updates were performed.'
     });
 
   } catch (error) {
@@ -131,14 +148,14 @@ router.post('/article-automation', async (req, res) => {
 });
 
 /**
- * Daily Briefs Analysis (No Directus Updates)
+ * Daily Briefs Analysis (analysis-only mode)
  * POST /api/webhooks-simple/analyze-daily-brief
  */
 router.post('/analyze-daily-brief', async (req, res) => {
   try {
     logger.info('Analyzing daily brief content...');
 
-    const recentArticles = await directusService.getArticles({
+    const recentArticles = await contentRepository.getArticles({
       limit: 25,
       status: 'published'
     });
@@ -150,7 +167,7 @@ router.post('/analyze-daily-brief', async (req, res) => {
       });
     }
 
-    let trendingTopics = await directusService.getItems('trending_topics', {
+    let trendingTopics = await contentRepository.getItems('trending_topics', {
       filter: { active: { _eq: true } },
       sort: '-trend_score',
       limit: 6,
@@ -189,7 +206,7 @@ router.post('/analyze-daily-brief', async (req, res) => {
       brief_data: briefData,
       articles_analyzed: recentArticles.length,
       topics_analyzed: trendingTopics.length,
-      note: 'This is analysis-only mode. No Directus brief created.'
+      note: 'This is analysis-only mode. No brief was persisted.'
     });
 
   } catch (error) {
@@ -252,7 +269,7 @@ router.post('/test-cron', async (req, res) => {
 // Helper Functions
 
 /**
- * Local breaking news detection (no Directus dependency)
+ * Local breaking news detection (no external CMS dependency)
  */
 function detectBreakingNewsLocal(article) {
   const title = (article.title || '').toLowerCase();

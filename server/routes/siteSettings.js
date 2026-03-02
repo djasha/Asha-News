@@ -1,8 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
-const DirectusService = require('../services/directusService');
-const directus = new DirectusService();
+const contentRepository = require('../services/contentRepository');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
+const strictAuth = process.env.NODE_ENV === 'production' || process.env.STRICT_AUTH === 'true';
+
+const requireAdminIfStrict = (req, res, next) => {
+  if (!strictAuth) return next();
+  return authenticateToken(req, res, () => requireAdmin(req, res, next));
+};
 
 /**
  * Get site settings
@@ -10,10 +16,10 @@ const directus = new DirectusService();
  */
 router.get('/', async (req, res) => {
   try {
-    // Try to fetch from Directus site_settings collection
+    // Try to fetch from site_settings collection
     let settings;
     try {
-      const result = await directus.getItems('site_settings', { limit: 1 });
+      const result = await contentRepository.getItems('site_settings', { limit: 1 });
       settings = result && result.length > 0 ? result[0] : null;
     } catch (error) {
       logger.info('site_settings collection not yet created, using defaults');
@@ -56,7 +62,7 @@ router.get('/', async (req, res) => {
     res.json({ 
       success: true, 
       data,
-      source: settings ? 'directus' : 'defaults'
+      source: settings ? 'repository' : 'defaults'
     });
   } catch (error) {
     logger.error({ err: error }, 'Get site settings error');
@@ -68,12 +74,12 @@ router.get('/', async (req, res) => {
  * Update site settings
  * Phase 1: Creates collection if needed, then saves
  */
-router.put('/', async (req, res) => {
+router.put('/', requireAdminIfStrict, async (req, res) => {
   try {
     // Check if collection exists by trying to fetch
     let collectionExists = true;
     try {
-      await directus.getItems('site_settings', { limit: 1 });
+      await contentRepository.getItems('site_settings', { limit: 1 });
     } catch (error) {
       collectionExists = false;
     }
@@ -90,15 +96,15 @@ router.put('/', async (req, res) => {
     }
     
     // Check if settings exist
-    const existing = await directus.getItems('site_settings', { limit: 1 });
+    const existing = await contentRepository.getItems('site_settings', { limit: 1 });
     
     if (existing && existing.length > 0) {
       // Update existing
-      const updated = await directus.updateItem('site_settings', existing[0].id, req.body);
+      const updated = await contentRepository.updateItem('site_settings', existing[0].id, req.body);
       res.json({ success: true, data: updated, action: 'updated' });
     } else {
       // Create new
-      const created = await directus.createItem('site_settings', req.body);
+      const created = await contentRepository.createItem('site_settings', req.body);
       res.json({ success: true, data: created, action: 'created' });
     }
   } catch (error) {

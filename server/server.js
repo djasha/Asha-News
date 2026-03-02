@@ -52,6 +52,8 @@ const adminTopicsRoutes = require('./routes/adminTopics');
 const usersRoutes = require('./routes/users');
 const adminTopicsSettingsRoutes = require('./routes/adminTopicsSettings');
 const subscriptionTiersRoutes = require('./routes/subscriptionTiers');
+const agentApiRoutes = require('./routes/agentApi');
+const conflictAnalyticsRoutes = require('./routes/conflictAnalytics');
 const CronService = require('./services/cronService');
 
 // Import security middleware
@@ -64,6 +66,7 @@ const {
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const legacyDirectusRoutesEnabled = String(process.env.LEGACY_DIRECTUS_ROUTES_ENABLED || 'false').toLowerCase() === 'true';
 
 // Initialize cron service
 const cronService = new CronService();
@@ -116,7 +119,16 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiAnalysisRoutes);
 app.use('/api/fact-check', factCheckRoutes);
-app.use('/api/flows', directusFlowsRoutes);
+if (legacyDirectusRoutesEnabled) {
+  app.use('/api/flows', directusFlowsRoutes);
+} else {
+  app.use('/api/flows', (_req, res) => {
+    res.status(410).json({
+      error: 'Legacy route disabled',
+      message: 'Directus flow routes are disabled. Use /api/v1 endpoints instead.'
+    });
+  });
+}
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/webhooks-simple', webhookSimpleRoutes);
 app.use('/api/content', contentEnhancementRoutes);
@@ -140,6 +152,8 @@ app.use('/api/admin/topics', adminTopicsRoutes);
 app.use('/api/admin/topics-settings', adminTopicsSettingsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/subscription-tiers', subscriptionTiersRoutes);
+app.use('/api/v1', agentApiRoutes);
+app.use('/api/conflicts', conflictAnalyticsRoutes);
 
 // Ingestion thin-proxy endpoints -> reuse rss-automation routes
 // Manual trigger
@@ -169,16 +183,39 @@ app.get('/api/health', async (req, res) => {
     poolStats = { total: p.totalCount, idle: p.idleCount, waiting: p.waitingCount };
   } catch (_) { /* pool not initialized */ }
 
+  const cronJobs = cronService.getJobStatus();
+  const workerHeartbeat = cronService.getHeartbeatSnapshot();
   const status = dbOk ? 'healthy' : 'degraded';
   res.status(dbOk ? 200 : 503).json({
     status,
     database: dbOk ? 'connected' : 'disconnected',
     db_latency_ms: dbLatencyMs,
     pool: poolStats,
+    workers: {
+      jobs: cronJobs,
+      heartbeat: workerHeartbeat
+    },
     uptime_seconds: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
+});
+
+// Legacy CMS compatibility endpoints are deprecated in favor of /api/v1.
+app.use('/api/cms', (req, res, next) => {
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('Sunset', '2026-06-30');
+  res.setHeader('Link', '</API_DEPRECATIONS.md>; rel="deprecation"');
+  logger.info({ path: req.path, method: req.method }, 'Deprecated /api/cms endpoint requested');
+
+  if (!legacyDirectusRoutesEnabled) {
+    return res.status(410).json({
+      error: 'Legacy route disabled',
+      message: 'CMS compatibility routes are disabled. Use /api/v1 endpoints instead.'
+    });
+  }
+
+  next();
 });
 
 // GET /api/cms/settings - returns singleton settings object
@@ -254,7 +291,7 @@ app.get('/api/cms/site-config', async (req, res) => {
 app.get('/api/cms/navigation', async (req, res) => {
   try {
     const location = req.query.location;
-    let endpoint = '/items/navigation_menus?filter[enabled][_eq]=true&sort=sort_order';
+    let endpoint = '/items/navigation_items?filter[enabled][_eq]=true&sort=sort';
     if (location) {
       endpoint += `&filter[location][_eq]=${location}`;
     }
@@ -637,15 +674,17 @@ app.put('/api/cms/story-clusters/:id', async (req, res) => {
 app.get('/api/cms/user-preferences', async (req, res) => {
   try {
     const { user_id } = req.query;
-    let endpoint = '/items/user_preferences';
-    
-    if (user_id) {
-      endpoint += `?filter[user_id][_eq]=${user_id}`;
+
+    // user_preferences collection was removed; preferences live on users.preferences
+    if (!user_id) {
+      return res.json({ data: [] });
     }
-    
-    const data = await directusFetch(endpoint);
-    const preferences = req.query.user_id ? (data?.data?.[0] || null) : (data?.data || []);
-    res.json({ data: preferences });
+
+    const data = await directusFetch(`/items/users/${user_id}`);
+    const user = data?.data || null;
+    res.json({
+      data: user ? { user_id: user.id, preferences: user.preferences || null } : null
+    });
   } catch (err) {
     if (err && (err.status === 404 || err.status === 403 || err.status === 401)) {
       return res.json({ data: req.query.user_id ? null : [] });
@@ -659,8 +698,11 @@ app.get('/api/cms/user-preferences', async (req, res) => {
 app.get('/api/cms/user-preferences/:id', async (req, res) => {
   try {
     const prefId = req.params.id;
-    const data = await directusFetch(`/items/user_preferences/${prefId}`);
-    res.json({ data: data?.data || null });
+    const data = await directusFetch(`/items/users/${prefId}`);
+    const user = data?.data || null;
+    res.json({
+      data: user ? { user_id: user.id, preferences: user.preferences || null } : null
+    });
   } catch (err) {
     if (err && (err.status === 404 || err.status === 403 || err.status === 401)) {
       return res.json({ data: null });
@@ -673,12 +715,23 @@ app.get('/api/cms/user-preferences/:id', async (req, res) => {
 // POST /api/cms/user-preferences - creates new user preferences
 app.post('/api/cms/user-preferences', async (req, res) => {
   try {
-    const prefData = req.body;
-    const data = await directusFetch('/items/user_preferences', {
-      method: 'POST',
-      body: JSON.stringify(prefData)
+    const { user_id, preferences } = req.body || {};
+    if (!user_id) {
+      return res.status(400).json({ error: 'user_id is required' });
+    }
+
+    await directusFetch(`/items/users/${user_id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ preferences: preferences ?? req.body })
     });
-    res.status(201).json({ data: data?.data || null });
+
+    const updated = await directusFetch(`/items/users/${user_id}`);
+    res.status(201).json({
+      data: {
+        user_id,
+        preferences: updated?.data?.preferences || null
+      }
+    });
   } catch (err) {
     logger.error({ err }, 'CMS create user-preferences error');
     res.status(err.status || 500).json({ error: 'Failed to create user preferences' });
@@ -688,13 +741,19 @@ app.post('/api/cms/user-preferences', async (req, res) => {
 // PUT /api/cms/user-preferences/:id - updates user preferences
 app.put('/api/cms/user-preferences/:id', async (req, res) => {
   try {
-    const preferencesId = req.params.id;
-    const preferencesData = req.body;
-    const data = await directusFetch(`/items/user_preferences/${preferencesId}`, {
+    const userId = req.params.id;
+    await directusFetch(`/items/users/${userId}`, {
       method: 'PATCH',
-      body: JSON.stringify(preferencesData)
+      body: JSON.stringify({ preferences: req.body?.preferences ?? req.body })
     });
-    res.json({ data: data?.data || null });
+
+    const updated = await directusFetch(`/items/users/${userId}`);
+    res.json({
+      data: {
+        user_id: userId,
+        preferences: updated?.data?.preferences || null
+      }
+    });
   } catch (err) {
     logger.error({ err }, 'CMS update user-preferences error');
     res.status(err.status || 500).json({ error: 'Failed to update user preferences' });

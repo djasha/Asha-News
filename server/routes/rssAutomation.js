@@ -7,9 +7,27 @@ const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
 const RSSAutomationService = require('../services/rssAutomationService');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
+const strictAuth = process.env.NODE_ENV === 'production' || process.env.STRICT_AUTH === 'true';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 
 // Initialize RSS automation service
 const rssAutomation = new RSSAutomationService();
+
+const requireOpsAccess = (req, res, next) => {
+  if (!strictAuth) return next();
+
+  const providedInternal = req.header('X-Internal-Key') || req.header('x-internal-key');
+  if (INTERNAL_API_KEY && providedInternal && providedInternal === INTERNAL_API_KEY) {
+    return next();
+  }
+
+  return authenticateToken(req, res, () => requireAdmin(req, res, next));
+};
+
+if (strictAuth) {
+  router.use(requireOpsAccess);
+}
 
 /**
  * GET /api/rss-automation/status

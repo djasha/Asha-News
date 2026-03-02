@@ -5,6 +5,7 @@
  * CronService and backend route logic directly.
  * This stub keeps existing route imports working without errors.
  */
+const logger = require('../utils/logger');
 
 class DirectusFlowService {
   async createFactCheckingFlow() { return { id: null, status: 'deprecated' }; }

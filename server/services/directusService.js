@@ -1,18 +1,18 @@
 /**
  * DirectusService compatibility shim.
  *
- * All data access now goes through dbService (direct PostgreSQL via Drizzle ORM).
+ * All data access now goes through the canonical content repository.
  * This file exists so that every `require('./directusService')` / `new DirectusService()`
  * call across the codebase keeps working without touching 17+ import sites.
  *
- * The constructor returns the shared dbService singleton.
+ * The constructor returns the shared content repository singleton.
  */
-const dbService = require('../db/dbService');
+const contentRepository = require('./contentRepository');
 
 class DirectusService {
   constructor() {
-    // Return the singleton — `new DirectusService()` gives back dbService
-    return dbService;
+    // Return the singleton — `new DirectusService()` gives back contentRepository
+    return contentRepository;
   }
 }
 

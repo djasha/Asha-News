@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent } from '../components/UI/Card';
+import { buildAuthHeaders } from '../utils/authHeaders';
 
 const RSSManagementPage = () => {
   const [automationStatus, setAutomationStatus] = useState(null);
@@ -13,10 +14,11 @@ const RSSManagementPage = () => {
     try {
       setLoading(true);
       setError(null);
+      const headers = await buildAuthHeaders();
 
       const [statusResponse, sourcesResponse] = await Promise.all([
-        fetch('/api/rss-automation/status'),
-        fetch('/api/rss-automation/sources')
+        fetch('/api/rss-automation/status', { headers }),
+        fetch('/api/rss-automation/sources', { headers })
       ]);
 
       if (!statusResponse.ok || !sourcesResponse.ok) {
@@ -40,9 +42,10 @@ const RSSManagementPage = () => {
   const controlAutomation = async (action) => {
     try {
       setActionLoading(true);
+      const headers = await buildAuthHeaders({ 'Content-Type': 'application/json' });
       const response = await fetch(`/api/rss-automation/${action}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers
       });
 
       if (!response.ok) {
@@ -66,9 +69,10 @@ const RSSManagementPage = () => {
   const triggerFetch = async () => {
     try {
       setActionLoading(true);
+      const headers = await buildAuthHeaders({ 'Content-Type': 'application/json' });
       const response = await fetch('/api/rss-automation/fetch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers
       });
 
       if (!response.ok) {

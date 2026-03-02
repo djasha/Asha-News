@@ -3,6 +3,7 @@ import userDataService from '../services/userDataService';
 import { firebaseAuthService } from '../services/firebase';
 import { API_BASE } from '../config/api';
 import logger from '../utils/logger';
+import { buildAuthHeaders } from '../utils/authHeaders';
 
 // Auth state management
 const AuthContext = createContext();
@@ -105,7 +106,10 @@ export const AuthProvider = ({ children }) => {
           // Fetch user role from backend
           let userRole = 'user';
           try {
-            const roleResponse = await fetch(`${API_BASE}/users/role/${encodeURIComponent(firebaseUser.email)}`);
+            const roleHeaders = await buildAuthHeaders({}, token);
+            const roleResponse = await fetch(`${API_BASE}/users/role/${encodeURIComponent(firebaseUser.email)}`, {
+              headers: roleHeaders
+            });
             const roleData = await roleResponse.json();
             if (roleData.success) {
               userRole = roleData.role;
@@ -138,11 +142,16 @@ export const AuthProvider = ({ children }) => {
           
           // Sync with backend
           try {
+            const userSyncHeaders = await buildAuthHeaders({
+              'Content-Type': 'application/json'
+            }, token);
             await fetch(`${API_BASE}/users`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: userSyncHeaders,
               body: JSON.stringify({
                 firebase_uid: firebaseUser.uid,
+                provider_uid: firebaseUser.uid,
+                provider: 'supabase',
                 email: firebaseUser.email,
                 displayName: firebaseUser.displayName,
                 firstName: firebaseUser.displayName?.split(' ')[0] || '',

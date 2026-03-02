@@ -264,7 +264,7 @@ router.post('/evidence', async (req, res) => {
             });
           }
         } catch (newsError) {
-          logger.error({ err: error }, 'News API error');
+          logger.error({ err: newsError }, 'News API error');
 
         }
       }
@@ -294,7 +294,7 @@ router.post('/evidence', async (req, res) => {
             });
           }
         } catch (wikiError) {
-          logger.error({ err: error }, 'Wikipedia API error');
+          logger.error({ err: wikiError }, 'Wikipedia API error');
 
         }
       }
@@ -593,7 +593,7 @@ router.get('/google-search', async (req, res) => {
       });
       res.json(results);
     } catch (apiError) {
-      logger.error({ err: error }, 'Google Fact Check API search failed');
+      logger.error({ err: apiError }, 'Google Fact Check API search failed');
 
       res.status(502).json({
         error: 'Google Fact Check API request failed',

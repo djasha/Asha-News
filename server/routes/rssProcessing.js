@@ -2,10 +2,28 @@ const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
 const RSSProcessingService = require('../services/rssProcessingService');
-const DirectusService = require('../services/directusService');
+const contentRepository = require('../services/contentRepository');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
+const strictAuth = process.env.NODE_ENV === 'production' || process.env.STRICT_AUTH === 'true';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 
 const rssService = new RSSProcessingService();
-const directusService = new DirectusService();
+const getSourceUrl = (source) => source?.rss_url || source?.url || null;
+
+const requireOpsAccess = (req, res, next) => {
+  if (!strictAuth) return next();
+
+  const providedInternal = req.header('X-Internal-Key') || req.header('x-internal-key');
+  if (INTERNAL_API_KEY && providedInternal && providedInternal === INTERNAL_API_KEY) {
+    return next();
+  }
+
+  return authenticateToken(req, res, () => requireAdmin(req, res, next));
+};
+
+if (strictAuth) {
+  router.use(requireOpsAccess);
+}
 
 /**
  * POST /api/rss/process-feeds
@@ -33,7 +51,17 @@ router.post('/process-feeds', async (req, res) => {
       });
     }
 
-    const results = await rssService.processAllFeeds(rss_sources);
+    const normalizedSources = rss_sources.map((source) => {
+      const sourceUrl = getSourceUrl(source);
+      if (!sourceUrl) return source;
+      return {
+        ...source,
+        url: sourceUrl,
+        rss_url: sourceUrl,
+      };
+    });
+
+    const results = await rssService.processAllFeeds(normalizedSources);
     
     res.json({
       success: true,
@@ -51,21 +79,20 @@ router.post('/process-feeds', async (req, res) => {
 });
 
 /**
- * POST /api/rss/ingest-from-directus
- * Load enabled RSS sources from Directus, fetch latest items, ensure at least N per category,
- * and upsert selected articles into Directus `articles` collection.
+ * Ingest from enabled RSS sources stored in the content repository and upsert
+ * normalized recent articles by category.
  */
-router.post('/ingest-from-directus', async (req, res) => {
+const ingestFromContentSources = async (req, res) => {
   try {
     const { hours_back = 36, min_per_category = 10, max_feeds = 50 } = req.body || {};
 
-    // Load enabled RSS sources from Directus CMS
-    const sources = await directusService.getItems('RSS_Sources', {
+    // Load enabled RSS sources from content repository
+    const sources = await contentRepository.getItems('RSS_Sources', {
       filter: { enabled: { _eq: true } },
       limit: max_feeds
     });
     if (!sources || sources.length === 0) {
-      return res.status(400).json({ success: false, error: 'No enabled RSS sources found in Directus' });
+      return res.status(400).json({ success: false, error: 'No enabled RSS sources found' });
     }
 
     // Process feeds
@@ -73,13 +100,14 @@ router.post('/ingest-from-directus', async (req, res) => {
       .map(s => ({
         id: s.source_id || s.id || (s.name ? s.name.toLowerCase().replace(/\s+/g, '-') : undefined),
         name: s.name,
-        rss_url: s.rss_url,
+        url: getSourceUrl(s),
+        rss_url: getSourceUrl(s),
         enabled: true,
         domain: s.domain || null,
         credibility_score: s.credibility_score || 0.8,
         default_category: s.category || 'General'
       }))
-      .filter(s => s.rss_url);
+      .filter((s) => Boolean(getSourceUrl(s)));
 
     const results = await rssService.processAllFeeds(rssSources);
     const allArticles = results.articles || [];
@@ -114,7 +142,7 @@ router.post('/ingest-from-directus', async (req, res) => {
       byCat.get(cat).push(a);
     });
 
-    // Select latest N per category and upsert into Directus
+    // Select latest N per category and upsert into content repository
     const trackedCats = ['Politics','Technology','Business','Health','Science','Sports','Entertainment','International'];
     const summary = {};
     for (const cat of trackedCats) {
@@ -123,7 +151,7 @@ router.post('/ingest-from-directus', async (req, res) => {
       summary[cat] = { available: list.length, upserted: 0 };
       for (const art of selected) {
         try {
-          await directusService.upsertArticleBySourceUrl({ ...art, category: cat });
+          await contentRepository.upsertArticleBySourceUrl({ ...art, category: cat });
           summary[cat].upserted++;
         } catch (e) {
           // continue on errors for individual articles
@@ -133,9 +161,25 @@ router.post('/ingest-from-directus', async (req, res) => {
 
     return res.json({ success: true, processed_feeds: results.processed_feeds, summary });
   } catch (error) {
-    logger.error({ err: error }, 'ingest-from-directus error');
+    logger.error({ err: error }, 'ingest-from-content error');
     return res.status(500).json({ success: false, error: error.message });
   }
+};
+
+/**
+ * POST /api/rss/ingest-from-content
+ * Canonical ingestion endpoint.
+ */
+router.post('/ingest-from-content', ingestFromContentSources);
+
+/**
+ * POST /api/rss/ingest-from-directus
+ * Deprecated compatibility endpoint for older automations.
+ */
+router.post('/ingest-from-directus', (req, res) => {
+  res.set('Deprecation', 'true');
+  res.set('Sunset', '2026-06-30');
+  return ingestFromContentSources(req, res);
 });
 
 /**
@@ -146,9 +190,10 @@ router.post('/process-single-feed', async (req, res) => {
   try {
     const { source } = req.body;
     
-    if (!source || !source.rss_url) {
+    const sourceUrl = getSourceUrl(source);
+    if (!source || !sourceUrl) {
       return res.status(400).json({
-        error: 'RSS source with rss_url is required',
+        error: 'RSS source with rss_url or url is required',
         example: {
           source: {
             name: "BBC News",
@@ -160,7 +205,11 @@ router.post('/process-single-feed', async (req, res) => {
       });
     }
 
-    const result = await rssService.processSingleFeed(source);
+    const result = await rssService.processSingleFeed({
+      ...source,
+      url: sourceUrl,
+      rss_url: sourceUrl,
+    });
     
     res.json({
       success: true,
@@ -225,17 +274,27 @@ router.post('/clear-cache', (req, res) => {
 
 /**
  * POST /api/rss/process-from-cms
- * Process RSS feeds using sources from CMS
+ * Process RSS feeds using sources from the content repository
  */
 router.post('/process-from-cms', async (req, res) => {
   try {
-    const cmsSources = await directusService.getRSSSources({ enabled: true });
-    const rssSources = (cmsSources || []).filter((source) => source?.rss_url && source?.enabled !== false);
+    const cmsSources = await contentRepository.getRSSSources({ enabled: true });
+    const rssSources = (cmsSources || [])
+      .map((source) => {
+        const sourceUrl = getSourceUrl(source);
+        if (!sourceUrl) return source;
+        return {
+          ...source,
+          url: sourceUrl,
+          rss_url: sourceUrl,
+        };
+      })
+      .filter((source) => Boolean(getSourceUrl(source)) && source?.enabled !== false);
 
     if (rssSources.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'No enabled RSS sources found in CMS'
+        error: 'No enabled RSS sources found in content repository'
       });
     }
 
@@ -245,13 +304,13 @@ router.post('/process-from-cms', async (req, res) => {
       success: true,
       results,
       sources_processed: rssSources.length,
-      message: `Processed ${results.processed_feeds} CMS RSS sources`
+      message: `Processed ${results.processed_feeds} configured RSS sources`
     });
     
   } catch (error) {
-    logger.error({ err: error }, 'CMS RSS processing error');
+    logger.error({ err: error }, 'Content repository RSS processing error');
     res.status(500).json({
-      error: 'Failed to process CMS RSS feeds',
+      error: 'Failed to process configured RSS feeds',
       message: error.message
     });
   }

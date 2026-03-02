@@ -2,6 +2,7 @@
  * Google Fact Check Tools API Service
  * Provides access to Google's fact-checking database and image search
  */
+const logger = require('../utils/logger');
 
 class GoogleFactCheckService {
   constructor() {

@@ -3,6 +3,7 @@ import {
     PencilSquareIcon,
     TrashIcon
 } from '@heroicons/react/24/outline';
+import { buildAuthHeaders } from '../../utils/authHeaders';
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -11,7 +12,8 @@ const UserManagement = () => {
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const response = await fetch('/api/users?limit=100');
+                const headers = await buildAuthHeaders();
+                const response = await fetch('/api/users?limit=100', { headers });
                 const payload = response.ok ? await response.json() : { users: [] };
                 const items = Array.isArray(payload?.users) ? payload.users : [];
 

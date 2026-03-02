@@ -1,9 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
-const DirectusService = require('../services/directusService');
+const contentRepository = require('../services/contentRepository');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
+const strictAuth = process.env.NODE_ENV === 'production' || process.env.STRICT_AUTH === 'true';
 
-const directusService = new DirectusService();
+
+if (strictAuth) {
+  router.use(authenticateToken, requireAdmin);
+}
 
 /**
  * POST /api/cleanup/old-articles
@@ -16,7 +21,7 @@ router.post('/old-articles', async (req, res) => {
     logger.info(`Starting cleanup: keeping latest ${keepLatest} articles`);
     
     // Get all articles sorted by date (newest first)
-    const allArticles = await directusService.getArticles({
+    const allArticles = await contentRepository.getArticles({
       sortBy: 'date',
       limit: -1 // Get all
     });
@@ -43,7 +48,7 @@ router.post('/old-articles', async (req, res) => {
     // Delete one by one (safer)
     for (const article of articlesToDelete) {
       try {
-        await directusService.deleteArticle(article.id);
+        await contentRepository.deleteArticle(article.id);
         deletedCount++;
         
         // Log progress every 50 articles
@@ -82,7 +87,7 @@ router.post('/old-articles', async (req, res) => {
  */
 router.get('/stats', async (req, res) => {
   try {
-    const allArticles = await directusService.getArticles({
+    const allArticles = await contentRepository.getArticles({
       limit: -1
     });
     

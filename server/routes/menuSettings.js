@@ -3,8 +3,15 @@ const router = express.Router();
 const logger = require('../utils/logger');
 const fs = require('fs').promises;
 const path = require('path');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
+const strictAuth = process.env.NODE_ENV === 'production' || process.env.STRICT_AUTH === 'true';
 
 const MENU_SETTINGS_FILE = path.join(__dirname, '../data/menu-settings.json');
+
+const requireAdminIfStrict = (req, res, next) => {
+  if (!strictAuth) return next();
+  return authenticateToken(req, res, () => requireAdmin(req, res, next));
+};
 
 // Ensure the data directory exists
 const ensureDataDir = async () => {
@@ -86,7 +93,7 @@ router.get('/desktop', async (req, res) => {
 });
 
 // POST /api/menu-settings/desktop - Save desktop menu items
-router.post('/desktop', async (req, res) => {
+router.post('/desktop', requireAdminIfStrict, async (req, res) => {
   try {
     const { items } = req.body;
     if (!Array.isArray(items)) {
@@ -116,7 +123,7 @@ router.get('/mobile', async (req, res) => {
 });
 
 // POST /api/menu-settings/mobile - Save mobile menu items
-router.post('/mobile', async (req, res) => {
+router.post('/mobile', requireAdminIfStrict, async (req, res) => {
   try {
     const { items } = req.body;
     if (!Array.isArray(items)) {
@@ -146,7 +153,7 @@ router.get('/side', async (req, res) => {
 });
 
 // POST /api/menu-settings/side - Save side menu categories
-router.post('/side', async (req, res) => {
+router.post('/side', requireAdminIfStrict, async (req, res) => {
   try {
     const { categories } = req.body;
     if (!Array.isArray(categories)) {
@@ -176,7 +183,7 @@ router.get('/all', async (req, res) => {
 });
 
 // POST /api/menu-settings/reset - Reset to defaults
-router.post('/reset', async (req, res) => {
+router.post('/reset', requireAdminIfStrict, async (req, res) => {
   try {
     await saveMenuSettings(DEFAULT_MENU_SETTINGS);
     res.json({ success: true, message: 'Menu settings reset to defaults' });

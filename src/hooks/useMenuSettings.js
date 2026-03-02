@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react';
 import { API_BASE } from '../config/api';
+import {
+  V1_CORE_ONLY,
+  CORE_NAV_ITEMS_DESKTOP,
+  CORE_NAV_ITEMS_MOBILE,
+  CORE_SIDE_MENU,
+} from '../config/v1';
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 let desktopMenuCache = null;
@@ -17,6 +23,19 @@ export const useMenuSettings = (menuType = 'desktop') => {
   useEffect(() => {
     const fetchMenuSettings = async () => {
       const now = Date.now();
+
+      if (V1_CORE_ONLY) {
+        setLoading(false);
+        setError(null);
+        if (menuType === 'desktop') {
+          setData(CORE_NAV_ITEMS_DESKTOP);
+        } else if (menuType === 'mobile') {
+          setData(CORE_NAV_ITEMS_MOBILE);
+        } else if (menuType === 'side') {
+          setData(CORE_SIDE_MENU);
+        }
+        return;
+      }
       
       // Check cache
       if (cacheTimestamp && (now - cacheTimestamp) < CACHE_DURATION) {

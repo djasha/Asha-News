@@ -2,17 +2,9 @@
  * Query Bridge — drop-in replacement for the directusFetch() function.
  *
  * Translates Directus-style REST paths + query params into direct
- * PostgreSQL queries via the pg Pool so that every existing call site
- * in server.js can switch with a one-line change.
- *
- * Supported patterns:
- *   GET  /items/<collection>          → SELECT * with filters
- *   GET  /items/<collection>/<id>     → SELECT by primary key
- *   POST /items/<collection>          → INSERT
- *   PATCH /items/<collection>/<id>    → UPDATE
- *   DELETE /items/<collection>/<id>   → DELETE
+ * PostgreSQL queries via the pg Pool OR Supabase REST API.
  */
-const { getPool } = require('./index');
+const { getPool, isUsingSupabase, supabaseClient } = require('./index');
 
 // Map Directus collection names (including any casing variants) to real table names
 const TABLE_MAP = {
@@ -25,10 +17,13 @@ const TABLE_MAP = {
   RSS_Sources: 'rss_sources',
   global_settings: 'global_settings',
   site_configuration: 'site_configuration',
+  site_settings: 'site_configuration',
   feature_flags: 'feature_flags',
   navigation_items: 'navigation_items',
+  navigation_menus: 'navigation_items',
   menu_items: 'menu_items',
   topic_categories: 'topic_categories',
+  categories: 'topic_categories',
   homepage_sections: 'homepage_sections',
   breaking_news: 'breaking_news',
   curated_collections: 'curated_collections',
@@ -40,11 +35,22 @@ const TABLE_MAP = {
   news_sources: 'news_sources',
   trending_topics: 'trending_topics',
   users: 'users',
+  app_users: 'users',
+  user_preferences: 'users',
   subscription_tiers: 'subscription_tiers',
   user_subscriptions: 'user_subscriptions',
   api_configs: 'api_configs',
   api_configurations: 'api_configurations',
   refresh_tokens: 'refresh_tokens',
+  conflict_events: 'conflict_events',
+  conflict_source_candidates: 'conflict_source_candidates',
+  conflict_theories: 'conflict_theories',
+  conflict_forecasts: 'conflict_forecasts',
+  agent_runs: 'agent_runs',
+  conflict_autonomy_runs: 'conflict_autonomy_runs',
+  agent_incidents: 'agent_incidents',
+  agent_actions: 'agent_actions',
+  pages: 'page_content',
 };
 
 /**
@@ -149,7 +155,6 @@ function buildFilters(params, startIdx = 1) {
  * @returns {object}        - { data: ... } matching Directus response shape
  */
 async function queryBridge(pathname, init = {}) {
-  const pool = getPool();
   const method = (init.method || 'GET').toUpperCase();
   const { collection, itemId, params } = parsePath(pathname);
 
@@ -161,6 +166,14 @@ async function queryBridge(pathname, init = {}) {
   if (!table) {
     throw new Error(`queryBridge: unknown collection "${collection}"`);
   }
+
+  // Use Supabase REST API if direct connection not available
+  if (isUsingSupabase()) {
+    return queryBridgeSupabase(table, method, itemId, params, init);
+  }
+
+  // Direct PostgreSQL connection
+  const pool = getPool();
 
   // ── GET single item ─────────────────────────────────────────
   if (method === 'GET' && itemId) {
@@ -259,6 +272,82 @@ async function queryBridge(pathname, init = {}) {
   }
 
   throw new Error(`queryBridge: unsupported ${method} on "${pathname}"`);
+}
+
+/**
+ * Supabase REST API implementation of queryBridge
+ */
+async function queryBridgeSupabase(table, method, itemId, params, init) {
+  // Build filter object from Directus-style params
+  const filter = {};
+  const filterRegex = /^filter\[([^\]]+)\]\[([^\]]+)\]$/;
+
+  for (const [key, val] of Object.entries(params)) {
+    const match = key.match(filterRegex);
+    if (match && match[2] === '_eq') {
+      filter[match[1]] = val;
+    }
+  }
+
+  // ── GET single item ─────────────────────────────────────────
+  if (method === 'GET' && itemId) {
+    const { data, error } = await supabaseClient.select(table, { filter: { id: itemId }, limit: 1 });
+    if (error) return { data: null, error };
+    return { data: data?.[0] || null };
+  }
+
+  // ── GET list ────────────────────────────────────────────────
+  if (method === 'GET') {
+    const limit = parseInt(params.limit, 10) || 100;
+    const offset = parseInt(params.offset, 10) || 0;
+
+    // Build order string
+    let order = undefined;
+    if (params.sort) {
+      const sortCol = params.sort.startsWith('-') ? params.sort.substring(1) : params.sort;
+      const sortDir = params.sort.startsWith('-') ? 'desc' : 'asc';
+      order = `${sortCol}.${sortDir}`;
+    }
+
+    const { data, error } = await supabaseClient.select(table, {
+      filter: Object.keys(filter).length > 0 ? filter : undefined,
+      order,
+      limit,
+      offset
+    });
+
+    if (error) return { data: [], error };
+    return { data: data || [] };
+  }
+
+  // ── POST (create) ──────────────────────────────────────────
+  if (method === 'POST') {
+    const body = typeof init.body === 'string' ? JSON.parse(init.body) : init.body;
+    if (!body) throw new Error('queryBridge POST: body is required');
+
+    const { data, error } = await supabaseClient.insert(table, body);
+    if (error) return { data: null, error };
+    return { data };
+  }
+
+  // ── PATCH (update) ─────────────────────────────────────────
+  if (method === 'PATCH' && itemId) {
+    const body = typeof init.body === 'string' ? JSON.parse(init.body) : init.body;
+    if (!body) throw new Error('queryBridge PATCH: body is required');
+
+    const { data, error } = await supabaseClient.update(table, itemId, body);
+    if (error) return { data: null, error };
+    return { data };
+  }
+
+  // ── DELETE ─────────────────────────────────────────────────
+  if (method === 'DELETE' && itemId) {
+    const { error } = await supabaseClient.delete(table, itemId);
+    if (error) return { data: null, error };
+    return { data: null };
+  }
+
+  throw new Error(`queryBridge: unsupported ${method}`);
 }
 
 module.exports = queryBridge;

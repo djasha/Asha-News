@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTopics } from '../../hooks/useCMSData';
 import { useMenuSettings } from '../../hooks/useMenuSettings';
 import useUserRole from '../../hooks/useUserRole';
+import { V1_CORE_ONLY, CORE_SIDE_MENU } from '../../config/v1';
 
 const ExpandedMenu = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
@@ -39,7 +40,28 @@ const ExpandedMenu = ({ isOpen, onClose }) => {
   // Build menu categories from admin settings
   let menuCategories = [];
   
-  if (sideMenuData && Array.isArray(sideMenuData)) {
+  if (V1_CORE_ONLY) {
+    menuCategories = CORE_SIDE_MENU.map((category) => ({
+      title: category.title,
+      items: category.items.map((item) => ({ name: item.label, path: item.path }))
+    }));
+    menuCategories.push({
+      title: 'Knowledge',
+      items: [
+        { name: 'Wiki Home', path: '/wiki' },
+        { name: 'Conflict Ops Wiki', path: '/wiki/conflict-ops' },
+        { name: 'AI Checker Wiki', path: '/wiki/ai-checker' },
+        { name: 'Markets Wiki', path: '/wiki/markets' },
+        { name: 'Agent API Wiki', path: '/wiki/agent-api' }
+      ]
+    });
+    if (isAdmin) {
+      menuCategories.push({
+        title: 'Admin',
+        items: [{ name: 'Admin Settings', path: '/admin/settings' }]
+      });
+    }
+  } else if (sideMenuData && Array.isArray(sideMenuData)) {
     menuCategories = sideMenuData
       .filter(cat => cat.enabled !== false)
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))

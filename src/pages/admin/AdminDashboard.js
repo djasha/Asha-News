@@ -5,6 +5,7 @@ import {
     EyeIcon,
     ServerIcon
 } from '@heroicons/react/24/outline';
+import { buildAuthHeaders } from '../../utils/authHeaders';
 
 const ICON_COLOR_CLASS = {
     blue: 'text-blue-500',
@@ -49,8 +50,9 @@ const AdminDashboard = () => {
     useEffect(() => {
         const fetchStats = async () => {
             try {
+                const headers = await buildAuthHeaders();
                 const [usersRes, articlesRes, healthRes] = await Promise.all([
-                    fetch('/api/users?limit=100'),
+                    fetch('/api/users?limit=100', { headers }),
                     fetch('/api/articles?limit=50'),
                     fetch('/api/health')
                 ]);

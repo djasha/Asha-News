@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTopics } from "../../hooks/useCMSData";
 import { LoadingSkeleton } from "../UI/CMSLoadingState";
 import { API_BASE } from '../../config/api';
+import { V1_CORE_ONLY } from '../../config/v1';
 
 const TrendingTopicsBar = () => {
   const navigate = useNavigate();
@@ -14,16 +15,20 @@ const TrendingTopicsBar = () => {
 
   // Load settings
   useEffect(() => {
+    if (V1_CORE_ONLY) {
+      setSettingsLoading(false);
+      return;
+    }
+
     const loadSettings = async () => {
       try {
         const response = await fetch(`${apiBaseUrl}/admin/topics-settings/trendingBar`);
-        const result = await response.json();
-        if (result.success) {
+        const result = await response.json().catch(() => ({}));
+        if (response.ok && result.success) {
           setSettings(result.data);
-          console.log('📊 Trending bar using settings:', result.data);
         }
-      } catch (err) {
-        console.error('Error loading trending bar settings:', err);
+      } catch (_) {
+        // Silent fallback to built-in defaults for public pages.
       } finally {
         setSettingsLoading(false);
       }
@@ -32,6 +37,10 @@ const TrendingTopicsBar = () => {
   }, [apiBaseUrl]);
 
   const handleTopicClick = (slug) => {
+    if (V1_CORE_ONLY) {
+      navigate('/');
+      return;
+    }
     navigate(`/topic/${slug}`);
   };
 
@@ -45,7 +54,6 @@ const TrendingTopicsBar = () => {
 
   // Check if bar is disabled in settings
   if (settings && settings.enabled === false) {
-    console.log('🚫 Trending bar is disabled in settings');
     return null;
   }
 
@@ -99,8 +107,6 @@ const TrendingTopicsBar = () => {
   const animationDuration = `${speedMs / 5}s`;
   const animationName = direction === 'left' ? 'scroll-left' : 'scroll-right';
   
-  console.log(`🎬 Animation: ${animationEnabled ? 'ON' : 'OFF'}, Speed: ${speedMs}ms -> ${animationDuration}, Direction: ${direction}`);
-
   return (
     <div className="bg-surface-light dark:bg-surface-dark py-2 overflow-hidden relative">
       <style>{`

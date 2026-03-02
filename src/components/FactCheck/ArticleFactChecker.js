@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle, AlertTriangle, XCircle, Clock, FileText, Loader2 } from 'lucide-react';
+import { buildAuthHeaders } from '../../utils/authHeaders';
 
 const ArticleFactChecker = () => {
   const [articleText, setArticleText] = useState('');
@@ -20,10 +21,9 @@ const ArticleFactChecker = () => {
     try {
       const response = await fetch('/api/advanced-fact-check/check-article', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('asha_token')}`
-        },
+        headers: await buildAuthHeaders({
+          'Content-Type': 'application/json'
+        }),
         body: JSON.stringify({
           articleText,
           title

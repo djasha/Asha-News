@@ -3,9 +3,11 @@ const fs = require('fs').promises;
 const path = require('path');
 const { simpleCache } = require('../services/simpleCache');
 const adminSettingsService = require('../services/adminSettingsService');
-const DirectusService = require('../services/directusService');
+const contentRepository = require('../services/contentRepository');
 const router = express.Router();
 const logger = require('../utils/logger');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
+const strictAuth = process.env.NODE_ENV === 'production' || process.env.STRICT_AUTH === 'true';
 
 // Path to store admin settings
 const SETTINGS_FILE = path.join(__dirname, '../data/admin-settings.json');
@@ -15,43 +17,43 @@ const DEFAULT_SETTINGS = {
   aiProviders: {
     groq: {
       enabled: true,
-      apiKey: process.env.GROQ_API_KEY || '',
+      apiKey: '',
       model: 'llama-3.1-8b-instant',
       temperature: 0.3,
       maxTokens: 1000
     },
     openrouter: {
       enabled: true,
-      apiKey: process.env.OPENROUTER_API_KEY || '',
+      apiKey: '',
       model: 'meta-llama/llama-3-8b-instruct:free',
       temperature: 0.3,
       maxTokens: 100000
     },
     perplexity: {
       enabled: true,
-      apiKey: process.env.PERPLEXITY_API_KEY || '',
+      apiKey: '',
       model: 'llama-3.1-sonar-small-128k-online',
       temperature: 0.3,
       maxTokens: 1000
     },
     openai: {
       enabled: false,
-      apiKey: process.env.OPENAI_API_KEY || '',
+      apiKey: '',
       model: 'gpt-4',
       temperature: 0.3,
       maxTokens: 1000
     },
     google: {
       enabled: false,
-      apiKey: process.env.GOOGLE_AI_API_KEY || '',
+      apiKey: '',
       model: 'gemini-pro',
       temperature: 0.3,
       maxTokens: 1000
     },
     litellm: {
       enabled: false,
-      apiKey: process.env.LITELLM_API_KEY || '',
-      baseUrl: process.env.LITELLM_BASE_URL || '',
+      apiKey: '',
+      baseUrl: '',
       model: 'openai/gpt-3.5-turbo',
       temperature: 0.3,
       maxTokens: 1000
@@ -167,6 +169,10 @@ Query: {query}`,
   }
 };
 
+if (strictAuth) {
+  router.use(authenticateToken, requireAdmin);
+}
+
 // Ensure data directory exists
 async function ensureDataDirectory() {
   const dataDir = path.dirname(SETTINGS_FILE);
@@ -189,7 +195,7 @@ router.get('/stats', async (req, res) => {
     let tokensTotal = 0;
 
     try {
-      const ds = new DirectusService();
+      const ds = contentRepository;
       // Counts via service
       articlesCount = await ds.getArticleCount({});
       clustersCount = await ds.getClusterCount({});
@@ -304,8 +310,7 @@ router.post('/clear-cache', async (req, res) => {
   }
 });
 
-// GET /admin-settings/test-db - Verify database connectivity
-router.get('/test-directus', async (req, res) => {
+const testDbConnectionHandler = async (req, res) => {
   try {
     const { testConnection } = require('../db/index');
     const dbOk = await testConnection();
@@ -317,6 +322,16 @@ router.get('/test-directus', async (req, res) => {
     logger.error({ err: error }, 'Database connectivity test failed');
     res.status(500).json({ success: false, error: error.message });
   }
+};
+
+// GET /admin-settings/test-db - Verify database connectivity
+router.get('/test-db', testDbConnectionHandler);
+
+// GET /admin-settings/test-directus - Deprecated compatibility endpoint
+router.get('/test-directus', (req, res) => {
+  res.set('Deprecation', 'true');
+  res.set('Sunset', '2026-06-30');
+  return testDbConnectionHandler(req, res);
 });
 
 
@@ -637,8 +652,7 @@ router.post('/reset', async (req, res) => {
       try { adminSettingsService.invalidateCache(); } catch (_) {}
       res.json({
         success: true,
-        message: 'Settings reset to defaults',
-        settings: DEFAULT_SETTINGS
+        message: 'Settings reset to defaults'
       });
     } else {
       res.status(500).json({

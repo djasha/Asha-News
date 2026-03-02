@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ArticleDetail from '../components/ArticleDetail/ArticleDetail';
 import SEOHead from '../components/SEO/SEOHead';
-import directusService from '../services/directusService';
 import { API_SERVER } from '../config/api';
 import logger from '../utils/logger';
 
@@ -58,18 +57,9 @@ const ArticleDetailPage = () => {
         }
       } catch (e) {
         logger.error('Failed to load articles from backend:', e);
-        
-        // Try Directus as fallback
-        try {
-          const directusData = await directusService.getArticles({ sortBy: 'date', limit: 100 });
-          const combinedArticles = directusData.articles || [];
-          if (alive) setArticles(combinedArticles);
-        } catch (directusError) {
-          logger.error('Directus fallback failed:', directusError);
-          
-          // All data sources failed — show empty state
-          logger.error('All data sources failed:', directusError);
-        }
+
+        // All data sources failed — show empty state.
+        if (alive) setArticles([]);
       } finally {
         if (alive) setLoading(false);
       }

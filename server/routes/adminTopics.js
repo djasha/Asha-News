@@ -1,7 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
-const DirectusService = require('../services/directusService');
+const contentRepository = require('../services/contentRepository');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
+const strictAuth = process.env.NODE_ENV === 'production' || process.env.STRICT_AUTH === 'true';
+
+if (strictAuth) {
+  router.use(authenticateToken, requireAdmin);
+}
 
 /**
  * Admin Topics Routes
@@ -23,8 +29,7 @@ router.get('/', async (req, res) => {
       sortOrder = 'asc'
     } = req.query;
     
-    const directus = new DirectusService();
-    
+        
     // Build filter
     let filter = {};
     if (enabled !== undefined) {
@@ -41,7 +46,7 @@ router.get('/', async (req, res) => {
     // Build sort
     const sort = sortOrder === 'desc' ? `-${sortBy}` : sortBy;
     
-    const topics = await directus.getItems('topic_categories', {
+    const topics = await contentRepository.getItems('topic_categories', {
       filter,
       limit: parseInt(limit),
       offset: (parseInt(page) - 1) * parseInt(limit),
@@ -50,7 +55,7 @@ router.get('/', async (req, res) => {
     });
     
     // Get total count for pagination
-    const total = await directus.getItems('topic_categories', {
+    const total = await contentRepository.getItems('topic_categories', {
       filter,
       limit: -1,
       fields: ['id']
@@ -81,8 +86,7 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const directus = new DirectusService();
-    const topic = await directus.getItemById('topic_categories', req.params.id);
+    const topic = await contentRepository.getItemById('topic_categories', req.params.id);
     
     if (!topic) {
       return res.status(404).json({ 
@@ -135,10 +139,8 @@ router.post('/', async (req, res) => {
       });
     }
     
-    const directus = new DirectusService();
-    
     // Check slug uniqueness
-    const existing = await directus.getItems('topic_categories', {
+    const existing = await contentRepository.getItems('topic_categories', {
       filter: { slug }
     });
     
@@ -150,14 +152,14 @@ router.post('/', async (req, res) => {
     }
     
     // Get max sort_order to append to end
-    const allTopics = await directus.getItems('topic_categories', {
+    const allTopics = await contentRepository.getItems('topic_categories', {
       sort: ['-sort_order'],
       limit: 1
     });
     const maxOrder = allTopics?.[0]?.sort_order || 0;
     
     // Create new topic
-    const newTopic = await directus.createItem('topic_categories', {
+    const newTopic = await contentRepository.createItem('topic_categories', {
       name,
       slug,
       description: description || null,
@@ -197,10 +199,8 @@ router.put('/:id', async (req, res) => {
       sort_order 
     } = req.body;
     
-    const directus = new DirectusService();
-    
     // Check if topic exists
-    const existing = await directus.getItemById('topic_categories', req.params.id);
+    const existing = await contentRepository.getItemById('topic_categories', req.params.id);
     if (!existing) {
       return res.status(404).json({
         success: false,
@@ -218,7 +218,7 @@ router.put('/:id', async (req, res) => {
         });
       }
       
-      const duplicates = await directus.getItems('topic_categories', {
+      const duplicates = await contentRepository.getItems('topic_categories', {
         filter: { 
           slug,
           id: { _neq: req.params.id }
@@ -243,7 +243,7 @@ router.put('/:id', async (req, res) => {
     if (enabled !== undefined) updateData.enabled = enabled;
     if (sort_order !== undefined) updateData.sort_order = sort_order;
     
-    const updated = await directus.updateItem('topic_categories', req.params.id, updateData);
+    const updated = await contentRepository.updateItem('topic_categories', req.params.id, updateData);
     
     res.json({ 
       success: true, 
@@ -264,10 +264,9 @@ router.put('/:id', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const directus = new DirectusService();
     
     // Check if topic exists
-    const existing = await directus.getItemById('topic_categories', req.params.id);
+    const existing = await contentRepository.getItemById('topic_categories', req.params.id);
     if (!existing) {
       return res.status(404).json({
         success: false,
@@ -283,7 +282,7 @@ router.delete('/:id', async (req, res) => {
       });
     }
     
-    await directus.deleteItem('topic_categories', req.params.id);
+    await contentRepository.deleteItem('topic_categories', req.params.id);
     
     res.json({ 
       success: true, 
@@ -322,14 +321,12 @@ router.post('/reorder', async (req, res) => {
         });
       }
     }
-    
-    const directus = new DirectusService();
     const results = [];
     
     // Update each topic's sort_order
     for (const topic of topics) {
       try {
-        await directus.updateItem('topic_categories', topic.id, {
+        await contentRepository.updateItem('topic_categories', topic.id, {
           sort_order: topic.sort_order
         });
         results.push({ id: topic.id, success: true });
@@ -377,14 +374,12 @@ router.patch('/bulk-update', async (req, res) => {
         error: 'Updates object is required'
       });
     }
-    
-    const directus = new DirectusService();
     const results = [];
     
     // Update each topic
     for (const id of ids) {
       try {
-        await directus.updateItem('topic_categories', id, updates);
+        await contentRepository.updateItem('topic_categories', id, updates);
         results.push({ id, success: true });
       } catch (error) {
         logger.error({ err: error }, `Failed to update topic ${id}`);

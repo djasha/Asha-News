@@ -7,10 +7,14 @@ const queryBridge = require('../db/queryBridge');
 
 class AuthService {
   constructor() {
-    this.jwtSecret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+    this.jwtSecret = process.env.JWT_SECRET || '';
     this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '7d';
     this.refreshTokenExpiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || '30d';
     this.saltRounds = 12;
+
+    if (!this.jwtSecret) {
+      logger.warn('JWT_SECRET is not configured. Auth endpoints are disabled until a secret is set.');
+    }
 
     this.users = new Map();
     this.refreshTokens = new Map();
@@ -32,7 +36,12 @@ class AuthService {
    */
   async initializeAdminUser() {
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@asha.news';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (!adminPassword) {
+      logger.warn('ADMIN_PASSWORD not configured. Skipping bootstrap admin user creation.');
+      return;
+    }
     
     try {
       // Check if admin user already exists
@@ -272,6 +281,10 @@ class AuthService {
    * @returns {Object} Decoded token data
    */
   verifyToken(token) {
+    if (!this.jwtSecret) {
+      throw new Error('Authentication is not configured');
+    }
+
     try {
       return jwt.verify(token, this.jwtSecret);
     } catch (error) {
@@ -451,6 +464,10 @@ class AuthService {
   }
 
   generateAccessToken(user) {
+    if (!this.jwtSecret) {
+      throw new Error('Authentication is not configured');
+    }
+
     return jwt.sign(
       {
         userId: user.id,
@@ -464,6 +481,10 @@ class AuthService {
   }
 
   generateRefreshToken(user) {
+    if (!this.jwtSecret) {
+      throw new Error('Authentication is not configured');
+    }
+
     return jwt.sign(
       { userId: user.id, type: 'refresh' },
       this.jwtSecret,

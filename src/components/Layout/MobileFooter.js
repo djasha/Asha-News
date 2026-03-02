@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { CORE_NAV_ITEMS_DESKTOP, V1_CORE_ONLY } from '../../config/v1';
 
 const MobileFooter = () => {
   const navigate = useNavigate();
@@ -15,7 +16,6 @@ const MobileFooter = () => {
       title: 'Company',
       items: [
         { label: 'About Us', path: '/about' },
-        { label: 'How We Analyze', path: '/bias-methodology' },
         { label: 'Contact', path: '/contact' },
         { label: 'Careers', path: '/careers' }
       ]
@@ -23,12 +23,14 @@ const MobileFooter = () => {
     {
       id: 'product',
       title: 'Product',
-      items: [
-        { label: 'Features', path: '/features' },
-        { label: 'Sources', path: '/sources' },
-        { label: 'Fact Checker', path: '/fact-check' },
-        { label: 'API', path: '/api' }
-      ]
+      items: V1_CORE_ONLY
+        ? CORE_NAV_ITEMS_DESKTOP.map((item) => ({ label: item.label, path: item.path }))
+        : [
+            { label: 'Features', path: '/features' },
+            { label: 'Sources', path: '/sources' },
+            { label: 'Fact Checker', path: '/fact-check' },
+            { label: 'API', path: '/api' }
+          ]
     },
     {
       id: 'legal',
@@ -48,23 +50,23 @@ const MobileFooter = () => {
       <div className="px-4 py-6 border-b border-primary-200/10 dark:border-primary-700/10">
         <div className="grid grid-cols-2 gap-3">
           <button
-            onClick={() => navigate('/search')}
+            onClick={() => navigate('/markets')}
             className="flex items-center justify-center gap-2 p-4 bg-primary-600 dark:bg-primary-500 text-white rounded-mobile hover:bg-primary-700 dark:hover:bg-primary-600 active:bg-primary-800 dark:active:bg-primary-700 transition-colors touch-manipulation"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3v18h18M7 14l3-3 3 2 4-5" />
             </svg>
-            <span className="font-medium">Search</span>
+            <span className="font-medium">Markets</span>
           </button>
           
           <button
-            onClick={() => navigate('/fact-check')}
+            onClick={() => navigate('/ai-checker')}
             className="flex items-center justify-center gap-2 p-4 bg-surface-light dark:bg-surface-dark border border-primary-200 dark:border-primary-700 text-text-primary-light dark:text-text-primary-dark rounded-mobile hover:bg-interactive-hover-light dark:hover:bg-interactive-hover-dark active:bg-interactive-active-light dark:active:bg-interactive-active-dark transition-colors touch-manipulation"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
             </svg>
-            <span className="font-medium">Fact Checker</span>
+            <span className="font-medium">AI Checker</span>
           </button>
         </div>
       </div>

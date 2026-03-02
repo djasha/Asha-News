@@ -8,6 +8,7 @@ export const API_SERVER = process.env.REACT_APP_API_URL || 'http://localhost:300
 
 // Base API URL (with /api suffix)
 export const API_BASE = `${API_SERVER}/api`;
+export const API_V1_BASE = `${API_BASE}/v1`;
 
 // CMS API URL
 export const CMS_BASE = `${API_SERVER}/api/cms`;

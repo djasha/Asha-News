@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { V1_CORE_ONLY } from '../config/v1';
 
 const SiteConfigContext = createContext();
 
@@ -22,6 +23,11 @@ export const SiteConfigProvider = ({ children }) => {
 
   const fetchSiteConfig = async () => {
     try {
+      if (V1_CORE_ONLY) {
+        setError(null);
+        return;
+      }
+
       let response;
       try {
         response = await fetch('/api/cms/site-config');

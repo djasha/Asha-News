@@ -19,29 +19,28 @@ const Providers = ({ children, initialEntries = ['/'] }) => (
 );
 
 describe('Fact Checker Navigation and Page', () => {
-  test('Navigation includes a Fact Checker link pointing to /fact-check', async () => {
+  test('Navigation includes an AI Checker link pointing to /ai-checker', async () => {
     render(
       <Providers>
         <Navigation />
       </Providers>
     );
 
-    const link = await screen.findByRole('link', { name: /fact checker/i });
+    const link = await screen.findByRole('link', { name: /ai checker/i });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', expect.stringContaining('/fact-check'));
+    expect(link).toHaveAttribute('href', expect.stringContaining('/ai-checker'));
   });
 
-  test('BottomNavigation displays Fact Checker tab', () => {
+  test('BottomNavigation displays AI Checker tab for v1 nav', () => {
     render(
       <Providers>
         <BottomNavigation />
       </Providers>
     );
 
-    // Button has both aria-label and visible text
-    const btn = screen.getByRole('button', { name: /fact checker/i });
+    const btn = screen.getByRole('button', { name: /ai/i });
     expect(btn).toBeInTheDocument();
-    expect(screen.getByText(/fact checker/i)).toBeInTheDocument();
+    expect(screen.getByText(/ai/i)).toBeInTheDocument();
   });
 
   test('FactCheckerPage renders its H1 title', () => {

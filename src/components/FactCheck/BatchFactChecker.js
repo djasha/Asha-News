@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, Download, CheckCircle, XCircle, AlertTriangle, Clock, FileText, Loader2, Plus, Trash2 } from 'lucide-react';
+import { buildAuthHeaders } from '../../utils/authHeaders';
 
 const BatchFactChecker = () => {
   const [claims, setClaims] = useState([{ id: 1, text: '', context: '' }]);
@@ -44,10 +45,9 @@ const BatchFactChecker = () => {
     try {
       const response = await fetch('/api/advanced-fact-check/batch-check', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('asha_token')}`
-        },
+        headers: await buildAuthHeaders({
+          'Content-Type': 'application/json'
+        }),
         body: JSON.stringify({
           claims: validClaims
         })

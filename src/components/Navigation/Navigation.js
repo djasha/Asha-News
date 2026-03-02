@@ -15,21 +15,24 @@ const Navigation = () => {
   useEffect(() => {
     const fetchNavigation = async () => {
       try {
-        const response = await fetch(`${CMS_BASE}/navigation?location=header`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const response = await fetch(`${CMS_BASE}/navigation?location=header`).catch(() => undefined);
+        if (!response || !response.ok) {
+          throw new Error(`HTTP ${response ? response.status : 'FETCH_FAILED'}`);
+        }
         const data = await response.json();
         const items = data && data.data ? data.data : [];
         if (!items.length) throw new Error('No navigation items');
         setNavigationItems(items);
       } catch (error) {
-        logger.error('Failed to fetch navigation:', error);
+        if (process.env.NODE_ENV === 'development') {
+          logger.error('Failed to fetch navigation:', error);
+        }
         // Fallback navigation items
         setNavigationItems([
           { id: 1, name: 'Home', url: '/', enabled: true, sort_order: 1 },
-          { id: 2, name: 'Stories', url: '/stories', enabled: true, sort_order: 2 },
-          { id: 3, name: 'For You', url: '/for-you', enabled: true, sort_order: 3 },
-          { id: 4, name: 'Fact Checker', url: '/fact-check', enabled: true, sort_order: 4 },
-          { id: 5, name: 'Bias Methodology', url: '/bias-methodology', enabled: true, sort_order: 5 }
+          { id: 2, name: 'AI Checker', url: '/ai-checker', enabled: true, sort_order: 2 },
+          { id: 3, name: 'Markets', url: '/markets', enabled: true, sort_order: 3 },
+          { id: 4, name: 'Digest', url: '/digest', enabled: true, sort_order: 4 }
         ]);
       } finally {
         setLoading(false);

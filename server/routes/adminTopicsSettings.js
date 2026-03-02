@@ -3,8 +3,35 @@ const router = express.Router();
 const logger = require('../utils/logger');
 const fs = require('fs').promises;
 const path = require('path');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
+const strictAuth = process.env.NODE_ENV === 'production' || process.env.STRICT_AUTH === 'true';
 
 const SETTINGS_FILE = path.join(__dirname, '../data/admin-settings.json');
+
+const requireAdminIfStrict = (req, res, next) => {
+  if (!strictAuth) return next();
+  return authenticateToken(req, res, () => requireAdmin(req, res, next));
+};
+
+async function readSettings() {
+  try {
+    const data = await fs.readFile(SETTINGS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      const defaults = {};
+      await fs.mkdir(path.dirname(SETTINGS_FILE), { recursive: true });
+      await fs.writeFile(SETTINGS_FILE, JSON.stringify(defaults, null, 2), 'utf8');
+      return defaults;
+    }
+    throw error;
+  }
+}
+
+async function writeSettings(settings) {
+  await fs.mkdir(path.dirname(SETTINGS_FILE), { recursive: true });
+  await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
+}
 
 /**
  * Admin Topics Settings Routes
@@ -17,8 +44,7 @@ const SETTINGS_FILE = path.join(__dirname, '../data/admin-settings.json');
  */
 router.get('/', async (req, res) => {
   try {
-    const data = await fs.readFile(SETTINGS_FILE, 'utf8');
-    const settings = JSON.parse(data);
+    const settings = await readSettings();
     
     // Extract topic-related settings with defaults
     const topicsSettings = {
@@ -177,7 +203,7 @@ router.get('/', async (req, res) => {
  * PUT /api/admin/topics-settings
  * Update topic-related settings
  */
-router.put('/', async (req, res) => {
+router.put('/', requireAdminIfStrict, async (req, res) => {
   try {
     const { 
       topicsPage, 
@@ -188,8 +214,7 @@ router.put('/', async (req, res) => {
     } = req.body;
     
     // Read current settings
-    const data = await fs.readFile(SETTINGS_FILE, 'utf8');
-    const settings = JSON.parse(data);
+    const settings = await readSettings();
     
     // Update settings sections
     if (topicsPage) {
@@ -233,7 +258,7 @@ router.put('/', async (req, res) => {
     }
     
     // Write updated settings
-    await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
+    await writeSettings(settings);
     
     res.json({ 
       success: true, 
@@ -264,8 +289,7 @@ router.get('/:section', async (req, res) => {
       });
     }
     
-    const data = await fs.readFile(SETTINGS_FILE, 'utf8');
-    const settings = JSON.parse(data);
+    const settings = await readSettings();
     
     let sectionData = {};
     
@@ -304,7 +328,7 @@ router.get('/:section', async (req, res) => {
  * PUT /api/admin/topics-settings/:section
  * Update specific settings section
  */
-router.put('/:section', async (req, res) => {
+router.put('/:section', requireAdminIfStrict, async (req, res) => {
   try {
     const { section } = req.params;
     const validSections = ['topicsPage', 'trendingBar', 'topicCarousel', 'clusteringTopics', 'topicAnalytics'];
@@ -316,8 +340,7 @@ router.put('/:section', async (req, res) => {
       });
     }
     
-    const data = await fs.readFile(SETTINGS_FILE, 'utf8');
-    const settings = JSON.parse(data);
+    const settings = await readSettings();
     
     if (section === 'clusteringTopics') {
       if (!settings.clusterSettings) {
@@ -328,7 +351,7 @@ router.put('/:section', async (req, res) => {
       settings[section] = { ...settings[section], ...req.body };
     }
     
-    await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
+    await writeSettings(settings);
     
     res.json({ 
       success: true, 
@@ -347,12 +370,11 @@ router.put('/:section', async (req, res) => {
  * POST /api/admin/topics-settings/reset
  * Reset all topics settings to defaults
  */
-router.post('/reset', async (req, res) => {
+router.post('/reset', requireAdminIfStrict, async (req, res) => {
   try {
     const { section } = req.body; // Optional: reset specific section only
     
-    const data = await fs.readFile(SETTINGS_FILE, 'utf8');
-    const settings = JSON.parse(data);
+    const settings = await readSettings();
     
     const defaults = {
       topicsPage: {
@@ -468,7 +490,7 @@ router.post('/reset', async (req, res) => {
       });
     }
     
-    await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
+    await writeSettings(settings);
     
     res.json({ 
       success: true, 

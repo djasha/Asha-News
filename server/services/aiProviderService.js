@@ -170,7 +170,7 @@ class AIProviderService {
     }
 
     if (!provider) {
-      throw new Error('No AI provider configured. Set at least one provider API key and enable it in admin settings.');
+      return this.getMockClaimAnalysis(claimText, 'No AI provider configured');
     }
 
     // Ensure client exists based on admin settings if needed
@@ -186,7 +186,7 @@ class AIProviderService {
           return await this.analyzeClaim(claimText, p, evidence);
         }
       }
-      throw new Error('Selected AI provider is disabled and no enabled fallback provider is available.');
+      return this.getMockClaimAnalysis(claimText, 'Selected provider disabled and no fallback available');
     }
 
     let systemPrompt = `You are a fact-checking AI assistant. Analyze the given claim and provide:
@@ -257,8 +257,21 @@ Respond in JSON format with these fields: assessment, confidence_score, key_poin
         return await this.analyzeClaim(claimText, fallbackProvider.id, evidence);
       }
       
-      throw new Error('All AI providers are unavailable. Configure at least one healthy provider.');
+      return this.getMockClaimAnalysis(claimText, 'All AI providers are unavailable');
     }
+  }
+
+  getMockClaimAnalysis(claimText, reason = 'AI provider unavailable') {
+    return {
+      assessment: 'insufficient_data',
+      confidence_score: 0.1,
+      key_points: [reason],
+      search_terms: this.extractSearchTerms(claimText),
+      suggested_sources: ['reuters.com', 'apnews.com', 'factcheck.org'],
+      context: `Fallback response generated because: ${reason}.`,
+      provider: 'mock',
+      provider_name: 'Mock Fallback'
+    };
   }
 
   /**

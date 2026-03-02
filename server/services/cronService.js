@@ -7,15 +7,43 @@ const cron = require('node-cron');
 const logger = require('../utils/logger');
 const axios = require('axios');
 const queryBridge = require('../db/queryBridge');
+const conflictAnalyticsService = require('./conflictAnalyticsService');
 
 class CronService {
   constructor() {
     this.backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
     this.enableIngestCron = String(process.env.ENABLE_INGEST_CRON || 'false').toLowerCase() === 'true';
     this.ingestCronSchedule = process.env.INGEST_CRON_SCHEDULE || '*/30 * * * *';
+    this.enableConflictOpsCron = String(process.env.ENABLE_CONFLICT_OPS_CRON || 'true').toLowerCase() !== 'false';
+    this.conflictOpsCronSchedule = process.env.CONFLICT_OPS_CRON_SCHEDULE || '*/20 * * * *';
+    this.conflictOpsShadowMode = String(process.env.CONFLICT_OPS_SHADOW_MODE || 'true').toLowerCase() !== 'false';
+    this.internalApiKey = process.env.INTERNAL_API_KEY || '';
 
-    this.headers = { 'Content-Type': 'application/json' };
+    this.headers = {
+      'Content-Type': 'application/json',
+      ...(this.internalApiKey ? { 'X-Internal-Key': this.internalApiKey } : {})
+    };
     this.jobs = new Map();
+    this.heartbeats = {};
+  }
+
+  markJobStart(jobName) {
+    this.heartbeats[jobName] = {
+      ...(this.heartbeats[jobName] || {}),
+      running: true,
+      last_started_at: new Date().toISOString()
+    };
+  }
+
+  markJobResult(jobName, ok, errorMessage = null) {
+    this.heartbeats[jobName] = {
+      ...(this.heartbeats[jobName] || {}),
+      running: false,
+      last_finished_at: new Date().toISOString(),
+      last_success_at: ok ? new Date().toISOString() : this.heartbeats[jobName]?.last_success_at || null,
+      last_status: ok ? 'ok' : 'error',
+      last_error: ok ? null : errorMessage
+    };
   }
 
   /**
@@ -24,14 +52,17 @@ class CronService {
   startStoryClusteringJob() {
     const job = cron.schedule('*/30 * * * *', async () => {
       logger.info('[CronService] Running story clustering automation...');
+      this.markJobStart('story-clustering');
       try {
         await axios.post(`${this.backendUrl}/api/clusters/auto-cluster`, {
           threshold: 0.75,
           max_articles: 200
-        });
+        }, { headers: this.headers });
         logger.info('[CronService] Story clustering automation executed');
+        this.markJobResult('story-clustering', true);
       } catch (error) {
         logger.error('[CronService] Story clustering automation failed:', error.response?.data || error.message);
+        this.markJobResult('story-clustering', false, error.message);
       }
     }, {
       scheduled: false,
@@ -66,8 +97,45 @@ class CronService {
     } else {
       logger.info('[CronService] Ingestion cron disabled (set ENABLE_INGEST_CRON=true to enable)');
     }
+
+    // Conflict operations autonomy cycle (optional, flag-gated in service)
+    if (this.enableConflictOpsCron) {
+      this.startConflictOpsJob();
+    } else {
+      logger.info('[CronService] Conflict ops cron disabled (set ENABLE_CONFLICT_OPS_CRON=true to enable)');
+    }
     
     logger.info('[CronService] All cron jobs started');
+  }
+
+  /**
+   * Conflict operations autonomy cycle.
+   * The service itself enforces kill-switch feature flags.
+   */
+  startConflictOpsJob() {
+    const job = cron.schedule(this.conflictOpsCronSchedule, async () => {
+      logger.info('[CronService] Running conflict ops autonomy cycle...');
+      this.markJobStart('conflict-ops-autonomy');
+      try {
+        const result = await conflictAnalyticsService.runAutonomousCycle({
+          runType: 'scheduled',
+          shadowMode: this.conflictOpsShadowMode,
+        });
+
+        logger.info({ result }, '[CronService] Conflict ops autonomy cycle completed');
+        this.markJobResult('conflict-ops-autonomy', true);
+      } catch (error) {
+        logger.error('[CronService] Conflict ops autonomy cycle failed:', error.message);
+        this.markJobResult('conflict-ops-autonomy', false, error.message);
+      }
+    }, {
+      scheduled: false,
+      timezone: 'UTC'
+    });
+
+    this.jobs.set('conflict-ops-autonomy', job);
+    job.start();
+    logger.info(`[CronService] Conflict ops autonomy job scheduled (${this.conflictOpsCronSchedule})`);
   }
 
   /**
@@ -76,11 +144,14 @@ class CronService {
   startIngestJob() {
     const job = cron.schedule(this.ingestCronSchedule, async () => {
       logger.info('[CronService] Running scheduled ingestion (RSS automation fetch)...');
+      this.markJobStart('ingestion');
       try {
-        await axios.post(`${this.backendUrl}/api/rss-automation/fetch`);
+        await axios.post(`${this.backendUrl}/api/rss-automation/fetch`, {}, { headers: this.headers });
         logger.info('[CronService] Ingestion executed');
+        this.markJobResult('ingestion', true);
       } catch (error) {
         logger.error('[CronService] Ingestion job failed:', error.response?.data || error.message);
+        this.markJobResult('ingestion', false, error.message);
       }
     }, {
       scheduled: false,
@@ -97,10 +168,13 @@ class CronService {
   startDailyBriefsJob() {
     const job = cron.schedule('0 6 * * *', async () => {
       logger.info('[CronService] Running daily briefs generation...');
+      this.markJobStart('daily-briefs');
       try {
         await this.generateDailyBrief();
+        this.markJobResult('daily-briefs', true);
       } catch (error) {
         logger.error('[CronService] Daily briefs job failed:', error);
+        this.markJobResult('daily-briefs', false, error.message);
       }
     }, {
       scheduled: false,
@@ -118,10 +192,13 @@ class CronService {
   startBreakingNewsCleanup() {
     const job = cron.schedule('0 * * * *', async () => {
       logger.info('[CronService] Cleaning up expired breaking news...');
+      this.markJobStart('breaking-news-cleanup');
       try {
         await this.cleanupExpiredBreakingNews();
+        this.markJobResult('breaking-news-cleanup', true);
       } catch (error) {
         logger.error('[CronService] Breaking news cleanup failed:', error);
+        this.markJobResult('breaking-news-cleanup', false, error.message);
       }
     }, {
       scheduled: false,
@@ -139,10 +216,13 @@ class CronService {
   startAnalyticsUpdate() {
     const job = cron.schedule('0 */4 * * *', async () => {
       logger.info('[CronService] Updating analytics and trending topics...');
+      this.markJobStart('analytics-update');
       try {
         await this.updateAnalytics();
+        this.markJobResult('analytics-update', true);
       } catch (error) {
         logger.error('[CronService] Analytics update failed:', error);
+        this.markJobResult('analytics-update', false, error.message);
       }
     }, {
       scheduled: false,
@@ -160,7 +240,7 @@ class CronService {
   async generateDailyBrief() {
     try {
       const response = await axios.post(`${this.backendUrl}/api/webhooks/generate-daily-brief`, {}, {
-        headers: { 'Content-Type': 'application/json' }
+        headers: this.headers
       });
       logger.info('Daily brief generated:', response.data);
       return response.data;
@@ -278,6 +358,10 @@ class CronService {
     }
     
     return status;
+  }
+
+  getHeartbeatSnapshot() {
+    return { ...this.heartbeats };
   }
 
   /**

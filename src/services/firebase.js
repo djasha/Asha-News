@@ -1,205 +1,209 @@
-import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  GoogleAuthProvider,
-  signInWithPopup,
-  sendPasswordResetEmail,
-  updateProfile,
-  onAuthStateChanged
-} from 'firebase/auth';
-import { getAnalytics, isSupported } from 'firebase/analytics';
+import { createClient } from '@supabase/supabase-js';
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyCuTdnqYtbmlyuTAr5p531gBQBzS0xEAQ4",
-  authDomain: "ashanews-c2bc2.firebaseapp.com",
-  projectId: "ashanews-c2bc2",
-  storageBucket: "ashanews-c2bc2.firebasestorage.app",
-  messagingSenderId: "177464917453",
-  appId: "1:177464917453:web:12b057179f9d375b6d1884",
-  measurementId: "G-3ZCMPVCFZ5"
-};
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let cachedUser = null;
 
-// Initialize Firebase Auth
-export const auth = getAuth(app);
+const isConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
-// Initialize Firebase Analytics (only if supported in browser)
-let analytics = null;
-isSupported().then(yes => {
-  if (yes) {
-    analytics = getAnalytics(app);
-  }
-}).catch(err => {
-  console.log('Analytics not supported:', err);
-});
+export const auth = null;
+export const googleProvider = null;
+export const analytics = null;
 
-export { analytics };
+const supabase = isConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    })
+  : null;
 
-// Google Auth Provider
-export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
-});
+function toCompatUser(user) {
+  if (!user) return null;
 
-// Auth service functions
-export const firebaseAuthService = {
-  // Sign up with email and password
-  signUpWithEmail: async (email, password, displayName) => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
-      // Update profile with display name
-      if (displayName && userCredential.user) {
-        await updateProfile(userCredential.user, {
-          displayName: displayName
-        });
+  const displayName =
+    user.user_metadata?.display_name ||
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email ||
+    '';
+
+  return {
+    ...user,
+    uid: user.id,
+    displayName,
+    photoURL: user.user_metadata?.avatar_url || null,
+    emailVerified: Boolean(user.email_confirmed_at),
+    async getIdToken(forceRefresh = false) {
+      if (!supabase) return null;
+      if (forceRefresh) {
+        await supabase.auth.refreshSession();
       }
-      
-      return {
-        success: true,
-        user: userCredential.user
-      };
-    } catch (error) {
-      console.error('Sign up error:', error);
-      return {
-        success: false,
-        error: getFirebaseErrorMessage(error.code)
-      };
-    }
-  },
-
-  // Sign in with email and password
-  signInWithEmail: async (email, password) => {
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      return {
-        success: true,
-        user: userCredential.user
-      };
-    } catch (error) {
-      console.error('Sign in error:', error);
-      return {
-        success: false,
-        error: getFirebaseErrorMessage(error.code)
-      };
-    }
-  },
-
-  // Sign in with Google
-  signInWithGoogle: async () => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      return {
-        success: true,
-        user: result.user,
-        credential: GoogleAuthProvider.credentialFromResult(result)
-      };
-    } catch (error) {
-      console.error('Google sign in error:', error);
-      return {
-        success: false,
-        error: getFirebaseErrorMessage(error.code)
-      };
-    }
-  },
-
-  // Sign out
-  signOut: async () => {
-    try {
-      await signOut(auth);
-      return { success: true };
-    } catch (error) {
-      console.error('Sign out error:', error);
-      return {
-        success: false,
-        error: getFirebaseErrorMessage(error.code)
-      };
-    }
-  },
-
-  // Send password reset email
-  resetPassword: async (email) => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-      return { success: true };
-    } catch (error) {
-      console.error('Password reset error:', error);
-      return {
-        success: false,
-        error: getFirebaseErrorMessage(error.code)
-      };
-    }
-  },
-
-  // Update user profile
-  updateUserProfile: async (updates) => {
-    try {
-      const user = auth.currentUser;
-      if (!user) {
-        return { success: false, error: 'No user logged in' };
-      }
-      
-      await updateProfile(user, updates);
-      return { success: true };
-    } catch (error) {
-      console.error('Profile update error:', error);
-      return {
-        success: false,
-        error: getFirebaseErrorMessage(error.code)
-      };
-    }
-  },
-
-  // Get current user
-  getCurrentUser: () => {
-    return auth.currentUser;
-  },
-
-  // Listen to auth state changes
-  onAuthStateChange: (callback) => {
-    return onAuthStateChanged(auth, callback);
-  },
-
-  // Get user token
-  getUserToken: async (forceRefresh = false) => {
-    try {
-      const user = auth.currentUser;
-      if (!user) {
-        return null;
-      }
-      return await user.getIdToken(forceRefresh);
-    } catch (error) {
-      console.error('Get token error:', error);
-      return null;
-    }
-  }
-};
-
-// Helper function to convert Firebase error codes to user-friendly messages
-function getFirebaseErrorMessage(errorCode) {
-  const errorMessages = {
-    'auth/email-already-in-use': 'This email is already registered. Please sign in instead.',
-    'auth/invalid-email': 'Please enter a valid email address.',
-    'auth/operation-not-allowed': 'Email/password sign-in is not enabled. Please contact support.',
-    'auth/weak-password': 'Password is too weak. Please use at least 6 characters.',
-    'auth/user-disabled': 'This account has been disabled. Please contact support.',
-    'auth/user-not-found': 'No account found with this email address.',
-    'auth/wrong-password': 'Incorrect password. Please try again.',
-    'auth/invalid-credential': 'Invalid email or password. Please check your credentials.',
-    'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
-    'auth/network-request-failed': 'Network error. Please check your connection and try again.',
-    'auth/popup-closed-by-user': 'Sign-in popup was closed. Please try again.',
-    'auth/cancelled-popup-request': 'Only one popup request is allowed at a time.',
-    'auth/popup-blocked': 'Popup was blocked by the browser. Please allow popups for this site.'
+      const { data } = await supabase.auth.getSession();
+      return data?.session?.access_token || null;
+    },
   };
-
-  return errorMessages[errorCode] || 'An error occurred. Please try again.';
 }
 
-export default app;
+function getSupabaseErrorMessage(error) {
+  const message = error?.message || '';
+  if (/invalid login credentials/i.test(message)) {
+    return 'Invalid email or password. Please check your credentials.';
+  }
+  if (/email not confirmed/i.test(message)) {
+    return 'Please confirm your email before signing in.';
+  }
+  if (/user already registered/i.test(message)) {
+    return 'This email is already registered. Please sign in instead.';
+  }
+  if (/password should be at least/i.test(message)) {
+    return 'Password is too weak. Please use at least 6 characters.';
+  }
+  return message || 'An error occurred. Please try again.';
+}
+
+export const firebaseAuthService = {
+  signUpWithEmail: async (email, password, displayName) => {
+    if (!supabase) {
+      return { success: false, error: 'Supabase auth is not configured' };
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          display_name: displayName || '',
+          full_name: displayName || '',
+        },
+      },
+    });
+
+    if (error) {
+      return { success: false, error: getSupabaseErrorMessage(error) };
+    }
+
+    cachedUser = data?.user ? toCompatUser(data.user) : null;
+    return { success: true, user: cachedUser };
+  },
+
+  signInWithEmail: async (email, password) => {
+    if (!supabase) {
+      return { success: false, error: 'Supabase auth is not configured' };
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      return { success: false, error: getSupabaseErrorMessage(error) };
+    }
+
+    cachedUser = data?.user ? toCompatUser(data.user) : null;
+    return { success: true, user: cachedUser };
+  },
+
+  signInWithGoogle: async () => {
+    if (!supabase) {
+      return { success: false, error: 'Supabase auth is not configured' };
+    }
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+      },
+    });
+
+    if (error) {
+      return { success: false, error: getSupabaseErrorMessage(error) };
+    }
+
+    // Supabase may redirect automatically depending on environment.
+    if (data?.url && typeof window !== 'undefined') {
+      window.location.assign(data.url);
+    }
+
+    return { success: true, user: null };
+  },
+
+  signOut: async () => {
+    if (!supabase) return { success: true };
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      return { success: false, error: getSupabaseErrorMessage(error) };
+    }
+    cachedUser = null;
+    return { success: true };
+  },
+
+  resetPassword: async (email) => {
+    if (!supabase) {
+      return { success: false, error: 'Supabase auth is not configured' };
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
+    });
+
+    if (error) {
+      return { success: false, error: getSupabaseErrorMessage(error) };
+    }
+    return { success: true };
+  },
+
+  updateUserProfile: async (updates) => {
+    if (!supabase) {
+      return { success: false, error: 'Supabase auth is not configured' };
+    }
+
+    const metadata = {};
+    if (updates.displayName !== undefined) metadata.display_name = updates.displayName;
+    if (updates.photoURL !== undefined) metadata.avatar_url = updates.photoURL;
+
+    const { data, error } = await supabase.auth.updateUser({ data: metadata });
+    if (error) {
+      return { success: false, error: getSupabaseErrorMessage(error) };
+    }
+
+    cachedUser = data?.user ? toCompatUser(data.user) : cachedUser;
+    return { success: true };
+  },
+
+  getCurrentUser: () => cachedUser,
+
+  onAuthStateChange: (callback) => {
+    if (!supabase) {
+      callback(null);
+      return () => {};
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      cachedUser = data?.session?.user ? toCompatUser(data.session.user) : null;
+      callback(cachedUser);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      cachedUser = session?.user ? toCompatUser(session.user) : null;
+      callback(cachedUser);
+    });
+
+    return () => subscription.unsubscribe();
+  },
+
+  getUserToken: async (forceRefresh = false) => {
+    if (!supabase) return null;
+    if (forceRefresh) {
+      await supabase.auth.refreshSession();
+    }
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.access_token || null;
+  },
+};
+
+export { supabase };
+
+export default supabase;

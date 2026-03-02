@@ -4,14 +4,27 @@ const crypto = require('crypto');
 const logger = require('../utils/logger');
 const StoryClusteringService = require('../services/storyClusteringService');
 const adminSettingsService = require('../services/adminSettingsService');
-const DirectusService = require('../services/directusService');
+const contentRepository = require('../services/contentRepository');
 const EventRegistryService = require('../services/eventRegistryService');
 const ClusterCacheService = require('../services/clusterCacheService');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
 const { clusterLimiter, validateClusterInput } = require('../middleware/securityMiddleware');
 
 const clusteringService = new StoryClusteringService();
-const directusService = new DirectusService();
 const clusterCache = new ClusterCacheService();
+const strictAuth = process.env.NODE_ENV === 'production' || process.env.STRICT_AUTH === 'true';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
+
+const requireOpsAccess = (req, res, next) => {
+  if (!strictAuth) return next();
+
+  const providedInternal = req.header('X-Internal-Key') || req.header('x-internal-key');
+  if (INTERNAL_API_KEY && providedInternal && providedInternal === INTERNAL_API_KEY) {
+    return next();
+  }
+
+  return authenticateToken(req, res, () => requireAdmin(req, res, next));
+};
 
 function computeContentHash(articles = []) {
   try {
@@ -35,8 +48,8 @@ router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 20, category, status = 'active', topic } = req.query;
     
-    // Get clusters from Directus CMS
-    let clusters = await directusService.getClusters({
+    // Get clusters from content repository
+    let clusters = await contentRepository.getClusters({
       limit: parseInt(limit),
       offset: (parseInt(page) - 1) * parseInt(limit),
       status,
@@ -57,7 +70,7 @@ router.get('/', async (req, res) => {
         articles = Array.from(rssService.processedArticles.values()).slice(0, 50);
       } else {
         // Fallback: get RSS sources and process them
-        const rssSources = await directusService.getRSSSources({ enabled: true });
+        const rssSources = await contentRepository.getRSSSources({ enabled: true });
         if (rssSources.length > 0) {
           const rssResults = await rssService.processAllFeeds(rssSources.slice(0, 10)); // Process first 10 sources
           articles = rssResults.articles.slice(0, 50);
@@ -80,10 +93,10 @@ router.get('/', async (req, res) => {
         
         logger.info(`Generated ${validClusters.length} valid clusters from RSS articles`);
         
-        // Save clusters to Directus (optional - can be done in background)
+        // Save clusters to content repository (optional - can be done in background)
         for (const cluster of validClusters.slice(0, 10)) { // Save first 10 clusters
           try {
-            const saved = await directusService.saveCluster({
+            const saved = await contentRepository.saveCluster({
               cluster_title: cluster.cluster_title,
               cluster_summary: cluster.cluster_summary,
               bias_distribution: cluster.bias_distribution,
@@ -101,7 +114,7 @@ router.get('/', async (req, res) => {
             if (cluster.articles && saved?.id) {
               const articleIds = cluster.articles.map(a => a.id || a.guid).filter(Boolean);
               if (articleIds.length > 0) {
-                await directusService.saveClusterArticles(saved.id, articleIds);
+                await contentRepository.saveClusterArticles(saved.id, articleIds);
               }
             }
           } catch (error) {
@@ -174,7 +187,7 @@ router.get('/', async (req, res) => {
     }
 
     // Return clusters with pagination metadata
-    const totalClusters = filtered.length || await directusService.getClusterCount({ status, category });
+    const totalClusters = filtered.length || await contentRepository.getClusterCount({ status, category });
     res.json({
       success: true,
       data: filtered,
@@ -208,10 +221,10 @@ router.get('/', async (req, res) => {
 /**
  * POST /api/clusters/seed-from-event-registry
  * Conservatively ingest 1 event and up to N (<=5) articles for a topic using newsapi.ai (Event Registry),
- * upsert articles to Directus, and create a single cluster linking them. Supports dry_run.
+ * upsert articles to the content repository, and create a single cluster linking them. Supports dry_run.
  * Uses at most ~3 API calls (suggestConcept, getEvents, getEventArticles) with a keyword-search fallback.
  */
-router.post('/seed-from-event-registry', async (req, res) => {
+router.post('/seed-from-event-registry', requireOpsAccess, async (req, res) => {
   try {
     const {
       topic,
@@ -285,10 +298,10 @@ router.post('/seed-from-event-registry', async (req, res) => {
     const savedIds = [];
     for (const art of normalized) {
       try {
-        const saved = await directusService.upsertArticleBySourceUrl(art);
+        const saved = await contentRepository.upsertArticleBySourceUrl(art);
         if (saved?.id) savedIds.push(saved.id);
       } catch (e) {
-        logger.error({ err: error }, 'Seed ER upsert article failed');
+        logger.error({ err: e }, 'Seed ER upsert article failed');
 
       }
     }
@@ -299,7 +312,7 @@ router.post('/seed-from-event-registry', async (req, res) => {
 
     let clusterId = null;
     try {
-      const savedCluster = await directusService.saveCluster({
+      const savedCluster = await contentRepository.saveCluster({
         cluster_title: event?.title || `Topic: ${topic}`,
         cluster_summary: `Seeded from Event Registry for topic '${topic}'.`,
         article_count: savedIds.length,
@@ -307,15 +320,15 @@ router.post('/seed-from-event-registry', async (req, res) => {
       });
       clusterId = savedCluster?.id;
     } catch (e) {
-      logger.error({ err: error }, 'Seed ER saveCluster failed');
+      logger.error({ err: e }, 'Seed ER saveCluster failed');
 
     }
 
     if (clusterId) {
       try {
-        await directusService.saveClusterArticles(clusterId, savedIds);
+        await contentRepository.saveClusterArticles(clusterId, savedIds);
       } catch (e) {
-        logger.error({ err: error }, 'Seed ER saveClusterArticles failed');
+        logger.error({ err: e }, 'Seed ER saveClusterArticles failed');
 
       }
     }
@@ -335,8 +348,8 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Get cluster from Directus CMS
-    const cluster = await directusService.getClusterById(id);
+    // Get cluster from content repository
+    const cluster = await contentRepository.getClusterById(id);
 
     if (!cluster) {
       return res.status(404).json({ error: 'Story cluster not found' });
@@ -374,7 +387,7 @@ router.get('/:id', async (req, res) => {
     // Only set expanded_summary if missing (keep real data intact)
     cluster.expanded_summary = cluster.expanded_summary || cluster.cluster_summary;
     
-    // Return real cluster from Directus
+    // Return real cluster from content repository
     res.json({
       success: true,
       data: cluster
@@ -391,13 +404,13 @@ router.get('/:id', async (req, res) => {
  * Generate Q&A for a specific cluster on-demand
  * Persists the result to avoid regenerating
  */
-router.post('/:id/qa', async (req, res) => {
+router.post('/:id/qa', requireOpsAccess, async (req, res) => {
   try {
     const { id } = req.params;
     const { regenerate = false } = req.body;
 
-    // Fetch cluster from Directus
-    const cluster = await directusService.getClusterById(id);
+    // Fetch cluster from content repository
+    const cluster = await contentRepository.getClusterById(id);
     if (!cluster) {
       return res.status(404).json({ error: 'Cluster not found' });
     }
@@ -417,7 +430,7 @@ router.post('/:id/qa', async (req, res) => {
     // Get articles - handle both junction table formats
     let articles = [];
     if (cluster.articles_story_clusters && Array.isArray(cluster.articles_story_clusters)) {
-      // Directus junction format: articles_story_clusters contains {id, articles_id: {full article object}}
+      // Junction format: articles_story_clusters contains {id, articles_id: {full article object}}
       articles = cluster.articles_story_clusters
         .map(j => j.articles_id)
         .filter(a => a && typeof a === 'object' && a.id); // Keep full article objects
@@ -435,14 +448,14 @@ router.post('/:id/qa', async (req, res) => {
     const contentHash = computeContentHash(articles);
     if (enableCache && !regenerate && contentHash) {
       const cachedObj = clusterCache.get(id);
-      const hasDirectusQA = cluster.suggested_questions && cluster.suggested_answers;
+      const hasPersistedQA = cluster.suggested_questions && cluster.suggested_answers;
       const hasCachedQA = cachedObj && cachedObj.suggested_questions && cachedObj.suggested_answers;
-      if ((clusterCache.getHash(id) === contentHash) && (hasDirectusQA || hasCachedQA)) {
+      if ((clusterCache.getHash(id) === contentHash) && (hasPersistedQA || hasCachedQA)) {
         return res.json({
           success: true,
           data: {
-            suggested_questions: hasDirectusQA ? cluster.suggested_questions : cachedObj.suggested_questions,
-            suggested_answers: hasDirectusQA ? cluster.suggested_answers : cachedObj.suggested_answers,
+            suggested_questions: hasPersistedQA ? cluster.suggested_questions : cachedObj.suggested_questions,
+            suggested_answers: hasPersistedQA ? cluster.suggested_answers : cachedObj.suggested_answers,
             cached: true,
             content_hash: contentHash
           }
@@ -465,7 +478,7 @@ router.post('/:id/qa', async (req, res) => {
       cluster.cluster_title
     );
 
-    // Update cluster in Directus with generated Q&A
+    // Update cluster with generated Q&A in content repository
     const updatePayload = {
       suggested_questions: analysis.suggested_questions || [],
       suggested_answers: analysis.suggested_answers || []
@@ -473,16 +486,16 @@ router.post('/:id/qa', async (req, res) => {
 
     // Ensure content_hash field before updating and persist hash accordingly
     try {
-      await directusService.ensureStoryClustersContentHashField();
+      await contentRepository.ensureStoryClustersContentHashField();
     } catch (error) {
       logger.error({ err: error }, 'Error ensuring content_hash field');
     }
 
-    await directusService.updateItem('story_clusters', id, updatePayload);
+    await contentRepository.updateItem('story_clusters', id, updatePayload);
 
     if (contentHash) {
       try { clusterCache.set(id, { content_hash: contentHash, ...updatePayload }); } catch {}
-      try { await directusService.updateItem('story_clusters', id, { content_hash: contentHash }); } catch {}
+      try { await contentRepository.updateItem('story_clusters', id, { content_hash: contentHash }); } catch {}
     }
 
     logger.info(`Generated Q&A for cluster ${id}: ${analysis.suggested_questions?.length || 0} questions`);
@@ -509,13 +522,13 @@ router.post('/:id/qa', async (req, res) => {
  * POST /api/clusters/:id/fact-check
  * Generate fact-check analysis for a specific cluster on-demand
  */
-router.post('/:id/fact-check', async (req, res) => {
+router.post('/:id/fact-check', requireOpsAccess, async (req, res) => {
   try {
     const { id } = req.params;
     const { regenerate = false } = req.body;
 
-    // Fetch cluster from Directus
-    const cluster = await directusService.getClusterById(id);
+    // Fetch cluster from content repository
+    const cluster = await contentRepository.getClusterById(id);
     if (!cluster) {
       return res.status(404).json({ error: 'Cluster not found' });
     }
@@ -557,13 +570,13 @@ router.post('/:id/fact-check', async (req, res) => {
     // Generate fact-check (simplified for now - enhance later)
     const fact_check_notes = `Fact-check generated for "${cluster.cluster_title}". Analysis based on ${articles.length} sources.`;
 
-    // Update cluster in Directus
-    await directusService.updateItem('story_clusters', id, { fact_check_notes });
+    // Update cluster in content repository
+    await contentRepository.updateItem('story_clusters', id, { fact_check_notes });
 
     // Cache content hash and payload
     if (contentHash) {
       try { clusterCache.set(id, { content_hash: contentHash, fact_check_notes }); } catch {}
-      try { await directusService.ensureStoryClustersContentHashField(); await directusService.updateItem('story_clusters', id, { content_hash: contentHash }); } catch {}
+      try { await contentRepository.ensureStoryClustersContentHashField(); await contentRepository.updateItem('story_clusters', id, { content_hash: contentHash }); } catch {}
     }
 
     res.json({
@@ -581,13 +594,13 @@ router.post('/:id/fact-check', async (req, res) => {
  * POST /api/clusters/:id/analysis
  * Generate key facts/analysis for a specific cluster on-demand
  */
-router.post('/:id/analysis', async (req, res) => {
+router.post('/:id/analysis', requireOpsAccess, async (req, res) => {
   try {
     const { id } = req.params;
     const { regenerate = false } = req.body;
 
-    // Fetch cluster from Directus
-    const cluster = await directusService.getClusterById(id);
+    // Fetch cluster from content repository
+    const cluster = await contentRepository.getClusterById(id);
     if (!cluster) {
       return res.status(404).json({ error: 'Cluster not found' });
     }
@@ -632,16 +645,16 @@ router.post('/:id/analysis', async (req, res) => {
       cluster.cluster_title
     );
 
-    // Update cluster in Directus
+    // Update cluster in content repository
     const updatePayload = {
       key_facts: analysis.key_facts || []
     };
 
-    await directusService.updateItem('story_clusters', id, updatePayload);
+    await contentRepository.updateItem('story_clusters', id, updatePayload);
 
     if (contentHash) {
       try { clusterCache.set(id, { content_hash: contentHash, ...updatePayload }); } catch {}
-      try { await directusService.ensureStoryClustersContentHashField(); await directusService.updateItem('story_clusters', id, { content_hash: contentHash }); } catch {}
+      try { await contentRepository.ensureStoryClustersContentHashField(); await contentRepository.updateItem('story_clusters', id, { content_hash: contentHash }); } catch {}
     }
 
     res.json({
@@ -662,7 +675,7 @@ router.post('/:id/analysis', async (req, res) => {
  * Generate X/Twitter social content for a specific cluster using X.AI Grok
  * On-demand only to save tokens
  */
-router.post('/:id/social', async (req, res) => {
+router.post('/:id/social', requireOpsAccess, async (req, res) => {
   try {
     const { id } = req.params;
     const { regenerate = false } = req.body;
@@ -678,8 +691,8 @@ router.post('/:id/social', async (req, res) => {
       });
     }
 
-    // Fetch cluster from Directus
-    const cluster = await directusService.getClusterById(id);
+    // Fetch cluster from content repository
+    const cluster = await contentRepository.getClusterById(id);
     if (!cluster) {
       return res.status(404).json({ error: 'Cluster not found' });
     }
@@ -719,13 +732,13 @@ router.post('/:id/social', async (req, res) => {
       articles: articles.slice(0, 5) // Limit to 5 articles for context
     });
 
-    // Update cluster in Directus
+    // Update cluster in content repository
     const updatePayload = {
       x_posts: socialContent.x_posts || [],
       trending_hashtags: socialContent.trending_hashtags || []
     };
 
-    await directusService.updateItem('story_clusters', id, updatePayload);
+    await contentRepository.updateItem('story_clusters', id, updatePayload);
 
     logger.info(`✅ Generated ${socialContent.x_posts.length} tweets, ${socialContent.trending_hashtags.length} hashtags for cluster ${id}`);
 
@@ -750,7 +763,7 @@ router.post('/:id/social', async (req, res) => {
  * POST /api/clusters/create
  * Create new story cluster from articles
  */
-router.post('/create', validateClusterInput, async (req, res) => {
+router.post('/create', requireOpsAccess, validateClusterInput, async (req, res) => {
   try {
     const { articles, threshold, manual_title } = req.body;
     
@@ -814,7 +827,7 @@ router.post('/create', validateClusterInput, async (req, res) => {
  * POST /api/clusters/auto-cluster
  * Automatically cluster all eligible articles
  */
-router.post('/auto-cluster', async (req, res) => {
+router.post('/auto-cluster', requireOpsAccess, async (req, res) => {
   try {
     const { 
       threshold = 0.75, 
@@ -825,9 +838,9 @@ router.post('/auto-cluster', async (req, res) => {
     
     logger.info('Starting automatic clustering process...');
     
-    // Fetch latest articles from Directus CMS
+    // Fetch latest articles from content repository
     const sinceDate = new Date(Date.now() - hours_back * 60 * 60 * 1000).toISOString();
-    let articles = await directusService.getArticles({
+    let articles = await contentRepository.getArticles({
       limit: Math.min(parseInt(max_articles), 500),
       status: 'published'
     });
@@ -846,7 +859,7 @@ router.post('/auto-cluster', async (req, res) => {
     // If still not enough articles, try fetching ALL recent ones (remove date filter)
     if (articles.length < 2) {
       logger.info('Not enough recent articles, fetching more...');
-      articles = await directusService.getArticles({
+      articles = await contentRepository.getArticles({
         limit: Math.min(parseInt(max_articles), 500),
         status: 'published'
       });
@@ -874,11 +887,11 @@ router.post('/auto-cluster', async (req, res) => {
     
     logger.info(`Created ${validClusters.length} valid clusters from ${articles.length} articles`);
     
-    // Persist first N clusters into Directus and link their articles
+    // Persist first N clusters and link their articles
     let persisted = 0;
     for (const cluster of validClusters.slice(0, 10)) {
       try {
-        const saved = await directusService.saveCluster({
+        const saved = await contentRepository.saveCluster({
           cluster_title: cluster.cluster_title,
           cluster_summary: cluster.cluster_summary,
           bias_distribution: cluster.bias_distribution,
@@ -899,12 +912,12 @@ router.post('/auto-cluster', async (req, res) => {
           logger.info('Sample article:', JSON.stringify(cluster.articles[0], null, 2).substring(0, 200));
         }
         if (articleIds.length > 0 && saved?.id) {
-          await directusService.saveClusterArticles(saved.id, articleIds);
+          await contentRepository.saveClusterArticles(saved.id, articleIds);
           logger.info(`✓ Linked ${articleIds.length} articles to cluster ${saved.id}`);
         }
         persisted++;
       } catch (e) {
-        logger.error({ err: error }, 'Failed to persist cluster');
+        logger.error({ err: e }, 'Failed to persist cluster');
 
       }
     }
@@ -927,9 +940,9 @@ router.post('/auto-cluster', async (req, res) => {
 
 /**
  * POST /api/clusters/rebuild
- * Optionally re-ingest recent articles from Directus RSS_Sources, then rebuild clusters and persist
+ * Optionally re-ingest recent articles from configured RSS_Sources, then rebuild clusters and persist
  */
-router.post('/rebuild', async (req, res) => {
+router.post('/rebuild', requireOpsAccess, async (req, res) => {
   try {
     const {
       ingest_first = false,
@@ -943,7 +956,7 @@ router.post('/rebuild', async (req, res) => {
       try {
         const RSSProcessingService = require('../services/rssProcessingService');
         const rssService = new RSSProcessingService();
-        const sources = await directusService.getItems('RSS_Sources', {
+        const sources = await contentRepository.getItems('RSS_Sources', {
           filter: { enabled: { _eq: true } },
           limit: 100
         });
@@ -985,18 +998,18 @@ router.post('/rebuild', async (req, res) => {
           const list = (byCat.get(cat) || []).sort((x,y) => new Date(y.published_at||0) - new Date(x.published_at||0));
           const selected = list.slice(0, min_per_category);
           for (const art of selected) {
-            try { await directusService.upsertArticleBySourceUrl({ ...art, category: cat }); } catch {}
+            try { await contentRepository.upsertArticleBySourceUrl({ ...art, category: cat }); } catch {}
           }
         }
       } catch (e) {
-        logger.error({ err: error }, 'Rebuild ingestion step failed');
+        logger.error({ err: e }, 'Rebuild ingestion step failed');
 
       }
     }
 
     // After ingestion (optional), cluster recent CMS articles (auto-cluster logic)
     const sinceDate = new Date(Date.now() - hours_back * 60 * 60 * 1000).toISOString();
-    let articles = await directusService.getArticles({
+    let articles = await contentRepository.getArticles({
       limit: Math.min(parseInt(max_articles), 600)
     });
     articles = articles.filter(a => new Date(a.published_at || a.date_created || 0).toISOString() >= sinceDate);
@@ -1030,7 +1043,7 @@ router.post('/rebuild', async (req, res) => {
     let persisted = 0;
     for (const cluster of validClusters.slice(0, 10)) {
       try {
-        const saved = await directusService.saveCluster({
+        const saved = await contentRepository.saveCluster({
           cluster_title: cluster.cluster_title,
           cluster_summary: cluster.cluster_summary,
           bias_distribution: cluster.bias_distribution,
@@ -1047,11 +1060,11 @@ router.post('/rebuild', async (req, res) => {
         });
         const articleIds = (cluster.articles || []).map(a => a.id).filter(Boolean);
         if (articleIds.length > 0 && saved?.id) {
-          await directusService.saveClusterArticles(saved.id, articleIds);
+          await contentRepository.saveClusterArticles(saved.id, articleIds);
         }
         persisted++;
       } catch (e) {
-        logger.error({ err: error }, 'Persist cluster failed (rebuild)');
+        logger.error({ err: e }, 'Persist cluster failed (rebuild)');
 
       }
     }
@@ -1067,7 +1080,7 @@ router.post('/rebuild', async (req, res) => {
  * PUT /api/clusters/:id
  * Update story cluster
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireOpsAccess, async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -1092,7 +1105,7 @@ router.put('/:id', async (req, res) => {
     // Add updated timestamp
     filteredUpdates.updated_at = new Date().toISOString();
     
-    const updated = await directusService.updateItem('story_clusters', id, filteredUpdates);
+    const updated = await contentRepository.updateItem('story_clusters', id, filteredUpdates);
     if (!updated) {
       return res.status(404).json({ error: 'Story cluster not found' });
     }
@@ -1113,11 +1126,11 @@ router.put('/:id', async (req, res) => {
  * DELETE /api/clusters/:id
  * Delete story cluster (soft delete)
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireOpsAccess, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const archived = await directusService.updateItem('story_clusters', id, {
+    const archived = await contentRepository.updateItem('story_clusters', id, {
       status: 'archived',
       updated_at: new Date().toISOString()
     });
@@ -1146,7 +1159,7 @@ router.get('/:id/articles', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const cluster = await directusService.getClusterById(id);
+    const cluster = await contentRepository.getClusterById(id);
     if (!cluster) {
       return res.status(404).json({ error: 'Story cluster not found' });
     }
@@ -1184,7 +1197,7 @@ router.get('/:id/articles', async (req, res) => {
  * POST /api/clusters/archive-all
  * Soft-delete (archive) all story clusters. Supports dry run with ?dry_run=true
  */
-router.post('/archive-all', async (req, res) => {
+router.post('/archive-all', requireOpsAccess, async (req, res) => {
   try {
     const dryRun = String(req.query.dry_run || 'false').toLowerCase() === 'true';
 
@@ -1194,7 +1207,7 @@ router.post('/archive-all', async (req, res) => {
     let total = 0;
     const ids = [];
     while (true) {
-      const batch = await directusService.getItems('story_clusters', {
+      const batch = await contentRepository.getItems('story_clusters', {
         limit: batchSize,
         offset,
         fields: 'id,status'
@@ -1214,7 +1227,7 @@ router.post('/archive-all', async (req, res) => {
     let archived = 0;
     for (const id of ids) {
       try {
-        await directusService.updateItem('story_clusters', id, { status: 'archived' });
+        await contentRepository.updateItem('story_clusters', id, { status: 'archived' });
         archived++;
       } catch (e) {
         logger.error({ err: e }, `Failed to archive cluster ${id}`);

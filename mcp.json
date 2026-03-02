@@ -29,8 +29,8 @@
       "command": "npx",
       "args": ["@directus/content-mcp@latest"],
       "env": {
-        "DIRECTUS_URL": "http://168.231.111.192:8055",
-        "DIRECTUS_TOKEN": "rwK92lpHPcnQZR7Di-PmCxuwe33P8G9z"
+        "DIRECTUS_URL": "http://localhost:8055",
+        "DIRECTUS_TOKEN": "${DIRECTUS_TOKEN}"
       }
     }
   }

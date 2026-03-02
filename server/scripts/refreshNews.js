@@ -15,7 +15,7 @@ async function refreshNews() {
   try {
     // Step 1: Ingest fresh articles from RSS feeds
     console.log('📥 Fetching RSS articles...');
-    const ingestResponse = await axios.post(`${API_BASE}/api/rss/ingest-from-directus`, {
+    const ingestResponse = await axios.post(`${API_BASE}/api/rss/ingest-from-content`, {
       hours_back: 24,        // Get articles from last 24 hours
       min_per_category: 10,  // Ensure at least 10 articles per category
       max_feeds: 50          // Process up to 50 feeds

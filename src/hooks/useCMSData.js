@@ -1,6 +1,60 @@
 // Custom hook for fetching CMS data with loading states and error handling
 import { useState, useEffect } from 'react';
 import { CMS_BASE } from '../config/api';
+import { V1_CORE_ONLY } from '../config/v1';
+
+const V1_FALLBACK_SITE_CONFIG = {
+  site_name: 'Asha.News',
+  site_description: 'AI-powered news analysis and digest platform.',
+  contact_email: 'contact@asha.news',
+  support_email: 'support@asha.news',
+};
+
+const V1_FALLBACK_TOPICS = [
+  { slug: 'markets', name: 'Markets', icon: 'MKT', article_count: 120, enabled: true, sort_order: 1 },
+  { slug: 'crypto', name: 'Crypto', icon: 'CRP', article_count: 96, enabled: true, sort_order: 2 },
+  { slug: 'forex', name: 'Forex', icon: 'FX', article_count: 84, enabled: true, sort_order: 3 },
+  { slug: 'metals', name: 'Metals', icon: 'MTL', article_count: 62, enabled: true, sort_order: 4 },
+  { slug: 'energy', name: 'Energy', icon: 'ENG', article_count: 58, enabled: true, sort_order: 5 },
+  { slug: 'macro', name: 'Macro', icon: 'MAC', article_count: 74, enabled: true, sort_order: 6 },
+];
+
+const getV1CmsFallback = (endpoint) => {
+  const [path] = String(endpoint || '').split('?');
+
+  if (path === '/api/cms/site-config') {
+    return V1_FALLBACK_SITE_CONFIG;
+  }
+  if (path === '/api/cms/topics' || path === '/api/cms/trending-topics') {
+    return V1_FALLBACK_TOPICS;
+  }
+  if (path === '/api/cms/navigation') {
+    return [];
+  }
+  if (path === '/api/cms/news-sources') {
+    return [];
+  }
+  if (path === '/api/cms/breaking-news') {
+    return [];
+  }
+  if (path === '/api/cms/homepage-sections') {
+    return [];
+  }
+  if (path === '/api/cms/daily-briefs') {
+    return [];
+  }
+  if (path === '/api/cms/fact-check-claims' || path === '/api/cms/story-clusters' || path === '/api/cms/user-preferences') {
+    return [];
+  }
+  if (path.startsWith('/api/cms/navigation')) {
+    return [];
+  }
+  if (path.startsWith('/api/cms/fact-check-claims') || path.startsWith('/api/cms/story-clusters') || path.startsWith('/api/cms/user-preferences')) {
+    return null;
+  }
+
+  return null;
+};
 
 export const useCMSData = (endpoint, dependencies = []) => {
   const [data, setData] = useState(null);
@@ -12,6 +66,12 @@ export const useCMSData = (endpoint, dependencies = []) => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
+
+      if (V1_CORE_ONLY && endpoint.startsWith('/api/cms/')) {
+        setData(getV1CmsFallback(endpoint));
+        setLoading(false);
+        return;
+      }
       
       try {
         const fullUrl = endpoint.startsWith('/api/cms/') 
@@ -55,6 +115,12 @@ export const useCMSData = (endpoint, dependencies = []) => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
+
+      if (V1_CORE_ONLY && endpoint.startsWith('/api/cms/')) {
+        setData(getV1CmsFallback(endpoint));
+        setLoading(false);
+        return;
+      }
       
       try {
         const fullUrl = endpoint.startsWith('/api/cms/') 

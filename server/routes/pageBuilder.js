@@ -2,15 +2,21 @@ const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
 const axios = require('axios');
-const DirectusService = require('../services/directusService');
-const directusService = new DirectusService();
+const contentRepository = require('../services/contentRepository');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
+const strictAuth = process.env.NODE_ENV === 'production' || process.env.STRICT_AUTH === 'true';
+
+const requireAdminIfStrict = (req, res, next) => {
+  if (!strictAuth) return next();
+  return authenticateToken(req, res, () => requireAdmin(req, res, next));
+};
 
 // Get page configuration by slug
 router.get('/pages/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
     
-    const pages = await directusService.getItems('pages', {
+    const pages = await contentRepository.getItems('pages', {
       filter: { slug: { _eq: slug }, status: { _eq: 'published' } },
       limit: 1
     });
@@ -51,7 +57,7 @@ router.get('/pages', async (req, res) => {
   try {
     const { status = 'published' } = req.query;
     
-    const pages = await directusService.getItems('pages', {
+    const pages = await contentRepository.getItems('pages', {
       filter: { status: { _eq: status } },
       sort: ['title']
     });
@@ -77,7 +83,7 @@ router.get('/pages', async (req, res) => {
 });
 
 // Update page configuration
-router.put('/pages/:id', async (req, res) => {
+router.put('/pages/:id', requireAdminIfStrict, async (req, res) => {
   try {
     const { id } = req.params;
     const { components, layout_settings, seo_settings } = req.body;
@@ -87,7 +93,7 @@ router.put('/pages/:id', async (req, res) => {
     if (layout_settings !== undefined) updateData.layout_settings = layout_settings;
     if (seo_settings !== undefined) updateData.seo_settings = seo_settings;
 
-    const updatedPage = await directusService.updateItem('pages', id, updateData);
+    const updatedPage = await contentRepository.updateItem('pages', id, updateData);
 
     res.json({
       success: true,
@@ -152,7 +158,7 @@ router.get('/components/:type/data', async (req, res) => {
       case 'trending_grid':
         // Get trending topics from CMS
         try {
-          const trending = await directusService.getItems('trending_topics', {
+          const trending = await contentRepository.getItems('trending_topics', {
             filter: { status: { _eq: 'published' } },
             limit: parseInt(limit),
             sort: ['-created_at']
@@ -167,7 +173,7 @@ router.get('/components/:type/data', async (req, res) => {
       case 'gaza_israel_news':
         // Get Palestine-specific articles
         try {
-          const palestineArticles = await directusService.getPalestineArticles({ limit: parseInt(limit) });
+          const palestineArticles = await contentRepository.getPalestineArticles({ limit: parseInt(limit) });
           data = palestineArticles.articles || [];
         } catch (err) {
           logger.warn('Palestine articles not available:', err.message);
@@ -325,7 +331,7 @@ router.get('/components/types', (req, res) => {
 });
 
 // Preview page configuration
-router.post('/pages/:id/preview', async (req, res) => {
+router.post('/pages/:id/preview', requireAdminIfStrict, async (req, res) => {
   try {
     const { id } = req.params;
     const { components, layout_settings } = req.body;

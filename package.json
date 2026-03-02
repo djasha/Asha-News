@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@directus/sdk": "^20.0.3",
     "@heroicons/react": "^2.2.0",
     "@netlify/functions": "^4.2.5",
+    "@supabase/supabase-js": "^2.57.4",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^14.5.2",
@@ -43,7 +43,13 @@
     "dev:with-fresh-data": "npm run update:content && npm start",
     "server": "cd server && npm run dev",
     "dev:full": "concurrently \"npm run server\" \"npm start\"",
-    "install:server": "cd server && npm install"
+    "install:server": "cd server && npm install",
+    "smoke:v1": "bash scripts/smoke-v1.sh",
+    "smoke:v1:auth": "bash scripts/smoke-v1-auth.sh",
+    "smoke:conflict:functional": "bash scripts/smoke-conflict-ops-functional.sh",
+    "smoke:security": "bash scripts/security-smoke.sh",
+    "soak:v1": "bash scripts/soak-v1.sh",
+    "release:check": "bash scripts/release-candidate-check.sh"
   },
   "eslintConfig": {
     "extends": [
