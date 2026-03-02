@@ -12,6 +12,8 @@ jest.mock('../services/conflictAnalyticsService', () => ({
   isPublicAnalyticsExposureEnabled: jest.fn(),
   listForecasts: jest.fn(),
   listTheories: jest.fn(),
+  getIntelGaps: jest.fn(),
+  getSignals: jest.fn(),
   reconcileStaleRunningAgentRuns: jest.fn(),
 }));
 
@@ -159,5 +161,52 @@ describe('conflict analytics route flag gating', () => {
       stale_after_ms: undefined,
       limit: 1000,
     });
+  });
+
+  test('GET /api/conflicts/intel-gaps returns gap payload', async () => {
+    conflictAnalyticsService.getIntelGaps.mockResolvedValue({
+      total_gaps: 1,
+      items: [{ gap_type: 'hit_location_coverage_gap', signal: 'Rafah' }],
+    });
+
+    const app = buildApp();
+    const server = await startServer(app);
+    const url = `http://127.0.0.1:${server.address().port}/api/conflicts/intel-gaps?conflict=gaza-israel&days=14&min_signal_events=3`;
+    const response = await fetch(url);
+    const payload = await response.json();
+    await new Promise((resolve) => server.close(resolve));
+
+    expect(response.status).toBe(200);
+    expect(payload.success).toBe(true);
+    expect(payload.total).toBe(1);
+    expect(conflictAnalyticsService.getIntelGaps).toHaveBeenCalledWith(expect.objectContaining({
+      conflict: 'gaza-israel',
+      days: '14',
+      min_signal_events: '3',
+    }));
+  });
+
+  test('GET /api/conflicts/signals returns signal payload', async () => {
+    conflictAnalyticsService.getSignals.mockResolvedValue({
+      totals: { events: 4 },
+      signals: {
+        locations: [{ location: 'Rafah', hits: 3 }],
+      },
+    });
+
+    const app = buildApp();
+    const server = await startServer(app);
+    const url = `http://127.0.0.1:${server.address().port}/api/conflicts/signals?conflict=gaza-israel&days=14`;
+    const response = await fetch(url);
+    const payload = await response.json();
+    await new Promise((resolve) => server.close(resolve));
+
+    expect(response.status).toBe(200);
+    expect(payload.success).toBe(true);
+    expect(payload.data.totals.events).toBe(4);
+    expect(conflictAnalyticsService.getSignals).toHaveBeenCalledWith(expect.objectContaining({
+      conflict: 'gaza-israel',
+      days: '14',
+    }));
   });
 });

@@ -23,6 +23,13 @@ Else:
 1. Return identity count only (if available).
 2. Include withholding notice.
 
+Enforcement surfaces:
+
+1. `/api/conflicts/events` (with `include_identities` policy guard)
+2. `/api/conflicts/theories`
+3. `/api/conflicts/forecasts`
+4. `/api/monitor/*` derived payloads (identity data excluded by default)
+
 ## Theory Publication Gate
 
 Before public theory publication:
@@ -86,3 +93,9 @@ For all public-facing conflict AI content:
 1. Use probability/hypothesis language.
 2. Avoid certainty claims.
 3. Link or reference supporting evidence and source context.
+
+## Compliance References
+
+1. AGPL provenance register: `/Users/Djasha/CascadeProjects/Asha News/docs/conflict-ops/AGPL_PROVENANCE_NOTICES.md`
+2. Rollback + kill-switch matrix: `/Users/Djasha/CascadeProjects/Asha News/docs/conflict-ops/ROLLBACK_MATRIX.md`
+3. Launch SLO gates and regression budget: `/Users/Djasha/CascadeProjects/Asha News/docs/conflict-ops/SLO_GATES_AND_REGRESSION_BUDGET.md`

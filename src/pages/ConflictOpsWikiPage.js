@@ -42,6 +42,7 @@ const docsSections = [
 
 const featureFlags = [
   { key: 'conflict_ops_dashboard_v1', description: 'Enables tactical dashboard UX on /conflicts.' },
+  { key: 'cod_war_monitor_v1', description: 'Legacy flag for prior in-app COD prototype (current COD launcher opens upstream WorldMonitor).' },
   { key: 'conflict_ops_autonomy_v1', description: 'Enables scheduled autonomous agent cycle.' },
   { key: 'conflict_ops_theory_public_v1', description: 'Allows theory cards to be publicly visible when gates pass.' },
   { key: 'conflict_ops_forecast_public_v1', description: 'Allows forecast cards to be publicly visible when gates pass.' },

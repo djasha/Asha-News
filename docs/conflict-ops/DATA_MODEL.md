@@ -12,7 +12,7 @@ Key fields:
 
 1. Identity and scope: `id`, `conflict`, `event_date`, `reported_at`
 2. Source metadata: `source_name`, `source_url`, `source_tier`, `article_id`
-3. Tactical dimensions: `actors`, `hit_locations`, `weapons`, `technologies`
+3. Tactical dimensions: `actors`, `hit_locations`, `weapons`, `technologies`, `official_announcement_types`
 4. Casualty/identity counts: `fatalities_total`, `injured_total`, `ids_released_count`, `identities`
 5. Governance: `verification_status`, `verification_reason`, `verified_by`, `verified_at`
 6. Extraction/quality: `extraction_method`, `confidence`, `metadata`
@@ -22,6 +22,7 @@ Key fields:
 1. `weapon_categories` and `technology_categories` taxonomy hints.
 2. `official_announcement.type|confidence|matched_signals` classification.
 3. `extracted_identity_count` and location signal counters.
+4. `extraction_confidence.event_confidence|announcement_confidence`.
 
 Indexes:
 

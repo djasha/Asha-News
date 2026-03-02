@@ -18,6 +18,10 @@ Last updated: 2026-03-02
 3. Verify:
 - `/api/conflicts/stats`
 - `/api/conflicts/events`
+- `/api/conflicts/signals`
+- `/api/conflicts/intel-gaps`
+- `/api/monitor/layers`
+- `/api/monitor/signals/fusion`
 - `/api/conflicts/reviews/queue`
 - `/api/conflicts/sources/candidates`
 
@@ -129,6 +133,14 @@ Smoke script runtime controls:
 4. `RSS_INGEST_TIMEOUT_SECONDS=<n>` (default: `60`)
 5. `CURL_TIMEOUT_SECONDS=<n>` (default: `180`)
 
+## Monitor Perf Sweep
+
+Run endpoint-level latency sweep before release:
+
+```bash
+BASE_URL=http://localhost:3001 ITERATIONS=20 scripts/perf-monitor-endpoints.sh
+```
+
 ## Rollback / Safety Actions
 
 Immediate containment options:
@@ -137,6 +149,10 @@ Immediate containment options:
 2. Disable `conflict_ops_theory_public_v1`.
 3. Disable `conflict_ops_forecast_public_v1`.
 4. Keep `conflict_ops_dashboard_v1` enabled for read-only monitoring if needed.
+
+Detailed rollback matrix + drills:
+
+1. `/Users/Djasha/CascadeProjects/Asha News/docs/conflict-ops/ROLLBACK_MATRIX.md`
 
 ## Audit and Postmortem Inputs
 

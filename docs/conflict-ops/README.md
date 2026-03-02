@@ -14,6 +14,9 @@ This package is the canonical documentation set for the Autonomous Conflict Oper
 6. Governance/compliance: [Governance and Safety](./GOVERNANCE_AND_SAFETY.md)
 7. Public/external users: [Public Guide](./PUBLIC_GUIDE.md)
 8. Implementation tracking: [Implementation Status](./IMPLEMENTATION_STATUS.md)
+9. AGPL provenance notices: [AGPL Provenance Notices](./AGPL_PROVENANCE_NOTICES.md)
+10. Rollback and kill-switch matrix: [Rollback Matrix](./ROLLBACK_MATRIX.md)
+11. Launch SLOs and regression budget: [SLO Gates and Regression Budget](./SLO_GATES_AND_REGRESSION_BUDGET.md)
 
 ## Scope
 
@@ -35,6 +38,9 @@ This documentation covers:
 6. Tactical UI: `/Users/Djasha/CascadeProjects/Asha News/src/pages/ConflictMonitorPage.js`
 7. Admin ops UI: `/Users/Djasha/CascadeProjects/Asha News/src/pages/admin/ConflictOpsPage.js`
 8. Conflict OpenAPI: `/Users/Djasha/CascadeProjects/Asha News/server/openapi/conflict-ops-v1.json`
+9. Monitor routes: `/Users/Djasha/CascadeProjects/Asha News/server/routes/monitorOps.js`
+10. Monitor OpenAPI: `/Users/Djasha/CascadeProjects/Asha News/server/openapi/monitor-ops-v1.json`
+11. Monitor app scaffold: `/Users/Djasha/CascadeProjects/Asha News/apps/ops-monitor`
 
 ## Execution Baseline
 

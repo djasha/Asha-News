@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import ResponsiveHeader from './ResponsiveHeader';
 import MobileMenu from './MobileMenu';
 import MobileFooter from './MobileFooter';
@@ -7,6 +8,8 @@ import SiteFooter from './SiteFooter';
 
 const MobileLayout = ({ children }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
+  const isImmersiveRoute = location.pathname === '/cod-war-monitor';
 
   const handleMenuToggle = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -15,6 +18,16 @@ const MobileLayout = ({ children }) => {
   const handleMenuClose = () => {
     setIsMenuOpen(false);
   };
+
+  if (isImmersiveRoute) {
+    return (
+      <div className="min-h-screen bg-background-light dark:bg-background-dark">
+        <main className="min-h-screen">
+          {children}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark paper-texture">

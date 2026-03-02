@@ -1,0 +1,605 @@
+.cod-war-shell {
+  min-height: 100vh;
+  color: #d7e5ff;
+  background:
+    radial-gradient(circle at 6% 8%, rgba(32, 93, 132, 0.28), transparent 42%),
+    radial-gradient(circle at 89% 14%, rgba(11, 126, 118, 0.24), transparent 40%),
+    linear-gradient(145deg, #060b12 0%, #0a1320 44%, #08111d 100%);
+  font-family: "Chakra Petch", "Space Grotesk", "IBM Plex Sans", "Segoe UI", sans-serif;
+  padding: 10px;
+}
+
+.cod-war-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border: 1px solid rgba(113, 153, 191, 0.34);
+  border-radius: 16px;
+  padding: 12px;
+  background: linear-gradient(130deg, rgba(10, 20, 33, 0.96), rgba(11, 27, 42, 0.94));
+  backdrop-filter: blur(8px);
+}
+
+.cod-war-brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cod-war-kicker {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8db4df;
+}
+
+.cod-war-title {
+  margin: 4px 0 0;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.cod-war-subline {
+  margin-top: 6px;
+  color: #8ca4c3;
+  font-size: 0.82rem;
+  max-width: 72ch;
+}
+
+.cod-war-mode-hover {
+  position: relative;
+  margin-top: 10px;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cod-war-mode-trigger {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(117, 153, 191, 0.45);
+  background: rgba(8, 18, 30, 0.8);
+  color: #deebff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 9px 11px;
+  text-align: left;
+}
+
+.cod-war-mode-flyout {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 45;
+  min-width: min(420px, 94vw);
+  border: 1px solid rgba(117, 153, 191, 0.42);
+  border-radius: 12px;
+  background: rgba(8, 17, 28, 0.98);
+  box-shadow: 0 10px 24px rgba(2, 8, 15, 0.42);
+  padding: 8px;
+  display: none;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cod-war-mode-hover:hover .cod-war-mode-flyout,
+.cod-war-mode-hover:focus-within .cod-war-mode-flyout {
+  display: grid;
+}
+
+.cod-war-mode-item {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(117, 153, 191, 0.34);
+  background: rgba(8, 18, 30, 0.7);
+  color: #dce9fc;
+  padding: 8px 10px;
+  text-align: left;
+  display: grid;
+  gap: 2px;
+}
+
+.cod-war-mode-item small {
+  color: #95afcf;
+  font-size: 0.68rem;
+}
+
+.cod-war-mode-item.active {
+  border-color: rgba(45, 212, 191, 0.82);
+  background: rgba(45, 212, 191, 0.16);
+}
+
+.cod-war-quick-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 170px;
+}
+
+.cod-war-chip {
+  border: 1px solid rgba(118, 154, 188, 0.34);
+  border-radius: 10px;
+  background: rgba(8, 18, 30, 0.7);
+  padding: 8px 10px;
+}
+
+.cod-war-chip-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #88a4c8;
+}
+
+.cod-war-chip-value {
+  margin-top: 4px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.cod-war-controls {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.cod-war-control-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cod-war-field {
+  display: grid;
+  gap: 4px;
+}
+
+.cod-war-field-label {
+  font-size: 0.67rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #8ca5c6;
+}
+
+.cod-war-select,
+.cod-war-button,
+.cod-war-link {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(117, 153, 191, 0.45);
+  background: rgba(8, 18, 30, 0.8);
+  color: #deebff;
+  font-size: 0.86rem;
+  padding: 9px 11px;
+}
+
+.cod-war-button,
+.cod-war-link {
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.cod-war-button:hover,
+.cod-war-link:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45, 212, 191, 0.82);
+}
+
+.cod-war-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.cod-war-button.solid {
+  border-color: rgba(45, 212, 191, 0.8);
+  background: rgba(45, 212, 191, 0.18);
+}
+
+.cod-war-button.ghost {
+  background: rgba(9, 20, 33, 0.5);
+}
+
+.cod-war-meta {
+  font-size: 0.76rem;
+  color: #8ca5c6;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.cod-war-feedback {
+  margin-top: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.14);
+  color: #fecaca;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 0.82rem;
+}
+
+.cod-war-workspace {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.cod-war-workspace.preset-map-signals {
+  grid-template-columns: 1.9fr 1.1fr;
+  grid-template-areas:
+    "map fusion"
+    "map digest"
+    "map brief";
+}
+
+.cod-war-workspace.preset-map-brief {
+  grid-template-columns: 1.9fr 1.1fr;
+  grid-template-areas:
+    "map brief"
+    "map fusion"
+    "map digest";
+}
+
+.cod-war-workspace.preset-dense-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "map fusion"
+    "digest brief";
+}
+
+.cod-war-panel {
+  border: 1px solid rgba(113, 153, 191, 0.34);
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgba(10, 21, 35, 0.95), rgba(8, 17, 28, 0.95));
+  padding: 10px;
+  animation: cod-panel-enter 180ms ease;
+}
+
+@keyframes cod-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cod-war-map-panel {
+  grid-area: map;
+}
+
+.cod-war-panel-fusion {
+  grid-area: fusion;
+}
+
+.cod-war-panel-digest {
+  grid-area: digest;
+}
+
+.cod-war-panel-brief {
+  grid-area: brief;
+}
+
+.cod-war-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.cod-war-panel-head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.cod-war-tag {
+  border: 1px solid rgba(118, 154, 188, 0.44);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.cod-war-tag.high,
+.cod-war-tag.critical {
+  border-color: rgba(239, 68, 68, 0.75);
+  color: #fecaca;
+}
+
+.cod-war-tag.moderate,
+.cod-war-tag.medium {
+  border-color: rgba(251, 146, 60, 0.78);
+  color: #fed7aa;
+}
+
+.cod-war-tag.low,
+.cod-war-tag.fresh {
+  border-color: rgba(45, 212, 191, 0.78);
+  color: #a7f3d0;
+}
+
+.cod-war-map-wrap {
+  margin-top: 9px;
+  height: min(70vh, 720px);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(116, 152, 190, 0.34);
+}
+
+.cod-war-map-fallback {
+  margin-top: 8px;
+  border-radius: 10px;
+  border: 1px dashed rgba(116, 152, 190, 0.42);
+  padding: 12px;
+  font-size: 0.82rem;
+  color: #9bb2cf;
+}
+
+.cod-war-stat-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cod-war-stat-card {
+  border: 1px solid rgba(116, 152, 190, 0.31);
+  border-radius: 10px;
+  background: rgba(8, 18, 30, 0.66);
+  padding: 8px;
+}
+
+.cod-war-stat-label {
+  font-size: 0.67rem;
+  color: #8ca5c6;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cod-war-stat-value {
+  font-size: 1rem;
+  margin-top: 4px;
+}
+
+.cod-war-list {
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.cod-war-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.8rem;
+}
+
+.cod-war-list a {
+  color: #ecf4ff;
+  text-decoration: none;
+}
+
+.cod-war-list a:hover {
+  text-decoration: underline;
+}
+
+.cod-war-digest-text {
+  margin: 10px 0 0;
+  color: #99afcb;
+  font-size: 0.82rem;
+}
+
+.cod-war-virtual {
+  margin-top: 10px;
+  border: 1px solid rgba(116, 152, 190, 0.31);
+  border-radius: 10px;
+  overflow: auto;
+  position: relative;
+  background: rgba(8, 18, 30, 0.44);
+}
+
+.cod-war-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(116, 152, 190, 0.2);
+  font-size: 0.79rem;
+}
+
+.cod-war-row span:last-child {
+  color: #8ca5c6;
+  white-space: nowrap;
+}
+
+.cod-war-mobile-details {
+  margin-top: 10px;
+  border: 1px solid rgba(116, 152, 190, 0.3);
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.cod-war-mobile-details summary {
+  cursor: pointer;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #96afcf;
+}
+
+.cod-war-panel-error {
+  margin-top: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.42);
+  border-radius: 9px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fecaca;
+  font-size: 0.75rem;
+  padding: 7px 9px;
+}
+
+.cod-war-command-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(4, 9, 15, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.cod-war-command-panel {
+  width: min(510px, 96vw);
+  border: 1px solid rgba(117, 153, 191, 0.45);
+  border-radius: 14px;
+  background: #0a1521;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.cod-war-command-panel h3 {
+  margin: 0 0 4px;
+  font-size: 0.88rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8ea6c6;
+}
+
+.cod-war-command-panel button {
+  min-height: 44px;
+  text-align: left;
+  border-radius: 10px;
+  border: 1px solid rgba(117, 153, 191, 0.38);
+  background: rgba(10, 22, 35, 0.75);
+  color: #d9e8ff;
+  font-size: 0.82rem;
+  padding: 8px 10px;
+}
+
+.cod-war-unavailable {
+  min-height: 58vh;
+  display: grid;
+  place-items: center;
+}
+
+.cod-war-unavailable-card {
+  width: min(640px, 100%);
+  border: 1px solid rgba(113, 153, 191, 0.35);
+  border-radius: 14px;
+  padding: 18px;
+  background: rgba(9, 20, 34, 0.92);
+}
+
+.cod-war-unavailable-card h1 {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+}
+
+.cod-war-unavailable-card p {
+  margin: 0;
+  color: #99afcb;
+}
+
+@media (max-width: 1024px) {
+  .cod-war-workspace,
+  .cod-war-workspace.preset-map-signals,
+  .cod-war-workspace.preset-map-brief,
+  .cod-war-workspace.preset-dense-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "map map"
+      "fusion brief"
+      "digest digest";
+  }
+
+  .cod-war-map-wrap {
+    height: 54vh;
+  }
+}
+
+@media (max-width: 768px) {
+  .cod-war-shell {
+    padding: 8px;
+  }
+
+  .cod-war-topbar {
+    border-radius: 12px;
+    padding: 10px;
+  }
+
+  .cod-war-control-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cod-war-workspace,
+  .cod-war-workspace.preset-map-signals,
+  .cod-war-workspace.preset-map-brief,
+  .cod-war-workspace.preset-dense-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "map"
+      "fusion"
+      "digest"
+      "brief";
+  }
+
+  .cod-war-map-wrap {
+    height: 48vh;
+  }
+
+  .cod-war-mode-hover {
+    display: block;
+  }
+
+  .cod-war-mode-flyout {
+    position: static;
+    display: grid;
+    margin-top: 6px;
+    min-width: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .cod-war-command-overlay {
+    align-items: end;
+  }
+
+  .cod-war-command-panel {
+    width: 100%;
+    border-radius: 14px 14px 0 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .cod-war-title {
+    font-size: 1.15rem;
+  }
+
+  .cod-war-subline {
+    font-size: 0.78rem;
+  }
+
+  .cod-war-quick-stats {
+    width: 100%;
+  }
+
+  .cod-war-chip-value {
+    font-size: 0.97rem;
+  }
+}

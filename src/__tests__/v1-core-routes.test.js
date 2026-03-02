@@ -116,6 +116,20 @@ describe('v1 core routes render expected shells', () => {
     expect(await screen.findByRole('heading', { name: /digest/i })).toBeInTheDocument();
   });
 
+  test('monitor route renders Conflict Monitor shell', async () => {
+    window.history.pushState({}, 'Monitor', '/monitor');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /conflict monitor/i })).toBeInTheDocument();
+  });
+
+  test('cod war monitor route renders launcher shell', async () => {
+    window.history.pushState({}, 'COD War Monitor', '/cod-war-monitor');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /opening world monitor/i })).toBeInTheDocument();
+  });
+
   test('wiki route renders Wiki shell', async () => {
     window.history.pushState({}, 'Wiki', '/wiki');
     render(<App />);

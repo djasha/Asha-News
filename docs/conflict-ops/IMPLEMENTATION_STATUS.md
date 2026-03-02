@@ -40,14 +40,33 @@ This file maps the "Autonomous Conflict Operations Dashboard" plan to current im
 - weapon/technology taxonomy classification,
 - identity signal parsing for named/ID hints,
 - official announcement type classification and aggregate breakdowns.
+21. Conflict API additive monitor inputs implemented:
+- `GET /api/conflicts/signals`
+- `GET /api/conflicts/intel-gaps`
+22. Monitor Ops API surface implemented:
+- `GET /api/monitor/layers`
+- `GET /api/monitor/news/digest`
+- `GET /api/monitor/signals/fusion`
+- `GET /api/monitor/freshness`
+- `GET /api/monitor/intel/brief`
+23. Monitor OpenAPI document added at `/Users/Djasha/CascadeProjects/Asha News/server/openapi/monitor-ops-v1.json`.
+24. Conflict extraction schema extended with `official_announcement_types[]` and extraction confidence metadata envelope.
+25. `/monitor` route added as high-parity alias to tactical conflict dashboard.
+26. `apps/ops-monitor` scaffold added (Vite + React + TypeScript + DeckGL + MapLibre) with command palette and docking presets.
+27. Launch governance artifacts added:
+- AGPL provenance notices,
+- rollback/kill-switch matrix,
+- SLO gates + regression budget,
+- monitor endpoint performance sweep script.
 
 ## Runtime State (Current Environment)
 
 1. `conflict_ops_dashboard_v1` is enabled.
-2. `conflict_ops_autonomy_v1` is enabled.
-3. `conflict_ops_theory_public_v1` is disabled.
-4. `conflict_ops_forecast_public_v1` is disabled.
-5. Wiki feature flags are seeded and enabled (`wiki_index_v1`, `wiki_conflict_ops_v1`, `wiki_ai_checker_v1`, `wiki_markets_v1`, `wiki_agent_api_v1`).
+2. `cod_war_monitor_v1` remains present as a legacy flag from the prior in-app COD prototype (current `/cod-war-monitor` launcher and COD CTAs route to upstream WorldMonitor URL).
+3. `conflict_ops_autonomy_v1` is enabled.
+4. `conflict_ops_theory_public_v1` is disabled.
+5. `conflict_ops_forecast_public_v1` is disabled.
+6. Wiki feature flags are seeded and enabled (`wiki_index_v1`, `wiki_conflict_ops_v1`, `wiki_ai_checker_v1`, `wiki_markets_v1`, `wiki_agent_api_v1`).
 
 ## Environment Notes
 

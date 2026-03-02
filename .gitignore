@@ -49,3 +49,6 @@ temp/
 
 # Playwright CLI artifacts
 .playwright-cli/
+
+# Local clone of upstream worldmonitor (managed via scripts/worldmonitor-bootstrap.sh)
+apps/worldmonitor-upstream/

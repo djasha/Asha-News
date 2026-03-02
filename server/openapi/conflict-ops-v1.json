@@ -33,6 +33,10 @@
           "source_name": { "type": "string" },
           "source_tier": { "type": "string", "enum": ["official", "wire", "major", "other"] },
           "actors": { "type": "array", "items": { "type": "string" } },
+          "hit_locations": { "type": "array", "items": { "type": "string" } },
+          "weapons": { "type": "array", "items": { "type": "string" } },
+          "technologies": { "type": "array", "items": { "type": "string" } },
+          "official_announcement_types": { "type": "array", "items": { "type": "string" } },
           "fatalities_total": { "type": "integer" },
           "injured_total": { "type": "integer" },
           "ids_released_count": { "type": "integer" },
@@ -139,6 +143,42 @@
           "200": {
             "description": "Stats payload"
           }
+        }
+      }
+    },
+    "/intel-gaps": {
+      "get": {
+        "summary": "Get intelligence coverage gaps",
+        "description": "Returns thresholded coverage gaps for locations, weapons, technologies, and announcement types.",
+        "parameters": [
+          { "name": "conflict", "in": "query", "schema": { "type": "string" } },
+          { "name": "days", "in": "query", "schema": { "type": "integer" } },
+          { "name": "verification", "in": "query", "schema": { "type": "string" } },
+          { "name": "source_tier", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+          { "name": "min_signal_events", "in": "query", "schema": { "type": "integer" } },
+          { "name": "low_verified_share", "in": "query", "schema": { "type": "number" } },
+          { "name": "low_confidence", "in": "query", "schema": { "type": "number" } },
+          { "name": "stale_hours", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Intel gap payload" }
+        }
+      }
+    },
+    "/signals": {
+      "get": {
+        "summary": "Get normalized conflict signals",
+        "description": "Returns normalized event signals and confidence distributions for monitor fusion workflows.",
+        "parameters": [
+          { "name": "conflict", "in": "query", "schema": { "type": "string" } },
+          { "name": "days", "in": "query", "schema": { "type": "integer" } },
+          { "name": "verification", "in": "query", "schema": { "type": "string" } },
+          { "name": "source_tier", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Signal payload" }
         }
       }
     },

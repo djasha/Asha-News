@@ -85,6 +85,30 @@ const LOCATION_PATTERNS = [
   { label: 'Yemen', regex: /\b(yemen|yemeni)\b/i },
 ];
 
+const LOCATION_COORDINATES = Object.freeze({
+  Gaza: { lat: 31.5017, lng: 34.4668 },
+  Rafah: { lat: 31.2969, lng: 34.2439 },
+  'Khan Younis': { lat: 31.3465, lng: 34.3036 },
+  Jabalia: { lat: 31.5333, lng: 34.4833 },
+  'Deir al-Balah': { lat: 31.4178, lng: 34.3497 },
+  'Tel Aviv': { lat: 32.0853, lng: 34.7818 },
+  Jerusalem: { lat: 31.7683, lng: 35.2137 },
+  Haifa: { lat: 32.794, lng: 34.9896 },
+  'West Bank': { lat: 31.9466, lng: 35.3027 },
+  Jenin: { lat: 32.4595, lng: 35.3009 },
+  Nablus: { lat: 32.2211, lng: 35.2544 },
+  Tehran: { lat: 35.6892, lng: 51.389 },
+  Isfahan: { lat: 32.6546, lng: 51.668 },
+  Natanz: { lat: 33.73, lng: 51.73 },
+  Fordow: { lat: 34.8844, lng: 50.9954 },
+  Damascus: { lat: 33.5138, lng: 36.2765 },
+  Beirut: { lat: 33.8938, lng: 35.5018 },
+  Lebanon: { lat: 33.8547, lng: 35.8623 },
+  Syria: { lat: 34.8021, lng: 38.9968 },
+  Iraq: { lat: 33.2232, lng: 43.6793 },
+  Yemen: { lat: 15.5527, lng: 48.5164 },
+});
+
 const WEAPON_PATTERNS = [
   { key: 'airstrike', category: 'air_power', regex: /\b(airstrike|air strike|air raid)\b/i },
   { key: 'missile', category: 'missile_systems', regex: /\b(missile|missiles)\b/i },
@@ -187,6 +211,13 @@ const STALE_AGENT_RUN_LIMITS = {
   defaultMs: 45 * 60 * 1000,
   defaultLimit: 500,
   maxLimit: 5000,
+};
+
+const INTEL_GAP_DEFAULTS = {
+  minSignalEvents: 3,
+  lowVerifiedShare: 0.45,
+  lowConfidence: 0.45,
+  staleHours: 30,
 };
 
 const WEAPON_CATEGORY_BY_KEY = Object.freeze(
@@ -615,6 +646,11 @@ function normalizeEvent(input = {}) {
   const hitLocations = ensureArray(input.hit_locations || input.locations);
   const weapons = ensureArray(input.weapons);
   const technologies = ensureArray(input.technologies);
+  const officialAnnouncementTypes = uniqueStrings(
+    ensureArray(input.official_announcement_types).concat(
+      ensureArray(ensureObject(input.metadata).official_announcement?.type)
+    )
+  );
   const conflict = normalizeConflict(input.conflict);
   const sourceTier = normalizeSourceTier(
     input.source_tier || classifySourceTier(input.source_name, input.source_url),
@@ -640,6 +676,7 @@ function normalizeEvent(input = {}) {
     hit_locations: hitLocations,
     weapons,
     technologies,
+    official_announcement_types: officialAnnouncementTypes,
     identities,
     fatalities_total: parseCount(input.fatalities_total),
     injured_total: parseCount(input.injured_total),
@@ -778,6 +815,7 @@ function buildEventFromArticle(article = {}) {
     ids_released_count: idsReleased,
     official_announcement_text: officialAnnouncementText,
     official_announcement_actor: officialAnnouncementActor,
+    official_announcement_types: officialAnnouncementMeta.type ? [officialAnnouncementMeta.type] : [],
     verification_status: 'unverified',
     extraction_method: 'heuristic_article',
     confidence: Math.min(0.95, confidence),
@@ -787,6 +825,10 @@ function buildEventFromArticle(article = {}) {
       weapon_categories: weaponSignals.categories,
       technology_categories: techSignals.categories,
       official_announcement: officialAnnouncementMeta,
+      extraction_confidence: {
+        event_confidence: Math.min(0.95, confidence),
+        announcement_confidence: officialAnnouncementMeta.confidence,
+      },
       extracted_identity_count: extractedIdentities.length,
       location_signal_count: hitLocations.length,
     },
@@ -887,16 +929,22 @@ function aggregateEvents(events = []) {
 
     if (event.official_announcement_text) {
       const classified = ensureObject(eventMetadata.official_announcement);
-      const announcementType = String(
+      const derivedType = String(
         classified.type || classifyOfficialAnnouncement(event.official_announcement_text).type || 'general_update'
       ).trim() || 'general_update';
+      const announcementTypes = uniqueStrings([
+        ...ensureArray(event.official_announcement_types),
+        derivedType,
+      ]);
       const announcementConfidence = Number.isFinite(Number(classified.confidence))
         ? clamp(Number(classified.confidence), 0, 1)
         : null;
       const announcementActor = event.official_announcement_actor || (event.actors && event.actors[0]) || 'Unknown';
 
       totals.official_announcements += 1;
-      byAnnouncementType.set(announcementType, (byAnnouncementType.get(announcementType) || 0) + 1);
+      announcementTypes.forEach((announcementType) => {
+        byAnnouncementType.set(announcementType, (byAnnouncementType.get(announcementType) || 0) + 1);
+      });
       byAnnouncementActor.set(announcementActor, (byAnnouncementActor.get(announcementActor) || 0) + 1);
 
       officialAnnouncements.push({
@@ -904,7 +952,8 @@ function aggregateEvents(events = []) {
         date: event.event_date,
         conflict: event.conflict,
         actor: announcementActor,
-        announcement_type: announcementType,
+        announcement_type: derivedType,
+        announcement_types: announcementTypes,
         announcement_confidence: announcementConfidence,
         text: event.official_announcement_text,
         source_name: event.source_name,
@@ -1416,6 +1465,581 @@ async function getStats(options = {}) {
   return report;
 }
 
+function buildConfidenceDistribution(events = []) {
+  const buckets = {
+    very_low: 0,
+    low: 0,
+    medium: 0,
+    high: 0,
+    very_high: 0,
+  };
+
+  events.forEach((event) => {
+    const confidence = clamp(Number(event.confidence || 0), 0, 1);
+    if (confidence < 0.2) buckets.very_low += 1;
+    else if (confidence < 0.4) buckets.low += 1;
+    else if (confidence < 0.6) buckets.medium += 1;
+    else if (confidence < 0.8) buckets.high += 1;
+    else buckets.very_high += 1;
+  });
+
+  return buckets;
+}
+
+function toGapSeverity(score) {
+  if (score >= 0.72) return 'high';
+  if (score >= 0.42) return 'medium';
+  return 'low';
+}
+
+function buildIntelGapsFromEvents(events = [], options = {}) {
+  const minSignalEvents = Math.max(
+    1,
+    Math.min(parseCount(options.min_signal_events || INTEL_GAP_DEFAULTS.minSignalEvents), 50)
+  );
+  const lowVerifiedShare = clamp(
+    Number(options.low_verified_share || INTEL_GAP_DEFAULTS.lowVerifiedShare),
+    0.05,
+    0.98
+  );
+  const lowConfidence = clamp(
+    Number(options.low_confidence || INTEL_GAP_DEFAULTS.lowConfidence),
+    0.05,
+    0.98
+  );
+  const staleHours = Math.max(
+    1,
+    Math.min(parseCount(options.stale_hours || INTEL_GAP_DEFAULTS.staleHours), 720)
+  );
+
+  const nowMs = Date.now();
+  const dimensions = {
+    hit_location: new Map(),
+    weapon: new Map(),
+    technology: new Map(),
+    official_announcement_type: new Map(),
+  };
+
+  const registerSignal = (map, signal, event) => {
+    const key = String(signal || '').trim();
+    if (!key) return;
+    const current = map.get(key) || {
+      signal: key,
+      events: 0,
+      verified_events: 0,
+      confidence_sum: 0,
+      last_seen_ms: 0,
+    };
+    const confidence = clamp(Number(event.confidence || 0), 0, 1);
+    current.events += 1;
+    current.verified_events += event.verification_status === 'verified' ? 1 : 0;
+    current.confidence_sum += confidence;
+    current.last_seen_ms = Math.max(current.last_seen_ms, toDateMs(event.event_date) || 0);
+    map.set(key, current);
+  };
+
+  events.forEach((event) => {
+    ensureArray(event.hit_locations).forEach((signal) => registerSignal(dimensions.hit_location, signal, event));
+    ensureArray(event.weapons).forEach((signal) => registerSignal(dimensions.weapon, signal, event));
+    ensureArray(event.technologies).forEach((signal) => registerSignal(dimensions.technology, signal, event));
+    const eventMetadata = ensureObject(event.metadata);
+    const announcementTypes = uniqueStrings([
+      ...ensureArray(event.official_announcement_types),
+      ...ensureArray(eventMetadata.official_announcement?.type),
+    ]);
+    announcementTypes.forEach((signal) => registerSignal(dimensions.official_announcement_type, signal, event));
+  });
+
+  const items = [];
+  const pushGap = (dimension, entry) => {
+    if (!entry || entry.events < minSignalEvents) return;
+
+    const verifiedShare = entry.events > 0 ? entry.verified_events / entry.events : 0;
+    const avgConfidence = entry.events > 0 ? entry.confidence_sum / entry.events : 0;
+    const ageHours = entry.last_seen_ms > 0
+      ? Math.max(0, (nowMs - entry.last_seen_ms) / (1000 * 60 * 60))
+      : Number.POSITIVE_INFINITY;
+
+    let gapScore = 0;
+    const reasons = [];
+
+    if (verifiedShare < lowVerifiedShare) {
+      const delta = lowVerifiedShare - verifiedShare;
+      gapScore += delta * 1.8;
+      reasons.push(`verified-share ${Math.round(verifiedShare * 100)}% below threshold`);
+    }
+    if (avgConfidence < lowConfidence) {
+      const delta = lowConfidence - avgConfidence;
+      gapScore += delta * 1.5;
+      reasons.push(`average confidence ${avgConfidence.toFixed(2)} below threshold`);
+    }
+    if (ageHours > staleHours) {
+      const staleDelta = Math.min(1.2, (ageHours - staleHours) / Math.max(1, staleHours));
+      gapScore += staleDelta * 0.6;
+      reasons.push(`signal stale for ${Math.round(ageHours)}h`);
+    }
+
+    if (reasons.length === 0) return;
+
+    const normalizedScore = clamp(gapScore, 0, 1);
+    items.push({
+      gap_type: `${dimension}_coverage_gap`,
+      dimension,
+      signal: entry.signal,
+      severity: toGapSeverity(normalizedScore),
+      score: Number(normalizedScore.toFixed(3)),
+      event_count: entry.events,
+      verified_share: Number(verifiedShare.toFixed(3)),
+      average_confidence: Number(avgConfidence.toFixed(3)),
+      last_seen_at: entry.last_seen_ms > 0 ? new Date(entry.last_seen_ms).toISOString() : null,
+      reasons,
+    });
+  };
+
+  Object.entries(dimensions).forEach(([dimension, map]) => {
+    [...map.values()].forEach((entry) => pushGap(dimension, entry));
+  });
+
+  const latestEventMs = events
+    .map((event) => toDateMs(event.event_date))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => b - a)[0];
+  const latestEventAgeHours = Number.isFinite(latestEventMs)
+    ? Math.max(0, (nowMs - latestEventMs) / (1000 * 60 * 60))
+    : Number.POSITIVE_INFINITY;
+  if (latestEventAgeHours > staleHours) {
+    const score = clamp(Math.min(1.1, latestEventAgeHours / Math.max(1, staleHours * 2)), 0, 1);
+    items.push({
+      gap_type: 'event_freshness_gap',
+      dimension: 'global',
+      signal: normalizeConflict(options.conflict || 'all'),
+      severity: toGapSeverity(score),
+      score: Number(score.toFixed(3)),
+      event_count: events.length,
+      verified_share: events.length
+        ? Number((events.filter((event) => event.verification_status === 'verified').length / events.length).toFixed(3))
+        : 0,
+      average_confidence: events.length
+        ? Number((events.reduce((acc, event) => acc + Number(event.confidence || 0), 0) / events.length).toFixed(3))
+        : 0,
+      last_seen_at: Number.isFinite(latestEventMs) ? new Date(latestEventMs).toISOString() : null,
+      reasons: [`latest event is ${Math.round(latestEventAgeHours)}h old`],
+    });
+  }
+
+  return {
+    thresholds: {
+      min_signal_events: minSignalEvents,
+      low_verified_share: lowVerifiedShare,
+      low_confidence: lowConfidence,
+      stale_hours: staleHours,
+    },
+    items: items
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.event_count !== a.event_count) return b.event_count - a.event_count;
+        return String(a.signal).localeCompare(String(b.signal));
+      })
+      .slice(0, 120),
+  };
+}
+
+async function getSignals(options = {}) {
+  const conflict = normalizeConflict(options.conflict || 'all');
+  const verification = normalizeVerification(options.verification, 'verified');
+  const sourceTier = normalizeSourceTier(options.source_tier || 'all', 'all');
+  const days = parseCount(options.days || 30);
+  const limit = Math.max(1, Math.min(parseCount(options.limit || 1200), 5000));
+  const events = await listEvents({
+    conflict,
+    verification,
+    source_tier: sourceTier,
+    days,
+    limit,
+    include_identities: false,
+  });
+
+  const report = aggregateEvents(events);
+  const confidenceDistribution = buildConfidenceDistribution(events);
+  const verifiedShare = events.length
+    ? events.filter((event) => event.verification_status === 'verified').length / events.length
+    : 0;
+  const averageConfidence = events.length
+    ? events.reduce((acc, event) => acc + Number(event.confidence || 0), 0) / events.length
+    : 0;
+
+  return {
+    generated_at: toIsoDate(new Date()),
+    filters: {
+      conflict,
+      verification,
+      source_tier: sourceTier,
+      days,
+      limit,
+    },
+    totals: report.totals,
+    data_quality: {
+      ...report.data_quality,
+      verified_share: Number(verifiedShare.toFixed(3)),
+      average_confidence: Number(averageConfidence.toFixed(3)),
+      confidence_distribution: confidenceDistribution,
+    },
+    signals: {
+      actors: report.actor_comparisons.slice(0, 20),
+      locations: report.locations_hit.slice(0, 25),
+      weapons: report.weapon_usage.slice(0, 25),
+      technologies: report.technology_usage.slice(0, 25),
+      official_announcement_types: report.announcement_type_usage.slice(0, 25),
+      source_breakdown: report.source_breakdown.slice(0, 20),
+    },
+    sample_events: events.slice(0, 20).map((event) => ({
+      id: event.id,
+      event_date: event.event_date,
+      conflict: event.conflict,
+      source_tier: event.source_tier,
+      confidence: Number(event.confidence || 0),
+      actors: ensureArray(event.actors).slice(0, 4),
+      hit_locations: ensureArray(event.hit_locations).slice(0, 4),
+      weapons: ensureArray(event.weapons).slice(0, 4),
+      technologies: ensureArray(event.technologies).slice(0, 4),
+      official_announcement_types: ensureArray(event.official_announcement_types).slice(0, 4),
+      verification_status: event.verification_status,
+    })),
+  };
+}
+
+async function getIntelGaps(options = {}) {
+  const conflict = normalizeConflict(options.conflict || 'all');
+  const verification = normalizeVerification(options.verification, 'all');
+  const sourceTier = normalizeSourceTier(options.source_tier || 'all', 'all');
+  const days = parseCount(options.days || 30);
+  const limit = Math.max(1, Math.min(parseCount(options.limit || 1500), 5000));
+  const events = await listEvents({
+    conflict,
+    verification,
+    source_tier: sourceTier,
+    days,
+    limit,
+    include_identities: false,
+  });
+
+  const gapPayload = buildIntelGapsFromEvents(events, options);
+
+  return {
+    generated_at: toIsoDate(new Date()),
+    conflict,
+    filters: {
+      conflict,
+      verification,
+      source_tier: sourceTier,
+      days,
+      limit,
+    },
+    thresholds: gapPayload.thresholds,
+    total_gaps: gapPayload.items.length,
+    items: gapPayload.items,
+  };
+}
+
+function withLocationCoordinates(name) {
+  if (!name) return null;
+  return LOCATION_COORDINATES[name] || null;
+}
+
+async function getMonitorLayers(options = {}) {
+  const conflict = normalizeConflict(options.conflict || 'all');
+  const verification = normalizeVerification(options.verification, 'verified');
+  const sourceTier = normalizeSourceTier(options.source_tier || 'all', 'all');
+  const days = parseCount(options.days || 14);
+  const limit = Math.max(1, Math.min(parseCount(options.limit || 800), 5000));
+
+  const [events, stats] = await Promise.all([
+    listEvents({
+      conflict,
+      verification,
+      source_tier: sourceTier,
+      days,
+      limit,
+      include_identities: false,
+    }),
+    getStats({
+      conflict,
+      verification,
+      source_tier: sourceTier,
+      days,
+      limit,
+    }),
+  ]);
+
+  const eventPoints = events
+    .map((event) => {
+      const location = ensureArray(event.hit_locations)
+        .find((candidate) => withLocationCoordinates(candidate));
+      const coords = withLocationCoordinates(location);
+      if (!coords) return null;
+      return {
+        id: event.id,
+        event_date: event.event_date,
+        conflict: event.conflict,
+        location,
+        latitude: coords.lat,
+        longitude: coords.lng,
+        confidence: Number(event.confidence || 0),
+        source_tier: event.source_tier || 'other',
+        fatalities_total: parseCount(event.fatalities_total),
+        injured_total: parseCount(event.injured_total),
+        official_announcement_types: ensureArray(event.official_announcement_types).slice(0, 3),
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 500);
+
+  const locationIntensity = (stats.locations_hit || [])
+    .map((item) => {
+      const coords = withLocationCoordinates(item.location);
+      if (!coords) return null;
+      return {
+        location: item.location,
+        hits: item.hits,
+        latitude: coords.lat,
+        longitude: coords.lng,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 100);
+
+  return {
+    generated_at: toIsoDate(new Date()),
+    conflict,
+    filters: {
+      verification,
+      source_tier: sourceTier,
+      days,
+      limit,
+    },
+    layers: {
+      event_points: eventPoints,
+      location_intensity: locationIntensity,
+      official_announcement_ledger: (stats.official_announcements || []).slice(0, 50),
+    },
+    map_hints: {
+      default_center: conflict === 'israel-us-iran'
+        ? { latitude: 33.8, longitude: 43.3, zoom: 4.3 }
+        : { latitude: 31.5, longitude: 34.7, zoom: 7.8 },
+      available_locations: locationIntensity.length,
+      unavailable_locations: Math.max(0, (stats.locations_hit || []).length - locationIntensity.length),
+    },
+  };
+}
+
+async function getMonitorNewsDigest(options = {}) {
+  const conflict = normalizeConflict(options.conflict || 'all');
+  const verification = normalizeVerification(options.verification, 'verified');
+  const sourceTier = normalizeSourceTier(options.source_tier || 'all', 'all');
+  const days = parseCount(options.days || 7);
+  const limit = Math.max(1, Math.min(parseCount(options.limit || 12), 100));
+
+  const related = await getRelatedNews({
+    conflict,
+    verification,
+    source_tier: sourceTier,
+    days,
+    limit: Math.max(limit, 12),
+  });
+
+  const items = Array.isArray(related.items) ? related.items.slice(0, limit) : [];
+  const averageScore = items.length
+    ? items.reduce((acc, item) => acc + Number(item.score || 0), 0) / items.length
+    : 0;
+  const sourceTierBreakdown = items.reduce((acc, item) => {
+    const tier = normalizeSourceTier(item.source_tier, 'other');
+    acc[tier] = (acc[tier] || 0) + 1;
+    return acc;
+  }, {});
+
+  return {
+    generated_at: toIsoDate(new Date()),
+    conflict,
+    digest_text: items.length
+      ? items.slice(0, 3).map((item) => item.title).join(' | ')
+      : 'No ranked related-news items are currently available for this scope.',
+    average_score: Number(averageScore.toFixed(3)),
+    source_tier_breakdown: sourceTierBreakdown,
+    signals: related.signals || {},
+    items,
+  };
+}
+
+async function getMonitorFreshness(options = {}) {
+  const conflict = normalizeConflict(options.conflict || 'all');
+  const days = parseCount(options.days || 14);
+  const staleHours = Math.max(1, Math.min(parseCount(options.stale_hours || 18), 240));
+
+  const [events, articles] = await Promise.all([
+    listEvents({
+      conflict,
+      verification: 'all',
+      days,
+      limit: 2000,
+      include_identities: false,
+    }),
+    contentRepository.getArticles({ limit: 200, status: 'published' }),
+  ]);
+
+  const toLatestMs = (list, getter) => (Array.isArray(list) ? list : [])
+    .map((item) => toDateMs(getter(item)))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => b - a)[0];
+
+  const nowMs = Date.now();
+  const latestEventMs = toLatestMs(events, (event) => event.event_date);
+  const latestVerifiedEventMs = toLatestMs(
+    events.filter((event) => event.verification_status === 'verified'),
+    (event) => event.event_date
+  );
+  const latestAnnouncementMs = toLatestMs(
+    events.filter((event) => String(event.official_announcement_text || '').trim().length > 0),
+    (event) => event.event_date
+  );
+  const latestNewsMs = toLatestMs(articles, (article) => article.published_at || article.date_created);
+
+  const computeAgeHours = (ts) => (Number.isFinite(ts)
+    ? Number(((nowMs - ts) / (1000 * 60 * 60)).toFixed(2))
+    : null);
+
+  const eventAgeHours = computeAgeHours(latestEventMs);
+  const verifiedAgeHours = computeAgeHours(latestVerifiedEventMs);
+  const newsAgeHours = computeAgeHours(latestNewsMs);
+
+  const components = [eventAgeHours, verifiedAgeHours, newsAgeHours]
+    .filter((value) => typeof value === 'number');
+  const avgAge = components.length
+    ? components.reduce((acc, value) => acc + value, 0) / components.length
+    : staleHours * 2;
+  const freshnessScore = Number(clamp(1 - (avgAge / Math.max(1, staleHours * 2)), 0, 1).toFixed(3));
+
+  return {
+    generated_at: toIsoDate(new Date()),
+    conflict,
+    stale_hours_threshold: staleHours,
+    freshness_score: freshnessScore,
+    status: freshnessScore >= 0.7 ? 'fresh' : freshnessScore >= 0.45 ? 'degrading' : 'stale',
+    latest: {
+      event_at: Number.isFinite(latestEventMs) ? new Date(latestEventMs).toISOString() : null,
+      verified_event_at: Number.isFinite(latestVerifiedEventMs) ? new Date(latestVerifiedEventMs).toISOString() : null,
+      official_announcement_at: Number.isFinite(latestAnnouncementMs) ? new Date(latestAnnouncementMs).toISOString() : null,
+      news_article_at: Number.isFinite(latestNewsMs) ? new Date(latestNewsMs).toISOString() : null,
+    },
+    age_hours: {
+      event: eventAgeHours,
+      verified_event: verifiedAgeHours,
+      news_article: newsAgeHours,
+    },
+  };
+}
+
+async function getMonitorSignalsFusion(options = {}) {
+  const [signals, gaps, freshness, digest] = await Promise.all([
+    getSignals(options),
+    getIntelGaps(options),
+    getMonitorFreshness(options),
+    getMonitorNewsDigest(options),
+  ]);
+
+  const highGapCount = gaps.items.filter((item) => item.severity === 'high').length;
+  const mediumGapCount = gaps.items.filter((item) => item.severity === 'medium').length;
+  const gapPenalty = clamp((highGapCount * 0.18) + (mediumGapCount * 0.08), 0, 0.72);
+  const signalStrength = clamp(
+    Number(signals.data_quality.verified_share || 0) * 0.45 +
+    Number(signals.data_quality.average_confidence || 0) * 0.3 +
+    Number(freshness.freshness_score || 0) * 0.25,
+    0,
+    1
+  );
+  const digestLift = clamp(Number(digest.average_score || 0) * 0.15, 0, 0.2);
+  const fusionScore = Number(clamp(signalStrength - gapPenalty + digestLift, 0, 1).toFixed(3));
+
+  return {
+    generated_at: toIsoDate(new Date()),
+    conflict: normalizeConflict(options.conflict || 'all'),
+    fusion_score: fusionScore,
+    confidence_label: fusionScore >= 0.72 ? 'high' : fusionScore >= 0.5 ? 'moderate' : 'low',
+    components: {
+      signal_strength: Number(signalStrength.toFixed(3)),
+      gap_penalty: Number(gapPenalty.toFixed(3)),
+      digest_lift: Number(digestLift.toFixed(3)),
+      freshness_score: freshness.freshness_score,
+    },
+    top_gaps: gaps.items.slice(0, 8),
+    top_locations: signals.signals.locations.slice(0, 8),
+    top_weapons: signals.signals.weapons.slice(0, 8),
+    top_technologies: signals.signals.technologies.slice(0, 8),
+    digest,
+    freshness,
+  };
+}
+
+async function getMonitorIntelBrief(options = {}) {
+  const conflict = normalizeConflict(options.conflict || 'all');
+  const [fusion, forecasts, theories] = await Promise.all([
+    getMonitorSignalsFusion(options),
+    listForecasts({
+      conflict,
+      limit: 6,
+      include_draft: false,
+      verification: 'verified',
+      generate_if_missing: false,
+    }),
+    listTheories({
+      conflict,
+      limit: 6,
+      include_draft: false,
+      verification: 'verified',
+      generate_if_missing: false,
+    }),
+  ]);
+
+  const keyFindings = [];
+  const primaryGap = fusion.top_gaps[0];
+  if (primaryGap) {
+    keyFindings.push(`Primary intelligence gap: ${primaryGap.dimension} "${primaryGap.signal}" (${primaryGap.severity}).`);
+  }
+  const primaryLocation = fusion.top_locations[0];
+  if (primaryLocation) {
+    keyFindings.push(`Highest monitored location signal: ${primaryLocation.location} (${primaryLocation.hits} hits).`);
+  }
+  const freshnessStatus = fusion.freshness?.status || 'unknown';
+  keyFindings.push(`Freshness status is ${freshnessStatus} with score ${Number(fusion.freshness?.freshness_score || 0).toFixed(2)}.`);
+
+  return {
+    generated_at: toIsoDate(new Date()),
+    conflict,
+    non_deterministic_label: 'Analyst brief is probabilistic and non-deterministic.',
+    fusion_score: fusion.fusion_score,
+    confidence_label: fusion.confidence_label,
+    key_findings: keyFindings,
+    recommended_actions: fusion.top_gaps.slice(0, 5).map((gap) => ({
+      priority: gap.severity,
+      action: `Increase verified coverage for ${gap.dimension} "${gap.signal}"`,
+      reason: gap.reasons[0] || 'Coverage threshold not met.',
+    })),
+    digest_headlines: (fusion.digest?.items || []).slice(0, 5).map((item) => ({
+      title: item.title,
+      source_name: item.source_name,
+      score: item.score,
+      published_at: item.published_at,
+    })),
+    forecasts: (Array.isArray(forecasts) ? forecasts : []).slice(0, 2),
+    theories: (Array.isArray(theories) ? theories : []).slice(0, 2).map((item) => ({
+      id: item.id,
+      thesis: item.thesis,
+      confidence: item.confidence,
+      uncertainty: item.uncertainty,
+      status: item.status,
+    })),
+  };
+}
+
 async function addEvent(eventInput) {
   const event = normalizeEvent(eventInput);
 
@@ -1427,6 +2051,7 @@ async function addEvent(eventInput) {
       hit_locations: JSON.stringify(event.hit_locations || []),
       weapons: JSON.stringify(event.weapons || []),
       technologies: JSON.stringify(event.technologies || []),
+      official_announcement_types: JSON.stringify(event.official_announcement_types || []),
       identities: JSON.stringify(event.identities || []),
       event_date: event.event_date,
       reported_at: event.reported_at,
@@ -2448,6 +3073,63 @@ async function runReliabilityAgent(options = {}) {
     const ingestionFailures = lastHourFailures.filter((run) => run.agent_name === AGENT_NAMES.ingestion);
     const decisionTrace = [];
     const actions = [];
+    const freshnessSnapshot = await getMonitorFreshness({
+      conflict: options.conflict || 'all',
+      days: options.days || 14,
+      stale_hours: options.stale_hours || INTEL_GAP_DEFAULTS.staleHours,
+    }).catch((error) => {
+      logger.warn({ err: error?.message }, 'Reliability agent failed to fetch monitor freshness snapshot');
+      return null;
+    });
+    const gapSnapshot = await getIntelGaps({
+      conflict: options.conflict || 'all',
+      verification: 'all',
+      days: options.days || 21,
+      limit: Math.max(600, Math.min(parseCount(options.limit || 1200), 4000)),
+    }).catch((error) => {
+      logger.warn({ err: error?.message }, 'Reliability agent failed to fetch intel gaps snapshot');
+      return { items: [] };
+    });
+    const highGapCount = (gapSnapshot?.items || []).filter((item) => item.severity === 'high').length;
+    const freshnessScore = Number(freshnessSnapshot?.freshness_score || 0);
+
+    decisionTrace.push({
+      step: 'monitor_snapshot',
+      freshness_score: Number(freshnessScore.toFixed(3)),
+      freshness_status: freshnessSnapshot?.status || 'unknown',
+      high_gap_count: highGapCount,
+      total_gaps: (gapSnapshot?.items || []).length,
+    });
+
+    if ((freshnessScore > 0 && freshnessScore < 0.35) || highGapCount >= 4) {
+      const incident = await openIncident({
+        severity: freshnessScore < 0.2 || highGapCount >= 6 ? 'critical' : 'warning',
+        category: 'monitor-freshness',
+        message: `Monitor freshness/gap alarm (freshness=${freshnessScore.toFixed(2)}, high_gaps=${highGapCount}).`,
+        root_cause_hypothesis: 'Signal freshness or verification coverage degraded.',
+        metadata: {
+          freshness: freshnessSnapshot,
+          top_gaps: (gapSnapshot?.items || []).slice(0, 10),
+        },
+      });
+      if (incident) {
+        decisionTrace.push({ step: 'monitor_incident_opened', incident_id: incident.id });
+        if (!shadowMode) {
+          const action = await recordAgentAction({
+            action_type: 'open_incident_record',
+            incident_id: incident.id,
+            allowed: true,
+            reversible: false,
+            details: {
+              reason: 'monitor_freshness_or_gap_alarm',
+              freshness_score: freshnessScore,
+              high_gap_count: highGapCount,
+            },
+          });
+          if (action) actions.push(action);
+        }
+      }
+    }
 
     if (ingestionFailures.length > 0) {
       const incident = await openIncident({
@@ -2535,12 +3217,16 @@ async function runReliabilityAgent(options = {}) {
     return {
       failed_runs_last_hour: lastHourFailures.length,
       ingestion_failures_last_hour: ingestionFailures.length,
+      monitor_freshness_score: Number(freshnessScore.toFixed(3)),
+      monitor_high_gap_count: highGapCount,
       open_incidents: openIncidents.length,
       actions_taken: actions.length,
       shadow_mode: shadowMode,
       decision_trace: decisionTrace,
       metrics: {
         failures_last_hour: lastHourFailures.length,
+        monitor_freshness_score: Number(freshnessScore.toFixed(3)),
+        monitor_high_gap_count: highGapCount,
         actions_taken: actions.length,
       },
     };
@@ -2960,6 +3646,13 @@ async function getAutonomyStatus() {
 module.exports = {
   listEvents,
   getStats,
+  getSignals,
+  getIntelGaps,
+  getMonitorLayers,
+  getMonitorNewsDigest,
+  getMonitorSignalsFusion,
+  getMonitorFreshness,
+  getMonitorIntelBrief,
   addEvent,
   addEventsBulk,
   ingestFromArticles,
@@ -2998,6 +3691,10 @@ module.exports = {
     buildComparison,
     deriveScenarioProbabilities,
     estimateCalibrationScore,
+    buildIntelGapsFromEvents,
+    buildConfidenceDistribution,
+    buildRelatedNewsSignals,
+    scoreRelatedArticle,
     getPublicArtifactFlag,
     parseDurationMs,
     runWithTimeout,

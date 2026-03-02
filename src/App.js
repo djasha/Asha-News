@@ -49,6 +49,7 @@ const LegacyApiTestDashboard = lazy(() => import("./components/Testing/ApiTestDa
 const LegacyDebugPage = lazy(() => import("./pages/DebugPage"));
 const LegacySourcesPage = lazy(() => import("./pages/SourcesPage"));
 const LegacySourcePage = lazy(() => import("./pages/SourcePage"));
+const CodWarMonitorPage = lazy(() => import("./pages/CodWarMonitorRedirectPage"));
 
 const LEGACY_PATH_REDIRECTS = [
   "/legacy/home",
@@ -99,6 +100,8 @@ function App() {
                         <Route path="/markets" element={<MarketsPage />} />
                         <Route path="/digest" element={<DigestPage />} />
                         <Route path="/conflicts" element={<ConflictMonitorPage />} />
+                        <Route path="/monitor" element={<ConflictMonitorPage />} />
+                        <Route path="/cod-war-monitor" element={<CodWarMonitorPage />} />
                         <Route path="/wiki" element={<WikiIndexPage />} />
                         <Route path="/wiki/conflict-ops" element={<ConflictOpsWikiPage />} />
                         <Route path="/wiki/ai-checker" element={<AICheckerWikiPage />} />

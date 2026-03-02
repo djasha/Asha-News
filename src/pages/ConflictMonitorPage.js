@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import SEOHead from '../components/SEO/SEOHead';
 import { API_BASE, API_SERVER } from '../config/api';
+import { WORLDMONITOR_URL } from '../config/worldMonitor';
 
 const CONFLICT_OPTIONS = [
   { value: 'gaza-israel', label: 'Gaza vs Israel' },
@@ -124,7 +125,7 @@ const themeMap = {
 
 async function fetchJson(url, fallback = null) {
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: 'no-store' });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(json.error || `Request failed (${res.status})`);
@@ -135,7 +136,7 @@ async function fetchJson(url, fallback = null) {
   }
 }
 
-const LegacyConflictMonitor = () => {
+const LegacyConflictMonitor = ({ codWarMonitorEnabled = false }) => {
   const [conflict, setConflict] = useState('gaza-israel');
   const [days, setDays] = useState(30);
   const [stats, setStats] = useState(null);
@@ -204,6 +205,16 @@ const LegacyConflictMonitor = () => {
           >
             Methodology and Documentation
           </a>
+          {codWarMonitorEnabled && (
+            <a
+              href={WORLDMONITOR_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="ml-2 inline-flex rounded-md border border-teal-300/60 px-3 py-1.5 text-xs font-medium text-teal-100 hover:bg-teal-400/20"
+            >
+              COD - War Monitor
+            </a>
+          )}
         </div>
       </section>
 
@@ -409,9 +420,10 @@ const LegacyConflictMonitor = () => {
   );
 };
 
-const TacticalConflictDashboard = () => {
+const TacticalConflictDashboard = ({ codWarMonitorEnabled = false }) => {
   const [theme, setTheme] = useState('dark');
   const [activeTab, setActiveTab] = useState('overview');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [conflict, setConflict] = useState('gaza-israel');
   const [days, setDays] = useState(30);
   const [verification, setVerification] = useState('verified');
@@ -604,6 +616,7 @@ const TacticalConflictDashboard = () => {
     () => Math.max(1, ...overlayRows.map((row) => Math.max(row.left, row.right))),
     [overlayRows]
   );
+  const overlayMetricLabel = OVERLAY_METRICS.find((item) => item.value === overlayMetric)?.label || 'Metric';
 
   return (
     <div
@@ -639,8 +652,23 @@ const TacticalConflictDashboard = () => {
             >
               Methodology and Wiki
             </a>
+            {codWarMonitorEnabled && (
+              <a
+                href={WORLDMONITOR_URL}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="ml-2 mt-3 inline-flex rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide"
+                style={{
+                  border: `1px solid ${palette.accent}`,
+                  color: palette.text,
+                  background: palette.accentSoft,
+                }}
+              >
+                COD - War Monitor
+              </a>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setActiveTab('overview')}
               className="rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wide"
@@ -663,6 +691,17 @@ const TacticalConflictDashboard = () => {
             >
               Analyst
             </button>
+            <button
+              onClick={() => setShowAdvanced((prev) => !prev)}
+              className="rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wide"
+              style={{
+                border: `1px solid ${palette.border}`,
+                background: showAdvanced ? palette.accentSoft : 'transparent',
+                color: palette.text,
+              }}
+            >
+              {showAdvanced ? 'Hide Advanced' : 'Advanced'}
+            </button>
           </div>
         </div>
       </section>
@@ -671,7 +710,7 @@ const TacticalConflictDashboard = () => {
         className="rounded-2xl border p-4"
         style={{ borderColor: palette.border, background: palette.panel }}
       >
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <label className="flex flex-col gap-1 text-xs">
             <span style={{ color: palette.subtext }}>Conflict Scope</span>
             <select
@@ -682,48 +721,6 @@ const TacticalConflictDashboard = () => {
             >
               {CONFLICT_OPTIONS.map((item) => (
                 <option key={item.value} value={item.value}>{item.label}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-1 text-xs">
-            <span style={{ color: palette.subtext }}>Comparison</span>
-            <select
-              value={compareMode}
-              onChange={(e) => setCompareMode(e.target.value)}
-              className="rounded-lg px-3 py-2 text-sm"
-              style={{ border: `1px solid ${palette.border}`, background: palette.panelAlt, color: palette.text }}
-            >
-              {COMPARE_MODES.map((item) => (
-                <option key={item.value} value={item.value}>{item.label}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-1 text-xs">
-            <span style={{ color: palette.subtext }}>Left</span>
-            <select
-              value={compareLeft}
-              onChange={(e) => setCompareLeft(e.target.value)}
-              className="rounded-lg px-3 py-2 text-sm"
-              style={{ border: `1px solid ${palette.border}`, background: palette.panelAlt, color: palette.text }}
-            >
-              {(compareMode === 'actor-vs-actor' ? ACTOR_OPTIONS : CONFLICT_OPTIONS.map((item) => item.value)).map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-1 text-xs">
-            <span style={{ color: palette.subtext }}>Right</span>
-            <select
-              value={compareRight}
-              onChange={(e) => setCompareRight(e.target.value)}
-              className="rounded-lg px-3 py-2 text-sm"
-              style={{ border: `1px solid ${palette.border}`, background: palette.panelAlt, color: palette.text }}
-            >
-              {(compareMode === 'actor-vs-actor' ? ACTOR_OPTIONS : CONFLICT_OPTIONS.map((item) => item.value)).map((item) => (
-                <option key={item} value={item}>{item}</option>
               ))}
             </select>
           </label>
@@ -756,7 +753,21 @@ const TacticalConflictDashboard = () => {
             </select>
           </label>
 
-          <div className="flex items-end gap-2">
+          <label className="flex flex-col gap-1 text-xs">
+            <span style={{ color: palette.subtext }}>Source Tier</span>
+            <select
+              value={sourceTier}
+              onChange={(e) => setSourceTier(e.target.value)}
+              className="rounded-lg px-3 py-2 text-sm"
+              style={{ border: `1px solid ${palette.border}`, background: palette.panelAlt, color: palette.text }}
+            >
+              {SOURCE_TIER_OPTIONS.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <div className="flex flex-wrap items-end gap-2">
             <button
               onClick={load}
               className="rounded-lg px-3 py-2 text-sm font-semibold"
@@ -771,24 +782,92 @@ const TacticalConflictDashboard = () => {
             >
               {theme === 'dark' ? 'Light Board' : 'Dark Command'}
             </button>
+            {codWarMonitorEnabled && (
+              <a
+                href={WORLDMONITOR_URL}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="rounded-lg px-3 py-2 text-sm font-semibold"
+                style={{ border: `1px solid ${palette.border}`, background: 'transparent', color: palette.text }}
+              >
+                COD - War Monitor
+              </a>
+            )}
           </div>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-3 text-xs" style={{ color: palette.subtext }}>
-          <span>Source Tier Filter</span>
-          <select
-            value={sourceTier}
-            onChange={(e) => setSourceTier(e.target.value)}
-            className="rounded-md px-2 py-1 text-xs"
-            style={{ border: `1px solid ${palette.border}`, background: palette.panelAlt, color: palette.text }}
-          >
-            {SOURCE_TIER_OPTIONS.map((item) => (
-              <option key={item.value} value={item.value}>{item.label}</option>
-            ))}
-          </select>
           <span>Auto-refresh every 10 min (visibility-aware)</span>
           <span>Last refresh: {lastRefresh ? formatDate(lastRefresh) : 'Not yet'}</span>
         </div>
+
+        {showAdvanced && (
+          <div
+            className="mt-4 rounded-xl border p-3"
+            style={{ borderColor: palette.border, background: palette.panelAlt }}
+          >
+            <div className="mb-2 text-xs uppercase tracking-[0.16em]" style={{ color: palette.subtext }}>
+              Advanced Comparison Controls
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <label className="flex flex-col gap-1 text-xs">
+                <span style={{ color: palette.subtext }}>Comparison</span>
+                <select
+                  value={compareMode}
+                  onChange={(e) => setCompareMode(e.target.value)}
+                  className="rounded-lg px-3 py-2 text-sm"
+                  style={{ border: `1px solid ${palette.border}`, background: palette.panel, color: palette.text }}
+                >
+                  {COMPARE_MODES.map((item) => (
+                    <option key={item.value} value={item.value}>{item.label}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1 text-xs">
+                <span style={{ color: palette.subtext }}>Left</span>
+                <select
+                  value={compareLeft}
+                  onChange={(e) => setCompareLeft(e.target.value)}
+                  className="rounded-lg px-3 py-2 text-sm"
+                  style={{ border: `1px solid ${palette.border}`, background: palette.panel, color: palette.text }}
+                >
+                  {(compareMode === 'actor-vs-actor' ? ACTOR_OPTIONS : CONFLICT_OPTIONS.map((item) => item.value)).map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1 text-xs">
+                <span style={{ color: palette.subtext }}>Right</span>
+                <select
+                  value={compareRight}
+                  onChange={(e) => setCompareRight(e.target.value)}
+                  className="rounded-lg px-3 py-2 text-sm"
+                  style={{ border: `1px solid ${palette.border}`, background: palette.panel, color: palette.text }}
+                >
+                  {(compareMode === 'actor-vs-actor' ? ACTOR_OPTIONS : CONFLICT_OPTIONS.map((item) => item.value)).map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1 text-xs">
+                <span style={{ color: palette.subtext }}>Overlay Metric</span>
+                <select
+                  value={overlayMetric}
+                  onChange={(e) => setOverlayMetric(e.target.value)}
+                  className="rounded-lg px-3 py-2 text-sm"
+                  style={{ border: `1px solid ${palette.border}`, background: palette.panel, color: palette.text }}
+                >
+                  {OVERLAY_METRICS.map((item) => (
+                    <option key={item.value} value={item.value}>{item.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+        )}
       </section>
 
       {loading && (
@@ -871,18 +950,8 @@ const TacticalConflictDashboard = () => {
           <section className="rounded-2xl border p-4" style={{ borderColor: palette.border, background: palette.panel }}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">Comparative Trend Overlay</h2>
-              <div className="flex items-center gap-2 text-xs">
-                <span style={{ color: palette.subtext }}>Metric</span>
-                <select
-                  value={overlayMetric}
-                  onChange={(e) => setOverlayMetric(e.target.value)}
-                  className="rounded-md px-2 py-1 text-xs"
-                  style={{ border: `1px solid ${palette.border}`, background: palette.panelAlt, color: palette.text }}
-                >
-                  {OVERLAY_METRICS.map((item) => (
-                    <option key={item.value} value={item.value}>{item.label}</option>
-                  ))}
-                </select>
+              <div className="text-xs uppercase tracking-[0.12em]" style={{ color: palette.subtext }}>
+                {overlayMetricLabel}
               </div>
             </div>
             <div className="mt-2 flex flex-wrap gap-3 text-xs" style={{ color: palette.subtext }}>
@@ -1175,6 +1244,7 @@ const TacticalConflictDashboard = () => {
 const ConflictMonitorPage = () => {
   const [flagResolved, setFlagResolved] = useState(false);
   const [dashboardEnabled, setDashboardEnabled] = useState(false);
+  const [codWarMonitorEnabled, setCodWarMonitorEnabled] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -1182,7 +1252,9 @@ const ConflictMonitorPage = () => {
       const data = await fetchJson(`${API_SERVER}/api/cms/feature-flags?map=true`, {});
       if (!mounted) return;
       const enabled = Boolean(data?.conflict_ops_dashboard_v1);
+      const codEnabled = true;
       setDashboardEnabled(enabled);
+      setCodWarMonitorEnabled(codEnabled);
       setFlagResolved(true);
     };
 
@@ -1204,9 +1276,9 @@ const ConflictMonitorPage = () => {
           Loading dashboard configuration...
         </div>
       ) : dashboardEnabled ? (
-        <TacticalConflictDashboard />
+        <TacticalConflictDashboard codWarMonitorEnabled={codWarMonitorEnabled} />
       ) : (
-        <LegacyConflictMonitor />
+        <LegacyConflictMonitor codWarMonitorEnabled={codWarMonitorEnabled} />
       )}
     </div>
   );

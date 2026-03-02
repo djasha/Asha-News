@@ -164,6 +164,62 @@ describe('conflictAnalyticsService', () => {
     expect(comparison.right_metrics.events).toBe(1);
   });
 
+  test('buildIntelGapsFromEvents flags low verified-share and low confidence signals', () => {
+    const now = Date.now();
+    const iso = (hoursAgo) => new Date(now - hoursAgo * 60 * 60 * 1000).toISOString();
+
+    const payload = __testables.buildIntelGapsFromEvents([
+      {
+        id: 'evt-1',
+        event_date: iso(4),
+        verification_status: 'unverified',
+        confidence: 0.3,
+        hit_locations: ['Rafah'],
+        weapons: ['rocket'],
+        technologies: [],
+        official_announcement_types: ['military_operation'],
+      },
+      {
+        id: 'evt-2',
+        event_date: iso(6),
+        verification_status: 'unverified',
+        confidence: 0.35,
+        hit_locations: ['Rafah'],
+        weapons: ['rocket'],
+        technologies: [],
+        official_announcement_types: ['military_operation'],
+      },
+      {
+        id: 'evt-3',
+        event_date: iso(8),
+        verification_status: 'verified',
+        confidence: 0.4,
+        hit_locations: ['Rafah'],
+        weapons: ['rocket'],
+        technologies: [],
+        official_announcement_types: ['military_operation'],
+      },
+    ], {
+      min_signal_events: 3,
+      low_verified_share: 0.6,
+      low_confidence: 0.5,
+      stale_hours: 24,
+      conflict: 'gaza-israel',
+    });
+
+    expect(payload.items.length).toBeGreaterThan(0);
+    expect(payload.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        dimension: 'hit_location',
+        signal: 'Rafah',
+      }),
+      expect.objectContaining({
+        dimension: 'weapon',
+        signal: 'rocket',
+      }),
+    ]));
+  });
+
   test('deriveScenarioProbabilities returns bounded probability distribution', () => {
     const probabilities = __testables.deriveScenarioProbabilities([
       { event_date: '2026-02-28T10:00:00Z', fatalities_total: 10, injured_total: 15, ids_released_count: 2 },
@@ -178,6 +234,38 @@ describe('conflictAnalyticsService', () => {
     expect(probabilities.de_escalation).toBeGreaterThanOrEqual(0);
     expect(total).toBeGreaterThan(0.99);
     expect(total).toBeLessThan(1.01);
+  });
+
+  test('scoreRelatedArticle exposes explainability signals for ranked news', () => {
+    const signals = __testables.buildRelatedNewsSignals([
+      {
+        actors: ['Israel'],
+        hit_locations: ['Rafah'],
+        weapons: ['missile'],
+        technologies: ['iron dome'],
+      },
+    ]);
+
+    const ranked = __testables.scoreRelatedArticle({
+      id: 'art-2',
+      title: 'Rafah reports mention missile intercept and Iron Dome activation',
+      summary: 'Israel said defenses were activated after overnight strikes.',
+      content: 'Officials cited missile activity in Rafah.',
+      source_name: 'Reuters',
+      published_at: '2026-03-01T08:00:00.000Z',
+      fact_check_status: 'verified',
+    }, signals, {
+      conflict: 'gaza-israel',
+      verification: 'verified',
+    });
+
+    expect(ranked.score).toBeGreaterThan(0.2);
+    expect(ranked.explain).toEqual(expect.objectContaining({
+      matched_signals: expect.arrayContaining(['rafah', 'missile']),
+      overlap_score: expect.any(Number),
+      recency_score: expect.any(Number),
+      source_tier_score: expect.any(Number),
+    }));
   });
 
   test('parseDurationMs applies bounds and fallback', () => {

@@ -3,6 +3,7 @@
 Last updated: 2026-03-02
 
 Base path: `/api/conflicts`
+Monitor base path: `/api/monitor`
 
 ## Authentication Model
 
@@ -73,6 +74,34 @@ Query:
 Returns:
 
 1. `items[]` with `score`, `source_tier`, `explain.matched_signals`, and component sub-scores.
+
+### `GET /signals`
+
+Purpose: normalized signal vectors for monitor fusion (`actors`, `locations`, `weapons`, `technologies`, `official_announcement_types`) plus confidence distribution.
+
+Query:
+
+1. `conflict`
+2. `days`
+3. `verification`
+4. `source_tier`
+5. `limit`
+
+### `GET /intel-gaps`
+
+Purpose: thresholded intelligence gap detection for weak verification coverage, low confidence, or stale signal windows.
+
+Query:
+
+1. `conflict`
+2. `days`
+3. `verification`
+4. `source_tier`
+5. `limit`
+6. `min_signal_events`
+7. `low_verified_share`
+8. `low_confidence`
+9. `stale_hours`
 
 ### `GET /forecasts`
 
@@ -223,3 +252,53 @@ Machine-readable Conflict Ops OpenAPI document:
 
 1. File: `/Users/Djasha/CascadeProjects/Asha News/server/openapi/conflict-ops-v1.json`
 2. Endpoint: `GET /api/conflicts/openapi`
+
+Machine-readable Monitor Ops OpenAPI document:
+
+1. File: `/Users/Djasha/CascadeProjects/Asha News/server/openapi/monitor-ops-v1.json`
+2. Endpoint: `GET /api/monitor/openapi`
+
+## Monitor Endpoints (`/api/monitor`)
+
+### `GET /layers`
+
+Returns map-ready layers:
+
+1. `layers.event_points`
+2. `layers.location_intensity`
+3. `layers.official_announcement_ledger`
+
+### `GET /news/digest`
+
+Returns ranked monitor digest:
+
+1. `digest_text`
+2. `items[]`
+3. `average_score`
+
+### `GET /signals/fusion`
+
+Returns fused signal state:
+
+1. `fusion_score`
+2. `confidence_label`
+3. `top_gaps`
+4. `top_locations`, `top_weapons`, `top_technologies`
+
+### `GET /freshness`
+
+Returns freshness telemetry:
+
+1. `freshness_score`
+2. `status`
+3. `latest.*` timestamps
+4. `age_hours.*`
+
+### `GET /intel/brief`
+
+Returns operator-facing brief:
+
+1. `non_deterministic_label`
+2. `key_findings`
+3. `recommended_actions`
+4. digest/fusion-aligned summary fields

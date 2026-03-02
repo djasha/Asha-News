@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import ConflictMonitorPage from '../pages/ConflictMonitorPage';
@@ -68,6 +68,19 @@ beforeEach(() => {
       };
     }
 
+    if (url.includes('/api/cms/feature-flags?map=true')) {
+      return {
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            conflict_ops_dashboard_v1: true,
+            cod_war_monitor_v1: true,
+          },
+        }),
+      };
+    }
+
     return {
       ok: true,
       json: async () => ({}),
@@ -80,19 +93,34 @@ afterEach(() => {
 });
 
 describe('ConflictMonitorPage', () => {
-  test('renders dashboard totals and actor section', async () => {
+  test('renders tactical dashboard totals and actor section', async () => {
     render(
       <HelmetProvider>
         <ConflictMonitorPage />
       </HelmetProvider>
     );
 
-    expect(await screen.findByRole('heading', { name: /conflict monitor/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /tactical dashboard/i })).toBeInTheDocument();
     const [fatalitiesLabel] = await screen.findAllByText('Fatalities');
     const fatalitiesCard = fatalitiesLabel?.closest('div')?.parentElement;
     expect(fatalitiesCard).toBeTruthy();
     expect(within(fatalitiesCard).getByText('15')).toBeInTheDocument();
     expect(await screen.findByText(/actor comparison/i)).toBeInTheDocument();
     expect((await screen.findAllByText('Rafah')).length).toBeGreaterThan(0);
+  });
+
+  test('keeps advanced controls hidden by default and reveals on toggle', async () => {
+    render(
+      <HelmetProvider>
+        <ConflictMonitorPage />
+      </HelmetProvider>
+    );
+
+    await screen.findByRole('heading', { name: /tactical dashboard/i });
+    expect(screen.queryByText(/advanced comparison controls/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /advanced/i }));
+    expect(await screen.findByText(/advanced comparison controls/i)).toBeInTheDocument();
+    expect(screen.getByText('Comparison')).toBeInTheDocument();
   });
 });

@@ -9,10 +9,14 @@ export default function useFeatureFlagMap() {
 
   useEffect(() => {
     let mounted = true;
+    const controller = new AbortController();
 
     const load = async () => {
       try {
-        const response = await fetch(`${CMS_BASE}/feature-flags?map=true`);
+        const response = await fetch(`${CMS_BASE}/feature-flags?map=true`, {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
         const json = await response.json().catch(() => ({}));
         if (!mounted) return;
 
@@ -33,6 +37,7 @@ export default function useFeatureFlagMap() {
 
     return () => {
       mounted = false;
+      controller.abort();
     };
   }, []);
 

@@ -54,6 +54,7 @@ const adminTopicsSettingsRoutes = require('./routes/adminTopicsSettings');
 const subscriptionTiersRoutes = require('./routes/subscriptionTiers');
 const agentApiRoutes = require('./routes/agentApi');
 const conflictAnalyticsRoutes = require('./routes/conflictAnalytics');
+const monitorOpsRoutes = require('./routes/monitorOps');
 const CronService = require('./services/cronService');
 
 // Import security middleware
@@ -154,6 +155,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/subscription-tiers', subscriptionTiersRoutes);
 app.use('/api/v1', agentApiRoutes);
 app.use('/api/conflicts', conflictAnalyticsRoutes);
+app.use('/api/monitor', monitorOpsRoutes);
 
 // Ingestion thin-proxy endpoints -> reuse rss-automation routes
 // Manual trigger
@@ -203,12 +205,17 @@ app.get('/api/health', async (req, res) => {
 
 // Legacy CMS compatibility endpoints are deprecated in favor of /api/v1.
 app.use('/api/cms', (req, res, next) => {
+  const allowWhenLegacyDisabled = new Set([
+    '/feature-flags',
+    '/feature-flags/',
+  ]);
+
   res.setHeader('Deprecation', 'true');
   res.setHeader('Sunset', '2026-06-30');
   res.setHeader('Link', '</API_DEPRECATIONS.md>; rel="deprecation"');
   logger.info({ path: req.path, method: req.method }, 'Deprecated /api/cms endpoint requested');
 
-  if (!legacyDirectusRoutesEnabled) {
+  if (!legacyDirectusRoutesEnabled && !allowWhenLegacyDisabled.has(req.path)) {
     return res.status(410).json({
       error: 'Legacy route disabled',
       message: 'CMS compatibility routes are disabled. Use /api/v1 endpoints instead.'

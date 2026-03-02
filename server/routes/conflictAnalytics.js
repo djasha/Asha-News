@@ -360,6 +360,57 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+router.get('/intel-gaps', async (req, res) => {
+  try {
+    const data = await conflictAnalyticsService.getIntelGaps({
+      conflict: req.query.conflict,
+      days: req.query.days,
+      verification: req.query.verification || 'all',
+      source_tier: req.query.source_tier,
+      limit: req.query.limit,
+      min_signal_events: req.query.min_signal_events,
+      low_verified_share: req.query.low_verified_share,
+      low_confidence: req.query.low_confidence,
+      stale_hours: req.query.stale_hours,
+    });
+
+    return res.json({
+      success: true,
+      data,
+      total: Array.isArray(data?.items) ? data.items.length : 0,
+    });
+  } catch (error) {
+    logger.error({ err: error, query: req.query }, 'Conflict intel-gaps fetch failed');
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch conflict intelligence gaps',
+    });
+  }
+});
+
+router.get('/signals', async (req, res) => {
+  try {
+    const data = await conflictAnalyticsService.getSignals({
+      conflict: req.query.conflict,
+      days: req.query.days,
+      verification: req.query.verification || 'verified',
+      source_tier: req.query.source_tier,
+      limit: req.query.limit,
+    });
+
+    return res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    logger.error({ err: error, query: req.query }, 'Conflict signals fetch failed');
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch conflict signal fusion input',
+    });
+  }
+});
+
 router.get('/related-news', async (req, res) => {
   try {
     const data = await conflictAnalyticsService.getRelatedNews({

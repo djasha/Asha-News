@@ -8,9 +8,11 @@ import { firebaseAuthService } from '../services/firebase';
 import { useUnifiedFilters } from '../hooks/useUnifiedFilters';
 import { applyUnifiedFilters, formatTimeAgo } from '../utils/feedFilters';
 import { buildAuthHeaders } from '../utils/authHeaders';
+import { WORLDMONITOR_URL } from '../config/worldMonitor';
 
 const HomeV1 = () => {
   const { filters, updateFilter, resetFilters } = useUnifiedFilters({ timeframe: '24h' });
+  const codWarMonitorEnabled = true;
   const [digestScope, setDigestScope] = useState('public');
   const [digest, setDigest] = useState(null);
   const [articles, setArticles] = useState([]);
@@ -100,6 +102,28 @@ const HomeV1 = () => {
 
       {!loading && !error && (
         <>
+          {codWarMonitorEnabled && (
+            <section className="rounded-xl border border-border-light dark:border-border-dark bg-gradient-to-r from-slate-900 to-teal-900 p-5 text-white">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.14em] text-teal-200">Conflict Operations Command</div>
+                  <h2 className="mt-1 text-lg font-semibold">COD - War Monitor</h2>
+                  <p className="mt-1 text-sm text-slate-200">
+                    Open the full map-first immersive monitor for multi-conflict situational awareness.
+                  </p>
+                </div>
+                <a
+                  href={WORLDMONITOR_URL}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="rounded-lg border border-teal-300/80 bg-teal-400/20 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-400/30"
+                >
+                  Open COD - War Monitor
+                </a>
+              </div>
+            </section>
+          )}
+
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">Top Clusters</h2>
@@ -107,6 +131,16 @@ const HomeV1 = () => {
                 <Link to="/conflicts" className="text-sm text-primary-600 hover:underline">
                   Open conflict monitor
                 </Link>
+                {codWarMonitorEnabled && (
+                  <a
+                    href={WORLDMONITOR_URL}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="text-sm text-primary-600 hover:underline"
+                  >
+                    Open COD - War Monitor
+                  </a>
+                )}
                 <Link to="/digest" className="text-sm text-primary-600 hover:underline">
                   Open full digest
                 </Link>

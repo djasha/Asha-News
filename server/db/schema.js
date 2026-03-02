@@ -287,6 +287,7 @@ const conflictEvents = pgTable('conflict_events', {
   hit_locations: json('hit_locations').default([]),
   weapons: json('weapons').default([]),
   technologies: json('technologies').default([]),
+  official_announcement_types: json('official_announcement_types').default([]),
   identities: json('identities').default([]),
   fatalities_total: integer('fatalities_total').default(0),
   injured_total: integer('injured_total').default(0),
