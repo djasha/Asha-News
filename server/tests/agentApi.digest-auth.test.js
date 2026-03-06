@@ -63,4 +63,42 @@ describe('agentApi digest auth behavior', () => {
     expect(queryBridge).toHaveBeenCalledTimes(1);
     expect(queryBridge.mock.calls[0][0]).toBe('/items/story_clusters?filter[status][_eq]=active&sort=-created_at&limit=6');
   });
+
+  test('GET /api/v1/clusters/search returns empty results when cluster backend is unavailable', async () => {
+    queryBridge.mockRejectedValue(new Error('cluster backend unavailable'));
+
+    const app = buildApp();
+    const server = await startServer(app);
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/v1/clusters/search?q=market&limit=3`);
+    const payload = await response.json();
+    await new Promise((resolve) => server.close(resolve));
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({
+      query: 'market',
+      count: 0,
+      results: [],
+    });
+    expect(queryBridge).toHaveBeenCalledTimes(1);
+  });
+
+  test('GET /api/v1/instruments/:symbol/news returns empty results when article backend is unavailable', async () => {
+    queryBridge.mockRejectedValue(new Error('article backend unavailable'));
+
+    const app = buildApp();
+    const server = await startServer(app);
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/v1/instruments/BTCUSD/news?limit=3`);
+    const payload = await response.json();
+    await new Promise((resolve) => server.close(resolve));
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({
+      symbol: 'BTCUSD',
+      aliases: ['btc', 'bitcoin', 'btcusd'],
+      count: 0,
+      results: [],
+    });
+    expect(queryBridge).toHaveBeenCalledTimes(1);
+    expect(queryBridge.mock.calls[0][0]).toBe('/items/articles?sort=-published_at&limit=250');
+  });
 });

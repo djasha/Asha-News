@@ -460,8 +460,12 @@ router.get('/clusters/search', async (req, res) => {
       results,
     });
   } catch (error) {
-    logger.error({ err: error }, 'Cluster search failed');
-    res.status(500).json({ error: 'Failed to search clusters' });
+    logger.warn({ err: error }, 'Cluster search source unavailable; returning empty results');
+    res.json({
+      query: String(req.query.q || '').trim().toLowerCase(),
+      count: 0,
+      results: [],
+    });
   }
 });
 
@@ -489,8 +493,13 @@ router.get('/instruments/:symbol/news', async (req, res) => {
       results: filtered,
     });
   } catch (error) {
-    logger.error({ err: error }, 'Instrument news lookup failed');
-    res.status(500).json({ error: 'Failed to fetch instrument news' });
+    logger.warn({ err: error, symbol: req.params.symbol }, 'Instrument news source unavailable; returning empty results');
+    res.json({
+      symbol: String(req.params.symbol || '').toUpperCase(),
+      aliases: INSTRUMENT_ALIASES[String(req.params.symbol || '').toUpperCase()] || [],
+      count: 0,
+      results: [],
+    });
   }
 });
 
