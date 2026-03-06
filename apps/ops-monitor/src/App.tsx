@@ -2341,6 +2341,19 @@ function App() {
     if (level === 'ELEVATED') return 'elevated';
     return 'stable';
   }, [home?.posture?.level]);
+  const mapSignalDigest = useMemo(() => {
+    const points = Array.isArray(home?.map?.event_points) ? home.map.event_points : [];
+    const filtered = activeLayers.has('verified-hotspots')
+      ? points.filter((point) => (severityFilter === 'ALL' ? true : severityFromMapPoint(point) === severityFilter))
+      : [];
+    return [...filtered]
+      .sort((a, b) => {
+        const severityDelta = (SEVERITY_PRIORITY[severityFromMapPoint(b)] || 0) - (SEVERITY_PRIORITY[severityFromMapPoint(a)] || 0);
+        if (severityDelta !== 0) return severityDelta;
+        return Number(b.confidence || 0) - Number(a.confidence || 0);
+      })
+      .slice(0, isMobile ? 2 : 4);
+  }, [activeLayers, home?.map?.event_points, isMobile, severityFilter]);
 
   const notificationCounts = useMemo(() => {
     return {
@@ -3476,6 +3489,35 @@ function App() {
                     </div>
                   ))}
                 </div>
+                {!!mapSignalDigest.length && (
+                  <div className="map-signal-digest" aria-label={copy.visibleSignals}>
+                    {mapSignalDigest.map((point) => {
+                      const severity = severityFromMapPoint(point);
+                      return (
+                        <button
+                          key={`digest-${point.id}`}
+                          type="button"
+                          className={`map-signal-digest-item tone-${severity.toLowerCase()}`}
+                          onClick={() => {
+                            setSelectedAlert(null);
+                            setSelectedLeak(null);
+                            setViewState((prev) => ({
+                              ...prev,
+                              latitude: Number(point.latitude),
+                              longitude: Number(point.longitude),
+                              zoom: Math.max(prev.zoom, 5.6),
+                            }));
+                          }}
+                          title={formatLocationDisplay(point.location, copy.signalsLabel)}
+                        >
+                          <span className="digest-dot" aria-hidden="true" />
+                          <span className="digest-label">{formatLocationDisplay(point.location, copy.signalsLabel)}</span>
+                          <strong>{severity === 'ELEVATED' ? copy.feedElevated : severity === 'INFO' ? copy.feedInfo : severity}</strong>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 {visibleMapSignals === 0 && (
                   <div className="map-empty-banner">
                     <span>{copy.noMapSignals}</span>

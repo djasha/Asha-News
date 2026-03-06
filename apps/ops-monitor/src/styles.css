@@ -1378,6 +1378,68 @@ body {
   background: #38bdf8;
 }
 
+.map-signal-digest {
+  position: absolute;
+  right: 14px;
+  bottom: 72px;
+  z-index: 7;
+  display: grid;
+  gap: 6px;
+  width: min(280px, calc(100% - 28px));
+}
+
+.map-signal-digest-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(120, 154, 186, 0.22);
+  background: rgba(4, 11, 21, 0.8);
+  backdrop-filter: blur(8px);
+  color: #dce8f7;
+  font-size: 0.62rem;
+  font-family: 'IBM Plex Mono', monospace;
+  cursor: pointer;
+  text-align: left;
+}
+
+.map-signal-digest-item strong {
+  color: #f8fafc;
+  font-size: 0.64rem;
+}
+
+.map-signal-digest-item .digest-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #64748b;
+}
+
+.map-signal-digest-item.tone-critical .digest-dot {
+  background: #ef4444;
+}
+
+.map-signal-digest-item.tone-high .digest-dot {
+  background: #f59e0b;
+}
+
+.map-signal-digest-item.tone-elevated .digest-dot {
+  background: #eab308;
+}
+
+.map-signal-digest-item.tone-info .digest-dot {
+  background: #64748b;
+}
+
+.map-signal-digest-item .digest-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .map-empty-banner {
   position: absolute;
   left: 50%;
@@ -1535,6 +1597,7 @@ body {
 [data-theme='light'] .map-posture-pill,
 [data-theme='light'] .map-overview-card,
 [data-theme='light'] .map-legend-item,
+[data-theme='light'] .map-signal-digest-item,
 [data-theme='light'] .map-empty-banner,
 [data-theme='light'] .map-pack-strip,
 [data-theme='light'] .map-layer-chip-strip,
@@ -1544,7 +1607,8 @@ body {
 
 [data-theme='light'] .map-posture-pill,
 [data-theme='light'] .map-overview-card,
-[data-theme='light'] .map-legend-item {
+[data-theme='light'] .map-legend-item,
+[data-theme='light'] .map-signal-digest-item {
   background: rgba(255, 255, 255, 0.84);
   border-color: rgba(148, 163, 184, 0.3);
   color: #0f172a;
@@ -1552,7 +1616,8 @@ body {
 
 [data-theme='light'] .map-posture-pill strong,
 [data-theme='light'] .map-overview-card strong,
-[data-theme='light'] .map-legend-item strong {
+[data-theme='light'] .map-legend-item strong,
+[data-theme='light'] .map-signal-digest-item strong {
   color: #020617;
 }
 
@@ -3120,11 +3185,23 @@ body {
 .tour-overlay {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--bg-0) 74%, rgba(2, 7, 14, 0.42));
   z-index: 60;
+}
+
+.drawer-overlay {
+  background: color-mix(in srgb, var(--bg-0) 74%, rgba(2, 7, 14, 0.42));
   display: grid;
   place-items: center;
   padding: 18px;
+}
+
+.tour-overlay {
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 16px;
+  background: none;
 }
 
 .notification-drawer,
@@ -3138,6 +3215,16 @@ body {
   border-radius: var(--radius);
   background: var(--panel-strong);
   padding: 12px;
+}
+
+.tour-card {
+  pointer-events: auto;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(240px, calc(100vh - 120px));
+  overflow: auto;
+  border-radius: 14px;
+  background: rgba(5, 13, 24, 0.94);
+  box-shadow: 0 24px 64px rgba(2, 6, 15, 0.34);
 }
 
 .notification-drawer {
@@ -3469,10 +3556,6 @@ body {
   font-size: 0.75rem;
 }
 
-.tour-card {
-  width: min(500px, 96vw);
-}
-
 .tour-step {
   border: 1px solid rgba(45, 212, 191, 0.48);
   border-radius: 999px;
@@ -3718,6 +3801,12 @@ body {
     width: min(190px, calc(100% - 16px));
   }
 
+  .map-signal-digest {
+    right: 8px;
+    bottom: 96px;
+    width: min(220px, calc(100% - 16px));
+  }
+
   .map-legend-item {
     min-height: 28px;
     font-size: 0.58rem;
@@ -3799,6 +3888,17 @@ body {
     z-index: 50;
   }
 
+  .tour-overlay {
+    align-items: center;
+    justify-content: flex-end;
+    padding: 12px;
+  }
+
+  .tour-card {
+    width: min(340px, calc(100vw - 24px));
+    max-height: min(260px, calc(100vh - 160px));
+  }
+
   .mc-tickbar {
     grid-template-columns: 1fr;
   }
@@ -3849,6 +3949,17 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .tour-overlay {
+    align-items: flex-end;
+    justify-content: center;
+    padding: 12px;
+  }
+
+  .tour-card {
+    width: calc(100vw - 24px);
+    max-height: min(240px, calc(100vh - 120px));
+  }
+
   .map-posture-pill {
     left: 10px;
     right: 54px;
@@ -3869,6 +3980,13 @@ body {
   .map-legend-panel {
     width: calc(100% - 16px);
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .map-signal-digest {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    bottom: 148px;
   }
 
   .map-legend-item {

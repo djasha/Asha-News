@@ -5271,17 +5271,48 @@ function buildFlightFeedItems(home = {}) {
   }));
 }
 
+function normalizeOptionalFeedLocation(value, fallback) {
+  const raw = safeString(value);
+  if (!raw) return fallback;
+  return isGenericSignalLabel(raw) ? normalizeSignalLabel(raw, fallback) : raw;
+}
+
+function buildOptionalFeedSummary(kind, title, location, rawSummary) {
+  const summary = safeString(rawSummary);
+  const normalizedTitle = safeString(title).toLowerCase();
+  const normalizedLocation = safeString(location).toLowerCase();
+  const normalizedSummary = summary.toLowerCase();
+
+  if (
+    !summary
+    || normalizedSummary === normalizedTitle
+    || normalizedSummary === normalizedLocation
+    || normalizedSummary === `weather signal ${normalizedTitle} in ${normalizedLocation}`
+  ) {
+    if (kind === 'weather') return `Hazard signal centered on ${location}.`;
+    if (kind === 'cyber') return `Communications and cyber disruption signal centered on ${location}.`;
+    if (kind === 'maritime') return `Shipping risk indicator focused on ${location}.`;
+    if (kind === 'economic') return `Economic volatility marker focused on ${location}.`;
+  }
+
+  return summary;
+}
+
 function buildOptionalSignalFeedItems(core = {}) {
   const optionalFeeds = core?.map?.optional_feeds || {};
   const weatherItems = Array.isArray(optionalFeeds.weather_alerts)
     ? optionalFeeds.weather_alerts.slice(0, 70).map((item, index) => {
       const severity = deriveWeatherSeverityFromSignal(item);
       const title = normalizeSignalLabel(item.event, 'Weather disruption');
-      const location = safeString(item.location || item.city || item.region || item.country)
-        || normalizeSignalLabel(item.event, 'Weather alert');
-      const summary = safeString(
+      const location = normalizeOptionalFeedLocation(
+        item.location || item.city || item.region || item.country,
+        normalizeSignalLabel(item.event, 'Weather alert')
+      );
+      const summary = buildOptionalFeedSummary(
+        'weather',
+        title,
+        location,
         item.text || item.summary || item.details,
-        `Weather signal ${title.toLowerCase()} in ${location}`
       );
       const baseConfidence =
         severity === 'CRITICAL'
@@ -5323,9 +5354,16 @@ function buildOptionalSignalFeedItems(core = {}) {
       const confidence = clamp(Number(item.confidence || 0.5), 0.1, 1);
       const severity = deriveCyberSeverityFromSignal(item);
       const title = normalizeSignalLabel(item.impact, 'Cyber/comms disruption');
-      const location = safeString(item.location || item.city || item.region || item.country)
-        || normalizeSignalLabel(item.impact, 'Cyber signal');
-      const summary = safeString(item.summary || item.notes || 'Communications and cyber disruption indicator');
+      const location = normalizeOptionalFeedLocation(
+        item.location || item.city || item.region || item.country,
+        normalizeSignalLabel(item.impact, 'Cyber signal')
+      );
+      const summary = buildOptionalFeedSummary(
+        'cyber',
+        title,
+        location,
+        item.summary || item.notes || 'Communications and cyber disruption indicator'
+      );
       return {
         id: `cyber-feed-${safeString(item.id, String(index + 1))}`,
         alert_id: safeString(item.id),
@@ -5357,8 +5395,16 @@ function buildOptionalSignalFeedItems(core = {}) {
     ? optionalFeeds.maritime_risk.slice(0, 60).map((item, index) => {
       const risk = clamp(Number(item.risk || 0.4), 0.1, 1);
       const severity = risk >= 0.82 ? 'HIGH' : risk >= 0.55 ? 'ELEVATED' : 'INFO';
-      const location = safeString(item.corridor, locationLabelFromPoint(item.latitude, item.longitude));
-      const summary = safeString(item.summary || 'Shipping disruption and route risk indicator');
+      const location = normalizeOptionalFeedLocation(
+        item.corridor,
+        locationLabelFromPoint(item.latitude, item.longitude, 'Maritime risk')
+      );
+      const summary = buildOptionalFeedSummary(
+        'maritime',
+        safeString(item.corridor, 'Maritime risk corridor'),
+        location,
+        item.summary || 'Shipping disruption and route risk indicator'
+      );
       return {
         id: `maritime-feed-${safeString(item.id, String(index + 1))}`,
         alert_id: safeString(item.id),
@@ -5391,9 +5437,17 @@ function buildOptionalSignalFeedItems(core = {}) {
     ? optionalFeeds.economic_shocks.slice(0, 60).map((item, index) => {
       const intensity = clamp(Number(item.intensity || item.risk || 0.4), 0.1, 1);
       const severity = intensity >= 0.82 ? 'HIGH' : intensity >= 0.58 ? 'ELEVATED' : 'INFO';
-      const location = safeString(item.location || item.label, locationLabelFromPoint(item.latitude, item.longitude));
+      const location = normalizeOptionalFeedLocation(
+        item.location || item.label,
+        locationLabelFromPoint(item.latitude, item.longitude, 'Economic shock')
+      );
       const title = safeString(item.label, 'Economic shock marker');
-      const summary = safeString(item.summary || 'Macro-economic volatility indicator');
+      const summary = buildOptionalFeedSummary(
+        'economic',
+        title,
+        location,
+        item.summary || 'Macro-economic volatility indicator'
+      );
       return {
         id: `economic-feed-${safeString(item.id, String(index + 1))}`,
         alert_id: safeString(item.id),
