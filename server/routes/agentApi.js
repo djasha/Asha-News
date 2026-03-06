@@ -286,11 +286,6 @@ router.get('/digest', optionalAuth, async (req, res) => {
       contentType: String(req.query.contentType || req.query.content_type || 'all').trim().toLowerCase(),
     };
 
-    const clustersRaw = await fetchActiveClusters(limit * 2);
-    let clusters = applyClusterFilters(clustersRaw.map(normalizeCluster), filters);
-
-    clusters = clusters.slice(0, limit);
-
     let userProfile = null;
     if (scope === 'personal') {
       if (!req.user?.userId) {
@@ -301,6 +296,11 @@ router.get('/digest', optionalAuth, async (req, res) => {
         userProfile = await fetchUserByEmail(req.user.email);
       }
     }
+
+    const clustersRaw = await fetchActiveClusters(limit * 2);
+    let clusters = applyClusterFilters(clustersRaw.map(normalizeCluster), filters);
+
+    clusters = clusters.slice(0, limit);
 
     const payload = {
       generated_at: new Date().toISOString(),
