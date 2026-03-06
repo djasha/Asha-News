@@ -1,6 +1,5 @@
 import { Suspense, lazy, startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 import {
-  Activity,
   Bell,
   BellOff,
   Bot,
@@ -165,6 +164,8 @@ const UI_COPY = {
     feedAll: 'All',
     feedCritical: 'Critical',
     feedHigh: 'High',
+    feedElevated: 'Elevated',
+    feedInfo: 'Info',
     feedLow: 'Low',
     feedSearchPlaceholder: 'Search feed...',
     feedFilterSearchPlaceholder: 'Search filters...',
@@ -361,6 +362,12 @@ const UI_COPY = {
     layerPackCyberComms: 'Cyber/Comms',
     layerPackNaturalHazards: 'Natural Hazards',
     layerPackEconomicShock: 'Economic Shock',
+    layerHotspotsShort: 'Hotspots',
+    layerInfrastructureShort: 'Infra',
+    layerWeatherShort: 'Weather',
+    layerWaterwaysShort: 'Waterways',
+    layerConflictShort: 'Conflict',
+    layerEconomicShort: 'Economic',
     confidenceModelHelp: 'How confidence and predictive model scores are generated.',
     flightLayerHelp: 'Flight radar integration strategy and fallback.',
     maritimeLayerHelp: 'Maritime risk methodology and confidence.',
@@ -427,6 +434,8 @@ const UI_COPY = {
     feedAll: 'الكل',
     feedCritical: 'حرج',
     feedHigh: 'عال',
+    feedElevated: 'متصاعد',
+    feedInfo: 'معلومات',
     feedLow: 'منخفض',
     feedSearchPlaceholder: 'ابحث في الخلاصة...',
     feedFilterSearchPlaceholder: 'ابحث في الفلاتر...',
@@ -623,6 +632,12 @@ const UI_COPY = {
     layerPackCyberComms: 'سيبراني/اتصالات',
     layerPackNaturalHazards: 'المخاطر الطبيعية',
     layerPackEconomicShock: 'الصدمة الاقتصادية',
+    layerHotspotsShort: 'نقاط ساخنة',
+    layerInfrastructureShort: 'بنية',
+    layerWeatherShort: 'طقس',
+    layerWaterwaysShort: 'ممرات',
+    layerConflictShort: 'نزاع',
+    layerEconomicShort: 'اقتصاد',
     confidenceModelHelp: 'كيف يتم توليد درجات الثقة والنموذج التنبؤي.',
     flightLayerHelp: 'استراتيجية تكامل رادار الرحلات وخطة النسخ الاحتياطي.',
     maritimeLayerHelp: 'منهجية مخاطر الملاحة وثقة المصادر.',
@@ -689,6 +704,8 @@ const UI_COPY = {
     feedAll: 'Todo',
     feedCritical: 'Crítico',
     feedHigh: 'Alto',
+    feedElevated: 'Elevado',
+    feedInfo: 'Info',
     feedLow: 'Bajo',
     feedSearchPlaceholder: 'Buscar en feed...',
     feedFilterSearchPlaceholder: 'Buscar filtros...',
@@ -885,6 +902,12 @@ const UI_COPY = {
     layerPackCyberComms: 'Ciber/Comms',
     layerPackNaturalHazards: 'Riesgos naturales',
     layerPackEconomicShock: 'Choque económico',
+    layerHotspotsShort: 'Focos',
+    layerInfrastructureShort: 'Infra',
+    layerWeatherShort: 'Clima',
+    layerWaterwaysShort: 'Vías',
+    layerConflictShort: 'Conflicto',
+    layerEconomicShort: 'Economía',
     confidenceModelHelp: 'Cómo se generan las puntuaciones de confianza y del modelo predictivo.',
     flightLayerHelp: 'Estrategia de integración de radar de vuelos y respaldo.',
     maritimeLayerHelp: 'Metodología de riesgo marítimo y confianza.',
@@ -1216,7 +1239,16 @@ function getDefaultLayerIdsByMode(layers: LayerDescriptorMC[], mode: MissionCont
     .map((item) => item.id);
 }
 
-function getLayerChipLabel(layer: LayerDescriptorMC): string {
+function getLayerChipLabel(copy: LocaleCopy, layer: LayerDescriptorMC): string {
+  if (layer.id === 'verified-hotspots') return copy.layerHotspotsShort;
+  if (layer.id === 'flight-radar') return copy.layerPackFlights;
+  if (layer.id === 'maritime-risk') return copy.layerPackMaritime;
+  if (layer.id === 'cyber-comms') return copy.layerPackCyberComms;
+  if (layer.id === 'critical-infrastructure') return copy.layerInfrastructureShort;
+  if (layer.id === 'weather-alerts') return copy.layerWeatherShort;
+  if (layer.id === 'strategic-waterways') return copy.layerWaterwaysShort;
+  if (layer.id === 'economic-shocks') return copy.layerEconomicShort;
+  if (layer.id === 'conflict-zones') return copy.layerConflictShort;
   return LAYER_SHORT_LABELS[layer.id] || layer.name;
 }
 
@@ -2213,13 +2245,6 @@ function App() {
     }
     return incoming.slice(0, 6);
   }, [isMobile, mapLayerPacks, settings.mode]);
-  const analystSignals = useMemo(() => ({
-    signals: home?.map.event_points?.length || 0,
-    flights: home?.map.optional_feeds.flight_radar?.length || 0,
-    maritime: home?.map.optional_feeds.maritime_risk?.length || 0,
-    cyber: home?.map.optional_feeds.cyber_comms?.length || 0,
-  }), [home]);
-
   const visibleMapSignals = useMemo(() => {
     if (!home) return 0;
     let total = 0;
@@ -2237,6 +2262,85 @@ function App() {
     if (activeLayers.has('economic-shocks')) total += home.map.optional_feeds.economic_shocks?.length || 0;
     return total;
   }, [activeLayers, home, severityFilter]);
+  const hotspotSeverityCounts = useMemo(() => {
+    const counts = { critical: 0, high: 0, elevated: 0, info: 0 };
+    (home?.map.event_points || []).forEach((point) => {
+      const level = severityFromMapPoint(point);
+      if (level === 'CRITICAL') counts.critical += 1;
+      else if (level === 'HIGH') counts.high += 1;
+      else if (level === 'ELEVATED') counts.elevated += 1;
+      else counts.info += 1;
+    });
+    return counts;
+  }, [home?.map.event_points]);
+  const mapOverviewItems = useMemo(() => ([
+    {
+      key: 'signals',
+      label: copy.visibleSignals,
+      value: String(visibleMapSignals),
+    },
+    {
+      key: 'layers',
+      label: copy.layers,
+      value: `${activeLayers.size}`,
+    },
+    {
+      key: 'verification',
+      label: copy.verification,
+      value: home?.verification?.label || '—',
+    },
+    {
+      key: 'freshness',
+      label: copy.freshness,
+      value: home?.freshness?.status || '—',
+    },
+  ]), [activeLayers.size, copy.freshness, copy.layers, copy.verification, copy.visibleSignals, home?.freshness?.status, home?.verification?.label, visibleMapSignals]);
+  const mapLegendItems = useMemo(() => {
+    const items = [];
+    if (activeLayers.has('verified-hotspots')) {
+      items.push(
+        { key: 'critical', label: copy.feedCritical, count: hotspotSeverityCounts.critical, tone: 'critical' },
+        { key: 'high', label: copy.feedHigh, count: hotspotSeverityCounts.high, tone: 'high' },
+        { key: 'elevated', label: copy.feedElevated, count: hotspotSeverityCounts.elevated, tone: 'elevated' },
+        { key: 'info', label: copy.feedInfo, count: hotspotSeverityCounts.info, tone: 'info' }
+      );
+    }
+    if (activeLayers.has('flight-radar')) {
+      items.push({ key: 'flights', label: copy.layerPackFlights, count: home?.map.optional_feeds.flight_radar?.length || 0, tone: 'flight' });
+    }
+    if (activeLayers.has('maritime-risk')) {
+      items.push({ key: 'maritime', label: copy.layerPackMaritime, count: home?.map.optional_feeds.maritime_risk?.length || 0, tone: 'maritime' });
+    }
+    if (activeLayers.has('cyber-comms')) {
+      items.push({ key: 'cyber', label: copy.layerPackCyberComms, count: home?.map.optional_feeds.cyber_comms?.length || 0, tone: 'cyber' });
+    }
+    if (activeLayers.has('weather-alerts')) {
+      items.push({ key: 'weather', label: copy.layerWeatherShort, count: home?.map.optional_feeds.weather_alerts?.length || 0, tone: 'weather' });
+    }
+    return items.filter((item) => item.count > 0).slice(0, settings.mode === 'simple' ? 5 : 8);
+  }, [
+    activeLayers,
+    copy.feedCritical,
+    copy.feedElevated,
+    copy.feedHigh,
+    copy.feedInfo,
+    copy.layerPackCyberComms,
+    copy.layerPackFlights,
+    copy.layerPackMaritime,
+    copy.layerWeatherShort,
+    home?.map.optional_feeds.cyber_comms?.length,
+    home?.map.optional_feeds.flight_radar?.length,
+    home?.map.optional_feeds.maritime_risk?.length,
+    home?.map.optional_feeds.weather_alerts?.length,
+    hotspotSeverityCounts,
+    settings.mode,
+  ]);
+  const mapPostureTone = useMemo(() => {
+    const level = String(home?.posture?.level || '').toUpperCase();
+    if (level === 'CRITICAL') return 'critical';
+    if (level === 'ELEVATED') return 'elevated';
+    return 'stable';
+  }, [home?.posture?.level]);
 
   const notificationCounts = useMemo(() => {
     return {
@@ -3331,25 +3435,6 @@ function App() {
                 {copy.updatedLabel} {lastUpdated ? formatTime(lastUpdated) : '—'}
                 {!isMobile && ` · ${settings.mode === 'simple' ? copy.simpleMode : copy.analystMode}`}
               </p>
-              <div className={`map-visibility-row ${visibleMapSignals === 0 ? 'is-empty' : ''}`}>
-                <span>{copy.visibleSignals}: {visibleMapSignals}</span>
-                {visibleMapSignals === 0 && (
-                  <>
-                    <span>{copy.noMapSignals}</span>
-                    <button type="button" onClick={resetMapFilters}>
-                      {copy.resetMapFilters}
-                    </button>
-                  </>
-                )}
-              </div>
-              {settings.mode === 'analyst' && (
-                <div className="analyst-strip">
-                  <span title={copy.analystSignals}><Activity size={12} /> {analystSignals.signals}</span>
-                  <span title={copy.analystFlights}>✈ {analystSignals.flights}</span>
-                  <span title={copy.analystMaritime}>⚓ {analystSignals.maritime}</span>
-                  <span title={copy.analystCyber}>⌁ {analystSignals.cyber}</span>
-                </div>
-              )}
             </div>
             {!isMobile && (
               <div className="map-header-controls">
@@ -3361,6 +3446,46 @@ function App() {
           </div>
 
           <div className={`map-canvas-wrap ${mapVisualMode === 'globe' ? 'globe-hero' : ''}`}>
+            {home && (
+              <>
+                <div className={`map-posture-pill tone-${mapPostureTone}`}>
+                  <span className="map-posture-dot" aria-hidden="true" />
+                  <span className="map-posture-label">{home.posture?.label || copy.tacticalMode}</span>
+                  <strong>{visibleMapSignals}</strong>
+                </div>
+                <div className="map-overview-panel" aria-label={copy.health}>
+                  {mapOverviewItems.map((item) => (
+                    <div key={item.key} className="map-overview-card">
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
+                    </div>
+                  ))}
+                  {degradedSourceCount > 0 && (
+                    <div className="map-overview-card degraded">
+                      <span>{copy.sources}</span>
+                      <strong>{degradedSourceCount} {toHealthLabel(copy, 'weak')}</strong>
+                    </div>
+                  )}
+                </div>
+                <div className="map-legend-panel" aria-label={copy.layers}>
+                  {mapLegendItems.map((item) => (
+                    <div key={item.key} className={`map-legend-item tone-${item.tone}`}>
+                      <span className="legend-dot" aria-hidden="true" />
+                      <span className="legend-label">{item.label}</span>
+                      <strong>{item.count}</strong>
+                    </div>
+                  ))}
+                </div>
+                {visibleMapSignals === 0 && (
+                  <div className="map-empty-banner">
+                    <span>{copy.noMapSignals}</span>
+                    <button type="button" onClick={resetMapFilters}>
+                      {copy.resetMapFilters}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
             <div className="map-layer-strip">
               {!!visibleMapPacks.length && (
                 <div className="map-pack-strip" role="group" aria-label={copy.layerPacks}>
@@ -3394,7 +3519,7 @@ function App() {
                         title={`${layer.name} · ${layer.description}`}
                         onClick={() => toggleLayer(layer.id)}
                       >
-                        {getLayerChipLabel(layer)}
+                        {getLayerChipLabel(copy, layer)}
                       </button>
                     );
                   })}
