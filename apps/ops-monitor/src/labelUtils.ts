@@ -13,6 +13,9 @@ const SIGNAL_LABEL_MAP: Record<string, string> = {
   anomaly_type_flood: 'Flood anomaly',
   anomaly_type_dust: 'Dust anomaly',
   anomaly_type_ash: 'Ash anomaly',
+  'wx:thunderstorms': 'Thunderstorms',
+  'wx:thunderstorm': 'Thunderstorm',
+  'snow or ice': 'Winter weather',
   weather: 'Weather alert',
   'weather conditions': 'Weather alert',
   cyber: 'Cyber signal',
@@ -86,6 +89,11 @@ export function formatSignalLabel(value: unknown, fallback = 'Signal'): string {
     if (suffix.includes('storm')) return 'Storm anomaly';
     if (suffix.includes('flood')) return 'Flood anomaly';
     return `${toTitleCaseWords(suffix)} anomaly`;
+  }
+
+  if (normalized.startsWith('wx:')) {
+    const suffix = normalized.replace(/^wx:/, '').replace(/[_-]+/g, ' ').trim();
+    return suffix ? toTitleCaseWords(suffix) : normalizedFallback;
   }
 
   if (/^[a-z0-9]+(?:[_-][a-z0-9]+)+$/i.test(raw)) {

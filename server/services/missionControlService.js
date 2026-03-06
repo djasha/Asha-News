@@ -2767,6 +2767,11 @@ function normalizeSignalLabel(value, fallback = 'Signal') {
   }
   if (normalized === 'cobaltstrike') return 'Cyber Threat Cluster';
   if (normalized === 'weather' || normalized === 'weather conditions') return 'Weather Alert';
+  if (normalized === 'snow or ice') return 'Winter Weather';
+  if (normalized.startsWith('wx:')) {
+    const suffix = normalized.replace(/^wx:/, '').trim();
+    return suffix ? toTitleCaseWords(suffix.replace(/[_-]+/g, ' ')) : 'Weather Alert';
+  }
   if (/^[a-z0-9_-]{1,24}$/.test(normalized) && !normalized.includes(' ')) {
     return toTitleCaseWords(normalized.replace(/[_-]+/g, ' '));
   }
