@@ -46,4 +46,21 @@ describe('agentApi digest auth behavior', () => {
     expect(payload).toEqual({ error: 'Authentication required for personal digest' });
     expect(queryBridge).not.toHaveBeenCalled();
   });
+
+  test('GET /api/v1/digest scope=public returns empty digest when cluster backend is unavailable', async () => {
+    queryBridge.mockRejectedValue(new Error('cluster backend unavailable'));
+
+    const app = buildApp();
+    const server = await startServer(app);
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/v1/digest?scope=public&limit=3`);
+    const payload = await response.json();
+    await new Promise((resolve) => server.close(resolve));
+
+    expect(response.status).toBe(200);
+    expect(payload.scope).toBe('public');
+    expect(payload.clusters).toEqual([]);
+    expect(payload.digest_text).toContain('public digest (0 clusters)');
+    expect(queryBridge).toHaveBeenCalledTimes(1);
+    expect(queryBridge.mock.calls[0][0]).toBe('/items/story_clusters?filter[status][_eq]=active&sort=-created_at&limit=6');
+  });
 });

@@ -297,7 +297,16 @@ router.get('/digest', optionalAuth, async (req, res) => {
       }
     }
 
-    const clustersRaw = await fetchActiveClusters(limit * 2);
+    let clustersRaw = [];
+    try {
+      clustersRaw = await fetchActiveClusters(limit * 2);
+    } catch (error) {
+      if (scope !== 'public') {
+        throw error;
+      }
+      logger.warn({ err: error }, 'Public digest cluster fetch failed; returning empty digest');
+    }
+
     let clusters = applyClusterFilters(clustersRaw.map(normalizeCluster), filters);
 
     clusters = clusters.slice(0, limit);
