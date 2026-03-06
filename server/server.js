@@ -55,6 +55,8 @@ const subscriptionTiersRoutes = require('./routes/subscriptionTiers');
 const agentApiRoutes = require('./routes/agentApi');
 const conflictAnalyticsRoutes = require('./routes/conflictAnalytics');
 const monitorOpsRoutes = require('./routes/monitorOps');
+const missionControlRoutes = require('./routes/missionControl');
+const missionControlService = require('./services/missionControlService');
 const CronService = require('./services/cronService');
 
 // Import security middleware
@@ -78,12 +80,18 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:3000',
       'http://127.0.0.1:3000',
-      process.env.FRONTEND_URL
+      'https://mc.asha.news',
+      process.env.FRONTEND_URL,
+      process.env.MC_FRONTEND_URL,
     ].filter(Boolean);
     const isProduction = process.env.NODE_ENV === 'production';
     
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
+
+    if (!isProduction && /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) {
+      return callback(null, true);
+    }
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
@@ -156,6 +164,7 @@ app.use('/api/subscription-tiers', subscriptionTiersRoutes);
 app.use('/api/v1', agentApiRoutes);
 app.use('/api/conflicts', conflictAnalyticsRoutes);
 app.use('/api/monitor', monitorOpsRoutes);
+app.use('/api/mc', missionControlRoutes);
 
 // Ingestion thin-proxy endpoints -> reuse rss-automation routes
 // Manual trigger
@@ -963,12 +972,39 @@ app.use('*', (req, res) => {
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   logger.info({ port: PORT, env: process.env.NODE_ENV || 'development' }, 'Server started');
   logger.info(`Health check: http://localhost:${PORT}/api/health`);
   
   // Start cron jobs
   cronService.startAllJobs();
+  missionControlService.startDispatchWorker();
+});
+
+async function shutdown(signal) {
+  logger.info({ signal }, 'Shutting down server');
+  try {
+    missionControlService.stopDispatchWorker();
+  } catch (error) {
+    logger.warn({ err: error?.message }, 'Failed to stop MC dispatch worker');
+  }
+  try {
+    cronService.stopAllJobs();
+  } catch (error) {
+    logger.warn({ err: error?.message }, 'Failed to stop cron jobs');
+  }
+  server.close(() => {
+    logger.info('HTTP server closed');
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+
+process.on('SIGINT', () => {
+  shutdown('SIGINT');
+});
+process.on('SIGTERM', () => {
+  shutdown('SIGTERM');
 });
 
 module.exports = app;

@@ -9,12 +9,16 @@ const isProduction = process.env.NODE_ENV === 'production';
 let db = null;
 let pool = null;
 let useSupabase = false;
+let supabaseModeNoticeShown = false;
 
 // Check if we should use Supabase REST API instead of direct connection
 function shouldUseSupabase() {
   // If DATABASE_URL is not set, use Supabase
   if (!process.env.DATABASE_URL) {
-    logger.info('No DATABASE_URL, using Supabase REST API');
+    if (!supabaseModeNoticeShown) {
+      logger.info('No DATABASE_URL, using Supabase REST API');
+      supabaseModeNoticeShown = true;
+    }
     return true;
   }
   return false;

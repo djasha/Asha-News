@@ -84,13 +84,21 @@ const BottomNavigation = () => {
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
     : defaultNavItems;
 
+  const isPathActive = (itemPath) => {
+    if (itemPath === '/mc') {
+      return location.pathname === '/mc' || location.pathname === '/mission-control';
+    }
+    if (itemPath === '/ai-checker') {
+      return location.pathname === '/ai-checker' || location.pathname === '/fact-check';
+    }
+    return location.pathname === itemPath;
+  };
+
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface-elevated-light dark:bg-surface-elevated-dark border-t border-primary-200/20 dark:border-primary-700/20 z-40 pb-safe">
       <div className="flex items-center justify-around px-2 py-2">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path || (
-            item.path === '/ai-checker' && location.pathname === '/fact-check'
-          );
+          const isActive = isPathActive(item.path);
           return (
             <button
               key={item.path}

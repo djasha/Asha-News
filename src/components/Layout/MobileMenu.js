@@ -23,14 +23,26 @@ const MobileMenu = ({ isOpen, onClose }) => {
     onClose();
   };
 
+  const isPathActive = (itemPath) => {
+    if (itemPath === '/mc') {
+      return location.pathname === '/mc' || location.pathname === '/mission-control';
+    }
+    if (itemPath === '/ai-checker') {
+      return location.pathname === '/ai-checker' || location.pathname === '/fact-check';
+    }
+    return location.pathname === itemPath;
+  };
+
   const menuItems = CORE_NAV_ITEMS_DESKTOP.map((item) => ({
     label: item.label,
     path: item.path,
     icon: item.path === '/'
       ? 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'
+      : item.path === '/mc'
+        ? 'M3 7l9-4 9 4-9 4-9-4zm0 5l9 4 9-4M3 17l9 4 9-4'
       : item.path === '/ai-checker'
         ? 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
-        : item.path === '/markets'
+      : item.path === '/markets'
           ? 'M3 3v18h18M7 14l3-3 3 2 4-5'
           : 'M7 3h8l5 5v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z',
   }));
@@ -69,9 +81,7 @@ const MobileMenu = ({ isOpen, onClose }) => {
         {/* Navigation Items */}
         <nav className="py-4">
           {menuItems.map((item) => {
-            const isActive = location.pathname === item.path || (
-              item.path === '/ai-checker' && location.pathname === '/fact-check'
-            );
+            const isActive = isPathActive(item.path);
             return (
               <button
                 key={item.path}

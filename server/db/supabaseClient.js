@@ -14,6 +14,7 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const getApiKey = () => SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY;
 
 let supabaseAvailable = null;
+const missingTableNotice = new Set();
 
 function isAvailable() {
   if (supabaseAvailable === null) {
@@ -23,6 +24,16 @@ function isAvailable() {
     }
   }
   return supabaseAvailable;
+}
+
+function isMissingTableError(message = '') {
+  const text = String(message || '');
+  return (
+    text.includes('PGRST205')
+    || text.includes('42P01')
+    || text.includes('does not exist')
+    || text.includes('Could not find the table')
+  );
 }
 
 /**
@@ -99,7 +110,15 @@ async function supabaseRequest(table, options = {}) {
     const data = JSON.parse(text);
     return { data, error: null };
   } catch (error) {
-    logger.error(`Supabase request failed: ${error.message}`);
+    const message = String(error?.message || error || '');
+    if (isMissingTableError(message)) {
+      if (!missingTableNotice.has(table)) {
+        missingTableNotice.add(table);
+        logger.warn(`Supabase table missing (${table}); skipping optional DB operations until migrated`);
+      }
+    } else {
+      logger.error(`Supabase request failed: ${message}`);
+    }
     return { data: null, error: error.message };
   }
 }

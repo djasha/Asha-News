@@ -29,6 +29,7 @@ import WikiIndexPage from "./pages/WikiIndexPage";
 import HomeV1 from "./pages/HomeV1";
 import LegalPage from "./pages/LegalPage";
 import MarketsPage from "./pages/MarketsPage";
+import MissionControlPage from "./pages/MissionControlPage";
 import PreferencesPage from "./pages/PreferencesPage";
 import RSSManagementPage from "./pages/RSSManagementPage";
 import StaticCMSPage from "./pages/StaticCMSPage";
@@ -101,6 +102,8 @@ function App() {
                         <Route path="/digest" element={<DigestPage />} />
                         <Route path="/conflicts" element={<ConflictMonitorPage />} />
                         <Route path="/monitor" element={<ConflictMonitorPage />} />
+                        <Route path="/mc" element={<MissionControlPage />} />
+                        <Route path="/mission-control" element={<MissionControlPage />} />
                         <Route path="/cod-war-monitor" element={<CodWarMonitorPage />} />
                         <Route path="/wiki" element={<WikiIndexPage />} />
                         <Route path="/wiki/conflict-ops" element={<ConflictOpsWikiPage />} />

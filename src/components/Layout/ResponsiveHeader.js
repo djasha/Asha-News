@@ -93,6 +93,16 @@ const ResponsiveHeader = ({ onMenuToggle, isMenuOpen }) => {
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
     : defaultNav;
 
+  const isPathActive = (itemPath) => {
+    if (itemPath === '/mc') {
+      return location.pathname === '/mc' || location.pathname === '/mission-control';
+    }
+    if (itemPath === '/ai-checker') {
+      return location.pathname === '/ai-checker' || location.pathname === '/fact-check';
+    }
+    return location.pathname === itemPath;
+  };
+
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
@@ -189,9 +199,7 @@ const ResponsiveHeader = ({ onMenuToggle, isMenuOpen }) => {
             {/* Center: Desktop Navigation */}
             <nav className="flex items-center space-x-8">
               {navItems.map((item) => {
-                const isActive = location.pathname === item.path || (
-                  item.path === '/ai-checker' && location.pathname === '/fact-check'
-                );
+                const isActive = isPathActive(item.path);
                 return (
                   <button
                     key={item.path}

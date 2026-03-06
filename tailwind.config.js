@@ -1,7 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./src/**/*.{js,jsx,ts,tsx}",
+    "./src/**/*.{js,jsx,ts,tsx,html}",
+    "./apps/ops-monitor/src/**/*.{js,jsx,ts,tsx,html}",
+    "./apps/worldmonitor-upstream/src/**/*.{js,jsx,ts,tsx,html}",
   ],
   darkMode: 'class',
   theme: {
@@ -54,10 +56,14 @@ module.exports = {
         },
         // Text system tokens
         text: {
-          'text-primary-light': '#1a1a1a',
-          'text-primary-dark': '#ffffff',
-          'text-secondary-light': '#666666',
-          'text-secondary-dark': '#a0a0a0',
+          primary: {
+            light: '#1a1a1a',
+            dark: '#ffffff',
+          },
+          secondary: {
+            light: '#666666',
+            dark: '#a0a0a0',
+          },
           tertiary: {
             light: '#8a8f9a',
             dark: '#8f939d',

@@ -614,6 +614,226 @@ async function migrate() {
     `);
     await pool.query('CREATE INDEX IF NOT EXISTS agent_actions_run_idx ON agent_actions(run_id, created_at DESC)');
 
+    // ─── Mission Control: user preferences and layouts ──────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_user_preferences (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        scope_id VARCHAR(255) UNIQUE NOT NULL,
+        user_id VARCHAR(255),
+        profile_key VARCHAR(120) NOT NULL DEFAULT 'default',
+        preferences_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+        mode_default VARCHAR(20) NOT NULL DEFAULT 'simple',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_workspace_layouts (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        scope_id VARCHAR(255) NOT NULL,
+        user_id VARCHAR(255),
+        profile_key VARCHAR(120) NOT NULL DEFAULT 'default',
+        preset_id VARCHAR(120) NOT NULL,
+        layout_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(scope_id, preset_id)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_followed_regions (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        scope_id VARCHAR(255) NOT NULL,
+        user_id VARCHAR(255),
+        region VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(scope_id, region)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_muted_rules (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        scope_id VARCHAR(255) NOT NULL,
+        user_id VARCHAR(255),
+        signature VARCHAR(400) NOT NULL,
+        scope VARCHAR(80) NOT NULL DEFAULT 'source-location',
+        created_at TIMESTAMP DEFAULT NOW(),
+        expires_at TIMESTAMP,
+        UNIQUE(scope_id, signature, scope)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_alert_actions (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        scope_id VARCHAR(255) NOT NULL,
+        user_id VARCHAR(255),
+        alert_id VARCHAR(255) NOT NULL,
+        action VARCHAR(80) NOT NULL,
+        metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(scope_id, alert_id, action)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_dispatch_queue (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        scope_id VARCHAR(255) NOT NULL,
+        user_id VARCHAR(255),
+        alert_id VARCHAR(255) NOT NULL,
+        channel VARCHAR(50) NOT NULL,
+        payload_json JSONB NOT NULL,
+        status VARCHAR(40) NOT NULL DEFAULT 'queued',
+        attempts INTEGER NOT NULL DEFAULT 0,
+        next_attempt_at TIMESTAMP DEFAULT NOW(),
+        claimed_at TIMESTAMP,
+        claimed_by VARCHAR(120),
+        last_error_code VARCHAR(120),
+        idempotency_key VARCHAR(500) UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pool.query('ALTER TABLE mc_dispatch_queue ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMP');
+    await pool.query('ALTER TABLE mc_dispatch_queue ADD COLUMN IF NOT EXISTS claimed_by VARCHAR(120)');
+    await pool.query('ALTER TABLE mc_dispatch_queue ADD COLUMN IF NOT EXISTS last_error_code VARCHAR(120)');
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_dispatch_log (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        queue_id UUID REFERENCES mc_dispatch_queue(id) ON DELETE CASCADE,
+        provider VARCHAR(120) NOT NULL,
+        result VARCHAR(80) NOT NULL,
+        delivered_at TIMESTAMP,
+        error TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_dispatch_metrics (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        scope_id VARCHAR(255) NOT NULL,
+        user_id VARCHAR(255),
+        metric_type VARCHAR(120) NOT NULL,
+        value_ms INTEGER,
+        value_num NUMERIC(14,4),
+        channel VARCHAR(50),
+        alert_id VARCHAR(255),
+        metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_source_health_snapshots (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        scope_id VARCHAR(255) NOT NULL,
+        source VARCHAR(120) NOT NULL,
+        status VARCHAR(40) NOT NULL,
+        latency_ms INTEGER NOT NULL DEFAULT 0,
+        message TEXT,
+        updated_at TIMESTAMP DEFAULT NOW(),
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(scope_id, source)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_feed_filters (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        scope_id VARCHAR(255) UNIQUE NOT NULL,
+        user_id VARCHAR(255),
+        profile_key VARCHAR(120) NOT NULL DEFAULT 'default',
+        topics JSONB NOT NULL DEFAULT '[]'::jsonb,
+        categories JSONB NOT NULL DEFAULT '[]'::jsonb,
+        countries JSONB NOT NULL DEFAULT '[]'::jsonb,
+        source_types JSONB NOT NULL DEFAULT '[]'::jsonb,
+        updated_at TIMESTAMP DEFAULT NOW(),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_feed_cursor_state (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        scope_id VARCHAR(255) NOT NULL,
+        user_id VARCHAR(255),
+        view VARCHAR(120) NOT NULL DEFAULT 'feed',
+        cursor VARCHAR(255) NOT NULL DEFAULT '0',
+        updated_at TIMESTAMP DEFAULT NOW(),
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(scope_id, view)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_wm_resource_health (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        scope_id VARCHAR(255) NOT NULL,
+        family VARCHAR(120) NOT NULL,
+        resource_key VARCHAR(120) NOT NULL,
+        status VARCHAR(40) NOT NULL,
+        latency_ms INTEGER NOT NULL DEFAULT 0,
+        error_code VARCHAR(120),
+        endpoint_path VARCHAR(300),
+        wm_endpoint_version VARCHAR(60),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(scope_id, resource_key)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_feed_events (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        scope_id VARCHAR(255) NOT NULL,
+        dedupe_key VARCHAR(255) NOT NULL,
+        source_type VARCHAR(80) NOT NULL,
+        verification_status VARCHAR(80) NOT NULL,
+        severity VARCHAR(30) NOT NULL,
+        country VARCHAR(8),
+        topic VARCHAR(120),
+        category VARCHAR(120),
+        payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(scope_id, dedupe_key)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mc_source_subscriptions (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        scope_id VARCHAR(255) NOT NULL,
+        source_provider VARCHAR(80) NOT NULL,
+        source_key VARCHAR(255) NOT NULL,
+        enabled BOOLEAN NOT NULL DEFAULT false,
+        metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(scope_id, source_provider, source_key)
+      )
+    `);
+
+    await pool.query('CREATE INDEX IF NOT EXISTS mc_workspace_layouts_scope_idx ON mc_workspace_layouts(scope_id)');
+    await pool.query('CREATE INDEX IF NOT EXISTS mc_alert_actions_scope_idx ON mc_alert_actions(scope_id, created_at DESC)');
+    await pool.query('CREATE INDEX IF NOT EXISTS mc_dispatch_queue_status_idx ON mc_dispatch_queue(status, next_attempt_at)');
+    await pool.query('CREATE INDEX IF NOT EXISTS mc_dispatch_queue_claim_idx ON mc_dispatch_queue(status, claimed_at, next_attempt_at)');
+    await pool.query('CREATE INDEX IF NOT EXISTS mc_dispatch_metrics_scope_idx ON mc_dispatch_metrics(scope_id, metric_type, created_at DESC)');
+    await pool.query('CREATE INDEX IF NOT EXISTS mc_source_health_scope_idx ON mc_source_health_snapshots(scope_id, updated_at DESC)');
+    await pool.query('CREATE INDEX IF NOT EXISTS mc_feed_filters_scope_idx ON mc_feed_filters(scope_id)');
+    await pool.query('CREATE INDEX IF NOT EXISTS mc_feed_cursor_scope_idx ON mc_feed_cursor_state(scope_id, view)');
+    await pool.query('CREATE INDEX IF NOT EXISTS mc_wm_resource_scope_idx ON mc_wm_resource_health(scope_id, family, updated_at DESC)');
+    await pool.query('CREATE INDEX IF NOT EXISTS mc_feed_events_scope_idx ON mc_feed_events(scope_id, created_at DESC)');
+    await pool.query('CREATE INDEX IF NOT EXISTS mc_feed_events_filter_idx ON mc_feed_events(scope_id, severity, source_type, verification_status)');
+    await pool.query('CREATE INDEX IF NOT EXISTS mc_source_subscriptions_scope_idx ON mc_source_subscriptions(scope_id, source_provider, enabled)');
+
     // ─── Seed default subscription tiers ─────────────────────
     const { rows: existingTiers } = await pool.query('SELECT id FROM subscription_tiers LIMIT 1');
     if (existingTiers.length === 0) {

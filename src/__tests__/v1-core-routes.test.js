@@ -116,6 +116,14 @@ describe('v1 core routes render expected shells', () => {
     expect(await screen.findByRole('heading', { name: /digest/i })).toBeInTheDocument();
   });
 
+  test('mission control route renders Mission Control launcher shell', async () => {
+    window.history.pushState({}, 'Mission Control', '/mc');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /^mission control$/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /open full mission control/i })).toBeInTheDocument();
+  });
+
   test('monitor route renders Conflict Monitor shell', async () => {
     window.history.pushState({}, 'Monitor', '/monitor');
     render(<App />);

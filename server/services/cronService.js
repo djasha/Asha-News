@@ -17,6 +17,7 @@ class CronService {
     this.enableConflictOpsCron = String(process.env.ENABLE_CONFLICT_OPS_CRON || 'true').toLowerCase() !== 'false';
     this.conflictOpsCronSchedule = process.env.CONFLICT_OPS_CRON_SCHEDULE || '*/20 * * * *';
     this.conflictOpsShadowMode = String(process.env.CONFLICT_OPS_SHADOW_MODE || 'true').toLowerCase() !== 'false';
+    this.missionControlOnly = String(process.env.MISSION_CONTROL_ONLY || 'false').toLowerCase() === 'true';
     this.internalApiKey = process.env.INTERNAL_API_KEY || '';
 
     this.headers = {
@@ -78,6 +79,12 @@ class CronService {
    */
   startAllJobs() {
     logger.info('[CronService] Starting cron jobs...');
+
+    if (this.missionControlOnly) {
+      logger.info('[CronService] MISSION_CONTROL_ONLY=true, skipping non-MC cron jobs');
+      logger.info('[CronService] All cron jobs started');
+      return;
+    }
     
     // Daily briefs generation - every day at 6 AM
     this.startDailyBriefsJob();

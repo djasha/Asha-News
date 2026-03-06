@@ -13,6 +13,86 @@ let mobileMenuCache = null;
 let sideMenuCache = null;
 let cacheTimestamp = null;
 
+const REQUIRED_MISSION_CONTROL_ENTRY = {
+  label: 'Mission Control',
+  path: '/mc',
+};
+
+function ensureMissionControlDesktop(items) {
+  const list = Array.isArray(items) ? [...items] : [];
+  if (list.some((item) => item?.path === '/mc' || item?.path === '/mission-control')) {
+    return list;
+  }
+  return [
+    ...list.slice(0, 1),
+    {
+      ...REQUIRED_MISSION_CONTROL_ENTRY,
+      fontSize: '16',
+      fontWeight: '600',
+      enabled: true,
+      sort_order: 2,
+    },
+    ...list.slice(1),
+  ];
+}
+
+function ensureMissionControlMobile(items) {
+  const list = Array.isArray(items) ? [...items] : [];
+  if (list.some((item) => item?.path === '/mc' || item?.path === '/mission-control')) {
+    return list;
+  }
+  const shifted = list.map((item) => ({
+    ...item,
+    sort_order: typeof item?.sort_order === 'number' && item.sort_order >= 2
+      ? item.sort_order + 1
+      : item?.sort_order,
+  }));
+  return [
+    {
+      ...REQUIRED_MISSION_CONTROL_ENTRY,
+      label: 'MC',
+      icon: 'layers',
+      enabled: true,
+      sort_order: 2,
+    },
+    ...shifted,
+  ].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+}
+
+function ensureMissionControlSide(categories) {
+  const list = Array.isArray(categories) ? [...categories] : [];
+  const hasEntry = list.some((cat) =>
+    Array.isArray(cat?.items) &&
+    cat.items.some((item) => item?.path === '/mc' || item?.path === '/mission-control')
+  );
+  if (hasEntry) return list;
+
+  const insertion = { label: 'Mission Control', path: '/mc', enabled: true, sort_order: 2 };
+  const coreIndex = list.findIndex((cat) => /core|features/i.test(String(cat?.title || '')));
+  if (coreIndex >= 0) {
+    const core = list[coreIndex];
+    const coreItems = Array.isArray(core.items) ? [...core.items] : [];
+    const nextItems = [
+      ...coreItems.slice(0, 1),
+      insertion,
+      ...coreItems.slice(1),
+    ];
+    list[coreIndex] = { ...core, items: nextItems };
+    return list;
+  }
+
+  return [
+    {
+      id: 'mission-control',
+      title: 'Core',
+      enabled: true,
+      sort_order: 1,
+      items: [insertion],
+    },
+    ...list,
+  ];
+}
+
 export const useMenuSettings = (menuType = 'desktop') => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,11 +108,11 @@ export const useMenuSettings = (menuType = 'desktop') => {
         setLoading(false);
         setError(null);
         if (menuType === 'desktop') {
-          setData(CORE_NAV_ITEMS_DESKTOP);
+          setData(ensureMissionControlDesktop(CORE_NAV_ITEMS_DESKTOP));
         } else if (menuType === 'mobile') {
-          setData(CORE_NAV_ITEMS_MOBILE);
+          setData(ensureMissionControlMobile(CORE_NAV_ITEMS_MOBILE));
         } else if (menuType === 'side') {
-          setData(CORE_SIDE_MENU);
+          setData(ensureMissionControlSide(CORE_SIDE_MENU));
         }
         return;
       }
@@ -40,17 +120,17 @@ export const useMenuSettings = (menuType = 'desktop') => {
       // Check cache
       if (cacheTimestamp && (now - cacheTimestamp) < CACHE_DURATION) {
         if (menuType === 'desktop' && desktopMenuCache) {
-          setData(desktopMenuCache);
+          setData(ensureMissionControlDesktop(desktopMenuCache));
           setLoading(false);
           return;
         }
         if (menuType === 'mobile' && mobileMenuCache) {
-          setData(mobileMenuCache);
+          setData(ensureMissionControlMobile(mobileMenuCache));
           setLoading(false);
           return;
         }
         if (menuType === 'side' && sideMenuCache) {
-          setData(sideMenuCache);
+          setData(ensureMissionControlSide(sideMenuCache));
           setLoading(false);
           return;
         }
@@ -69,13 +149,13 @@ export const useMenuSettings = (menuType = 'desktop') => {
         // Update cache
         cacheTimestamp = now;
         if (menuType === 'desktop') {
-          desktopMenuCache = result.items || [];
+          desktopMenuCache = ensureMissionControlDesktop(result.items || []);
           setData(desktopMenuCache);
         } else if (menuType === 'mobile') {
-          mobileMenuCache = result.items || [];
+          mobileMenuCache = ensureMissionControlMobile(result.items || []);
           setData(mobileMenuCache);
         } else if (menuType === 'side') {
-          sideMenuCache = result.categories || [];
+          sideMenuCache = ensureMissionControlSide(result.categories || []);
           setData(sideMenuCache);
         }
 
