@@ -171,7 +171,7 @@ const LAYERS_CATALOG = Object.freeze([
     id: 'flight-radar',
     name: 'Flight Radar',
     category: 'optional',
-    default_enabled: true,
+    default_enabled: false,
     description: 'Flight movement overlay where licensing allows integrated display.',
     source: 'Flight feed connector',
     update_latency_seconds: 60,
@@ -3542,21 +3542,6 @@ function mergeMapEventPoints(primaryPoints = [], derivedPoints = [], limit = 220
 }
 
 function deriveEventPointsFromOptionalFeeds(optionalFeeds = {}) {
-  const fromFlight = Array.isArray(optionalFeeds.flight_radar)
-    ? optionalFeeds.flight_radar.slice(0, 18).map((item, idx) => ({
-      id: `derived-flight-${idx + 1}-${safeString(item.id, stableHash(item.callsign || idx))}`,
-      event_date: toIso(item.updated_at || Date.now()),
-      location: safeString(item.callsign, locationLabelFromPoint(item.latitude, item.longitude)),
-      latitude: Number(item.latitude),
-      longitude: Number(item.longitude),
-      confidence: 0.42,
-      source_tier: 'derived-flight',
-      fatalities_total: 0,
-      injured_total: 0,
-      official_announcement_types: [],
-    }))
-    : [];
-
   const fromMaritime = Array.isArray(optionalFeeds.maritime_risk)
     ? optionalFeeds.maritime_risk.slice(0, 14).map((item, idx) => ({
       id: `derived-maritime-${idx + 1}-${safeString(item.id, stableHash(item.corridor || idx))}`,
@@ -3619,7 +3604,7 @@ function deriveEventPointsFromOptionalFeeds(optionalFeeds = {}) {
     })
     : [];
 
-  return [...fromFlight, ...fromMaritime, ...fromCyber, ...fromWeather]
+  return [...fromMaritime, ...fromCyber, ...fromWeather]
     .filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
     .slice(0, 64);
 }

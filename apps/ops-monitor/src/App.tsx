@@ -118,6 +118,14 @@ const LAYER_SHORT_LABELS: Record<string, string> = {
   'conflict-zones': 'Conflict',
 };
 
+const SIMPLE_MODE_LAYER_BASELINE = [
+  'conflict-zones',
+  'verified-hotspots',
+  'critical-infrastructure',
+  'strategic-waterways',
+  'weather-alerts',
+];
+
 const UI_COPY = {
   en: {
     online: 'Online',
@@ -1202,8 +1210,9 @@ function getDefaultLayerIdsByMode(layers: LayerDescriptorMC[], mode: MissionCont
   if (mode === 'analyst') {
     return layers.map((item) => item.id);
   }
+  const simpleAllowlist = new Set(SIMPLE_MODE_LAYER_BASELINE);
   return layers
-    .filter((item) => item.default_enabled || item.category === 'core')
+    .filter((item) => simpleAllowlist.has(item.id))
     .map((item) => item.id);
 }
 
@@ -1755,9 +1764,11 @@ function App() {
         setLastUpdated(new Date().toISOString());
 
         if (!didInitLayersRef.current) {
-          const defaults = bundle.mapLayerDefaults?.length
-            ? bundle.mapLayerDefaults
-            : getDefaultLayerIdsByMode(bundle.layersCatalog, settings.mode);
+          const defaults = settings.mode === 'simple'
+            ? getDefaultLayerIdsByMode(bundle.layersCatalog, settings.mode)
+            : bundle.mapLayerDefaults?.length
+              ? bundle.mapLayerDefaults
+              : getDefaultLayerIdsByMode(bundle.layersCatalog, settings.mode);
           setActiveLayers(new Set(defaults));
           didInitLayersRef.current = true;
         }
@@ -2353,9 +2364,24 @@ function App() {
 
   useEffect(() => {
     if (!layersCatalog.length) return;
-    if (rightRailTab === 'feed') return;
-    setMainView('Map');
     setActiveLayers((prev) => {
+      if (settings.mode === 'simple') {
+        const next = new Set(
+          layersCatalog
+            .map((item) => item.id)
+            .filter((id) => SIMPLE_MODE_LAYER_BASELINE.includes(id))
+        );
+        if (rightRailTab === 'flights') {
+          next.add('flight-radar');
+        }
+        if (rightRailTab === 'whale') {
+          next.add('economic-shocks');
+        }
+        return next;
+      }
+      if (rightRailTab === 'feed') {
+        return prev;
+      }
       const next = new Set(prev);
       next.add('verified-hotspots');
       if (rightRailTab === 'flights') {
@@ -2366,7 +2392,10 @@ function App() {
       }
       return next;
     });
-  }, [layersCatalog.length, rightRailTab]);
+    if (rightRailTab !== 'feed') {
+      setMainView('Map');
+    }
+  }, [layersCatalog, rightRailTab, settings.mode]);
 
   useEffect(() => {
     if (settings.mode !== 'analyst' && expandedFeedItemId) {
@@ -3928,9 +3957,11 @@ function App() {
                         </p>
                       )}
 
-                      <div className="feed-card-foot">
+                      <div className={`feed-card-foot ${settings.mode === 'simple' ? 'simple' : ''}`}>
                         <span>{locationLabel}</span>
-                        <span>{settings.mode === 'analyst' ? confidenceLabel(copy, item.confidence_score) : formatTime(item.updated_at)}</span>
+                        {settings.mode === 'analyst' && (
+                          <span>{confidenceLabel(copy, item.confidence_score)}</span>
+                        )}
                       </div>
 
                       {settings.mode === 'analyst' && (
