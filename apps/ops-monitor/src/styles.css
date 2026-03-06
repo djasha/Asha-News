@@ -1603,14 +1603,104 @@ body {
 .map-loading {
   height: 100%;
   width: 100%;
-  display: grid;
-  place-items: center;
+  position: relative;
+  display: block;
+  overflow: hidden;
   color: #cfe4ff;
   font-size: 0.78rem;
   font-family: 'IBM Plex Mono', monospace;
   background:
     radial-gradient(900px 500px at 50% 20%, rgba(34, 211, 238, 0.08), rgba(2, 7, 15, 0)),
+    linear-gradient(90deg, rgba(96, 165, 250, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(96, 165, 250, 0.05) 1px, transparent 1px),
     rgba(5, 13, 24, 0.92);
+  background-size: auto, 120px 120px, 120px 120px, auto;
+}
+
+.map-loading-card,
+.map-loading-cluster,
+.map-loading-metrics {
+  position: absolute;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  background: rgba(6, 14, 24, 0.84);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 16px 32px rgba(2, 6, 15, 0.2);
+}
+
+.map-loading-card {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(360px, calc(100% - 40px));
+  padding: 16px 18px;
+  border-radius: 16px;
+  text-align: center;
+}
+
+.map-loading-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1rem;
+}
+
+.map-loading-card p {
+  margin: 8px 0 0;
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  font-size: 0.84rem;
+  color: #9fb3c8;
+}
+
+.map-loading-kicker {
+  color: #8fdcff;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.map-loading-cluster {
+  min-width: 150px;
+  padding: 10px 12px;
+  border-radius: 14px;
+}
+
+.map-loading-cluster span,
+.map-loading-metrics span {
+  display: block;
+  color: #91a3b8;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.map-loading-cluster strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.82rem;
+}
+
+.map-loading-cluster.cluster-a {
+  top: 18%;
+  left: 58%;
+}
+
+.map-loading-cluster.cluster-b {
+  top: 56%;
+  right: 7%;
+}
+
+.map-loading-cluster.cluster-c {
+  bottom: 12%;
+  left: 26%;
+}
+
+.map-loading-metrics {
+  left: 18px;
+  bottom: 18px;
+  display: grid;
+  gap: 8px;
+  width: 160px;
+  padding: 12px;
+  border-radius: 14px;
 }
 
 .map-atmosphere {
@@ -4066,6 +4156,37 @@ body {
     min-width: 132px;
     max-width: 168px;
     padding: 8px 10px 9px;
+  }
+
+  .map-loading-card {
+    width: calc(100% - 24px);
+    padding: 14px;
+  }
+
+  .map-loading-cluster.cluster-a,
+  .map-loading-cluster.cluster-b,
+  .map-loading-cluster.cluster-c {
+    min-width: 120px;
+    padding: 8px 10px;
+  }
+
+  .map-loading-cluster.cluster-a {
+    top: 14%;
+    left: 44%;
+  }
+
+  .map-loading-cluster.cluster-b {
+    top: 52%;
+    right: 8px;
+  }
+
+  .map-loading-cluster.cluster-c {
+    bottom: 84px;
+    left: 12px;
+  }
+
+  .map-loading-metrics {
+    display: none;
   }
 
   .map-legend-item {

@@ -1597,6 +1597,35 @@ function AlertCard({ card, copy, formatTime, onFocus, onAcknowledge, onMute, onF
   );
 }
 
+function MapLoadingState({ message }: { message: string }) {
+  return (
+    <div className="map-loading" aria-live="polite">
+      <div className="map-loading-card">
+        <span className="map-loading-kicker">{message}</span>
+        <strong>WM surface sync</strong>
+        <p>Bringing in verified hotspots, weather overlays, and tactical layers.</p>
+      </div>
+      <div className="map-loading-cluster cluster-a">
+        <span>verified hotspots</span>
+        <strong>Middle East</strong>
+      </div>
+      <div className="map-loading-cluster cluster-b">
+        <span>weather watch</span>
+        <strong>East Asia</strong>
+      </div>
+      <div className="map-loading-cluster cluster-c">
+        <span>maritime corridor</span>
+        <strong>Red Sea Arc</strong>
+      </div>
+      <div className="map-loading-metrics">
+        <span>Signal lattice</span>
+        <span>Overlay packs</span>
+        <span>WM ingest</span>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [settings, setSettings] = useState<MissionControlSettings>(() => {
     try {
@@ -2333,13 +2362,22 @@ function App() {
     const filtered = activeLayers.has('verified-hotspots')
       ? points.filter((point) => (severityFilter === 'ALL' ? true : severityFromMapPoint(point) === severityFilter))
       : [];
-    return [...filtered]
+    const ordered = [...filtered]
       .sort((a, b) => {
         const severityDelta = (SEVERITY_PRIORITY[severityFromMapPoint(b)] || 0) - (SEVERITY_PRIORITY[severityFromMapPoint(a)] || 0);
         if (severityDelta !== 0) return severityDelta;
         return Number(b.confidence || 0) - Number(a.confidence || 0);
-      })
-      .slice(0, isMobile ? 1 : 3);
+      });
+    const seen = new Set<string>();
+    const deduped = [];
+    for (const point of ordered) {
+      const key = `${String(point.location || '').trim().toLowerCase()}:${severityFromMapPoint(point)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(point);
+      if (deduped.length >= (isMobile ? 1 : 3)) break;
+    }
+    return deduped;
   }, [activeLayers, home?.map?.event_points, isMobile, severityFilter]);
 
   const notificationCounts = useMemo(() => {
@@ -3577,7 +3615,7 @@ function App() {
               )}
             </div>
             {home ? (
-              <Suspense fallback={<div className="map-loading">{copy.loadingTacticalRenderer}</div>}>
+              <Suspense fallback={<MapLoadingState message={copy.loadingTacticalRenderer} />}>
                 <MapCanvas
                   home={home}
                   compact={settings.mode === 'simple'}
@@ -3596,7 +3634,7 @@ function App() {
                 />
               </Suspense>
             ) : (
-              <div className="map-loading">{copy.loadingMapData}</div>
+              <MapLoadingState message={copy.loadingMapData} />
             )}
             <div className="map-atmosphere" aria-hidden="true" />
 

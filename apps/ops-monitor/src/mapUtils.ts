@@ -129,6 +129,29 @@ function resolveClusterLabel(signal: ActiveSignal, latitude: number, longitude: 
   return label;
 }
 
+function pickClusterLabel(signals: ActiveSignal[], latitude: number, longitude: number): string {
+  if (!signals.length) return inferRegionLabel(latitude, longitude);
+
+  const categories = new Set(signals.map((signal) => signal.category));
+  const labelCounts = new Map<string, number>();
+
+  signals.forEach((signal) => {
+    const resolved = resolveClusterLabel(signal, latitude, longitude);
+    labelCounts.set(resolved, Number(labelCounts.get(resolved) || 0) + 1);
+  });
+
+  const [topLabel, topCount] =
+    [...labelCounts.entries()].sort((a, b) => Number(b[1]) - Number(a[1]))[0] || [];
+
+  const needsRegionalLabel =
+    !topLabel
+    || (categories.size > 1 && Number(topCount || 0) < Math.ceil(signals.length * 0.6))
+    || (labelCounts.size > 2 && Number(topCount || 0) < Math.max(2, signals.length - 1));
+
+  if (needsRegionalLabel) return inferRegionLabel(latitude, longitude);
+  return topLabel;
+}
+
 function buildClusterKey(latitude: number, longitude: number, zoom: number): string {
   const latStep = zoom <= 4.6 ? 11 : zoom <= 5.5 ? 8 : 5;
   const lonStep = zoom <= 4.6 ? 14 : zoom <= 5.5 ? 10 : 6;
@@ -283,14 +306,13 @@ export function buildMapFocusClusters(
     .map(([key, bucket]) => {
       const latitude = bucket.latitudeSum / bucket.signalCount;
       const longitude = bucket.longitudeSum / bucket.signalCount;
-      const strongestSignal = [...bucket.signals].sort((a, b) => b.rank - a.rank)[0];
       const severity = bucket.signals.reduce<SeverityLevel>((current, signal) => {
         return (SEVERITY_SCORE[signal.severity] || 0) > (SEVERITY_SCORE[current] || 0) ? signal.severity : current;
       }, 'INFO');
 
       return {
         id: `focus-${key}`,
-        label: resolveClusterLabel(strongestSignal, latitude, longitude),
+        label: pickClusterLabel(bucket.signals, latitude, longitude),
         latitude,
         longitude,
         severity,
