@@ -244,6 +244,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 Contributions are welcome! Please read our contributing guidelines before submitting PRs.
 
+Branch workflow is documented in [docs/BRANCHING.md](./docs/BRANCHING.md).
+
 ## 📞 Contact
 
 For questions or support, please open an issue on GitHub.
