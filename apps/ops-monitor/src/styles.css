@@ -2031,12 +2031,17 @@ body {
   display: grid;
   gap: 7px;
   position: relative;
-  transition: border-color 0.18s ease, transform 0.18s ease;
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .feed-card:hover {
   border-color: rgba(56, 189, 248, 0.42);
   transform: translateY(-1px);
+}
+
+.feed-card.is-open {
+  border-color: rgba(56, 189, 248, 0.48);
+  box-shadow: 0 10px 30px rgba(3, 12, 27, 0.34);
 }
 
 .feed-card.is-verified::before,
@@ -2152,6 +2157,41 @@ body {
   overflow: hidden;
 }
 
+.feed-card-headline-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.feed-card-expand {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(120, 164, 205, 0.28);
+  background: rgba(9, 18, 32, 0.86);
+  color: #a9bfdb;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.feed-card-expand:hover {
+  border-color: rgba(56, 189, 248, 0.52);
+  color: #def7ff;
+}
+
+.feed-card-expand.is-open svg {
+  transform: rotate(180deg);
+}
+
+.feed-card-expand svg {
+  transition: transform 0.18s ease;
+}
+
 .feed-card-summary {
   margin: 0;
   color: #b7cbe4;
@@ -2161,6 +2201,10 @@ body {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.feed-card-summary.expanded {
+  -webkit-line-clamp: 7;
 }
 
 .feed-card-foot,
@@ -2208,6 +2252,22 @@ body {
 .feed-card-actions button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.feed-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.feed-card-tag {
+  border-radius: 999px;
+  border: 1px solid rgba(120, 164, 205, 0.22);
+  background: rgba(10, 20, 36, 0.72);
+  padding: 3px 8px;
+  color: #c3d7ee;
+  font-size: 0.6rem;
+  font-family: 'IBM Plex Mono', monospace;
 }
 
 .rail-panel {
@@ -3118,6 +3178,7 @@ body {
   .feed-source-toggles button,
   .feed-chip-row button,
   .feed-card-actions button,
+  .feed-card-expand,
   .icon-button,
   .sheet-tabs button,
   .mobile-ticker-list button,
@@ -3127,6 +3188,7 @@ body {
 
   .feed-source-toggles button,
   .feed-card-actions button,
+  .feed-card-expand,
   .icon-button.icon-only,
   .alert-actions button {
     min-width: 44px;

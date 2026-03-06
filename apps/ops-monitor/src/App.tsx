@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
+import { Suspense, lazy, startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 import {
   Activity,
   Bell,
@@ -8,6 +8,7 @@ import {
   Camera,
   ChartLine,
   Check,
+  ChevronDown,
   Filter,
   Globe2,
   Grid2x2,
@@ -162,6 +163,8 @@ const UI_COPY = {
     feedLoadingMore: 'Loading more...',
     noMatches: 'No matches',
     feedSettings: 'Feed settings',
+    expandDetails: 'Expand details',
+    collapseDetails: 'Collapse details',
     feedFilterPicker: 'Feed filter picker',
     feedFiltersTitle: 'Feed Filters',
     feedFilterTopics: 'Topics',
@@ -418,6 +421,8 @@ const UI_COPY = {
     feedLoadingMore: 'جارٍ تحميل المزيد...',
     noMatches: 'لا توجد نتائج',
     feedSettings: 'إعدادات الخلاصة',
+    expandDetails: 'توسيع التفاصيل',
+    collapseDetails: 'طي التفاصيل',
     feedFilterPicker: 'منتقي فلاتر الخلاصة',
     feedFiltersTitle: 'فلاتر الخلاصة',
     feedFilterTopics: 'المواضيع',
@@ -674,6 +679,8 @@ const UI_COPY = {
     feedLoadingMore: 'Cargando más...',
     noMatches: 'Sin coincidencias',
     feedSettings: 'Ajustes de feed',
+    expandDetails: 'Expandir detalles',
+    collapseDetails: 'Ocultar detalles',
     feedFilterPicker: 'Selector de filtros del feed',
     feedFiltersTitle: 'Filtros del feed',
     feedFilterTopics: 'Temas',
@@ -1210,6 +1217,23 @@ function compactFeedText(input: string | null | undefined): string {
   return compacted || raw;
 }
 
+function shouldHideFeedSummary(title: string | null | undefined, summary: string | null | undefined): boolean {
+  const normalize = (value: string | null | undefined) =>
+    compactFeedText(value)
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const normalizedTitle = normalize(title);
+  const normalizedSummary = normalize(summary);
+  if (!normalizedSummary) return true;
+  if (!normalizedTitle) return false;
+  if (normalizedSummary === normalizedTitle) return true;
+  if (normalizedTitle.length >= 24 && normalizedSummary.startsWith(normalizedTitle)) return true;
+  return false;
+}
+
 function deriveAdaptiveMapCenter(
   map: HomeSnapshotMC['map'] | undefined,
   fallback: { latitude: number; longitude: number; zoom: number }
@@ -1542,6 +1566,7 @@ function App() {
   const [feedLoadingMore, setFeedLoadingMore] = useState(false);
   const [feedHasMore, setFeedHasMore] = useState(false);
   const [feedTotalFiltered, setFeedTotalFiltered] = useState(0);
+  const [expandedFeedItemId, setExpandedFeedItemId] = useState('');
 
   const [activeLayers, setActiveLayers] = useState<Set<string>>(new Set());
   const [quickActions, setQuickActions] = useState<string[]>(QUICK_ACTION_LABELS);
@@ -1578,6 +1603,9 @@ function App() {
 
   const [viewState, setViewState] = useState<ViewState>(DEFAULT_VIEW_STATE);
   const [mapVisualMode, setMapVisualMode] = useState<MapVisualMode>('tactical');
+
+  const deferredGlobalSearchQuery = useDeferredValue(globalSearchQuery);
+  const deferredFeedSearchQuery = useDeferredValue(feedSearchQuery);
 
   const touchStartYRef = useRef<number | null>(null);
   const didInitLayersRef = useRef(false);
@@ -1646,53 +1674,55 @@ function App() {
       setLoading(true);
       setError('');
       const bundle = await loadMissionControlBundle(querySettings);
-      setHome(bundle.home);
-      setTicker(bundle.ticker);
-      setAlertsInbox(bundle.alertsInbox);
-      setLeaks(bundle.leaks);
-      setLayersCatalog(bundle.layersCatalog);
-      setMapLayerPacks(bundle.mapLayerPacks || []);
-      setHazardsCatalog(bundle.hazardsCatalog);
-      setSafetyGuides(bundle.safetyGuides);
-      setExplainers(bundle.explainers);
-      setNotificationPreference(bundle.notificationPreference);
-      setAlertActions(bundle.alertActions || DEFAULT_ALERT_ACTIONS);
-      setNotificationTelemetry(bundle.notificationTelemetry || null);
-      setFeedHome(bundle.feedHome || null);
-      setFeedItems(bundle.feedItems?.items || []);
       feedCursorRef.current = Number(bundle.feedItems?.page?.next_cursor || 0);
-      setFeedHasMore(Boolean(bundle.feedItems?.page?.has_more));
-      setFeedTotalFiltered(Number(bundle.feedItems?.page?.total_filtered || (bundle.feedItems?.items || []).length));
-      setFeedFilterCatalog(bundle.feedFiltersCatalog || null);
-      setLastUpdated(new Date().toISOString());
+      startTransition(() => {
+        setHome(bundle.home);
+        setTicker(bundle.ticker);
+        setAlertsInbox(bundle.alertsInbox);
+        setLeaks(bundle.leaks);
+        setLayersCatalog(bundle.layersCatalog);
+        setMapLayerPacks(bundle.mapLayerPacks || []);
+        setHazardsCatalog(bundle.hazardsCatalog);
+        setSafetyGuides(bundle.safetyGuides);
+        setExplainers(bundle.explainers);
+        setNotificationPreference(bundle.notificationPreference);
+        setAlertActions(bundle.alertActions || DEFAULT_ALERT_ACTIONS);
+        setNotificationTelemetry(bundle.notificationTelemetry || null);
+        setFeedHome(bundle.feedHome || null);
+        setFeedItems(bundle.feedItems?.items || []);
+        setFeedHasMore(Boolean(bundle.feedItems?.page?.has_more));
+        setFeedTotalFiltered(Number(bundle.feedItems?.page?.total_filtered || (bundle.feedItems?.items || []).length));
+        setFeedFilterCatalog(bundle.feedFiltersCatalog || null);
+        setLastUpdated(new Date().toISOString());
 
-      if (!didInitLayersRef.current) {
-        const defaults = bundle.mapLayerDefaults?.length
-          ? bundle.mapLayerDefaults
-          : getDefaultLayerIdsByMode(bundle.layersCatalog, settings.mode);
-        setActiveLayers(new Set(defaults));
-        didInitLayersRef.current = true;
-      }
+        if (!didInitLayersRef.current) {
+          const defaults = bundle.mapLayerDefaults?.length
+            ? bundle.mapLayerDefaults
+            : getDefaultLayerIdsByMode(bundle.layersCatalog, settings.mode);
+          setActiveLayers(new Set(defaults));
+          didInitLayersRef.current = true;
+        }
 
-      const center = bundle.mapSession?.default_center || bundle.home.map.default_center;
-      if (center && mapVisualMode === 'tactical' && !didInitViewRef.current) {
-        const resolved = deriveAdaptiveMapCenter(bundle.home.map, {
-          latitude: Number(center.latitude),
-          longitude: Number(center.longitude),
-          zoom: Number(center.zoom),
-        });
-        setViewState((prev) => ({
-          ...prev,
-          latitude: resolved.latitude,
-          longitude: resolved.longitude,
-          zoom: resolved.zoom,
-        }));
-        didInitViewRef.current = true;
-      }
+        const center = bundle.mapSession?.default_center || bundle.home.map.default_center;
+        if (center && mapVisualMode === 'tactical' && !didInitViewRef.current) {
+          const resolved = deriveAdaptiveMapCenter(bundle.home.map, {
+            latitude: Number(center.latitude),
+            longitude: Number(center.longitude),
+            zoom: Number(center.zoom),
+          });
+          setViewState((prev) => ({
+            ...prev,
+            latitude: resolved.latitude,
+            longitude: resolved.longitude,
+            zoom: resolved.zoom,
+          }));
+          didInitViewRef.current = true;
+        }
 
-      if (!isMobile && !selectedAlert && bundle.home.critical_now.length > 0) {
-        setSelectedAlert(bundle.home.critical_now[0]);
-      }
+        if (!isMobile && !selectedAlert && bundle.home.critical_now.length > 0) {
+          setSelectedAlert(bundle.home.critical_now[0]);
+        }
+      });
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : copy.failedLoadMissionControl);
     } finally {
@@ -1742,26 +1772,31 @@ function App() {
       const severityFiltered = feedSeverityChip !== 'LOW'
         ? normalizedIncoming
         : normalizedIncoming.filter((item) => item.severity === 'ELEVATED' || item.severity === 'INFO');
-      setFeedItems((prev) => {
-        if (!append) return severityFiltered;
-        const seen = new Set(prev.map((item) => `${item.id}:${item.updated_at}`));
-        const merged = [...prev];
-        severityFiltered.forEach((item) => {
-          const key = `${item.id}:${item.updated_at}`;
-          if (!seen.has(key)) {
-            seen.add(key);
-            merged.push(item);
-          }
-        });
-        return merged;
-      });
       const nextCursor = Number(payload.page?.next_cursor || 0);
       feedCursorRef.current = nextCursor;
-      setFeedHasMore(Boolean(payload.page?.has_more));
-      setFeedTotalFiltered(Number(payload.page?.total_filtered || severityFiltered.length));
-      if (payload.filters_catalog) {
-        setFeedFilterCatalog(payload.filters_catalog);
-      }
+      startTransition(() => {
+        setFeedItems((prev) => {
+          if (!append) return severityFiltered;
+          const seen = new Set(prev.map((item) => `${item.id}:${item.updated_at}`));
+          const merged = [...prev];
+          severityFiltered.forEach((item) => {
+            const key = `${item.id}:${item.updated_at}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              merged.push(item);
+            }
+          });
+          return merged;
+        });
+        setFeedHasMore(Boolean(payload.page?.has_more));
+        setFeedTotalFiltered(Number(payload.page?.total_filtered || severityFiltered.length));
+        if (payload.filters_catalog) {
+          setFeedFilterCatalog(payload.filters_catalog);
+        }
+        if (!append) {
+          setExpandedFeedItemId('');
+        }
+      });
     } catch (feedError) {
       setStatusMessage(feedError instanceof Error ? feedError.message : copy.feedRefreshFailed);
     } finally {
@@ -1790,10 +1825,10 @@ function App() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setDebouncedFeedSearchQuery(String(feedSearchQuery || '').trim());
+      setDebouncedFeedSearchQuery(String(deferredFeedSearchQuery || '').trim());
     }, 220);
     return () => window.clearTimeout(timer);
-  }, [feedSearchQuery]);
+  }, [deferredFeedSearchQuery]);
 
   useEffect(() => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
@@ -1915,7 +1950,7 @@ function App() {
     const cards = home?.critical_now || [];
     return cards
       .filter((card) => (severityFilter === 'ALL' ? true : card.severity === severityFilter))
-      .filter((card) => matchesSearch(`${card.title} ${card.location} ${card.summary}`, globalSearchQuery))
+      .filter((card) => matchesSearch(`${card.title} ${card.location} ${card.summary}`, deferredGlobalSearchQuery))
       .filter((card) => !acknowledgedAlertSet.has(card.id))
       .filter((card) => !mutedSignatureSet.has(`${card.location}::${card.source_name}`))
       .sort(
@@ -1923,7 +1958,7 @@ function App() {
           (SEVERITY_PRIORITY[b.severity] || 0) - (SEVERITY_PRIORITY[a.severity] || 0) ||
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       );
-  }, [home?.critical_now, severityFilter, globalSearchQuery, acknowledgedAlertSet, mutedSignatureSet]);
+  }, [home?.critical_now, severityFilter, deferredGlobalSearchQuery, acknowledgedAlertSet, mutedSignatureSet]);
   const fallbackSignalCards = useMemo<AlertCardMC[]>(() => {
     if (filteredCriticalCards.length) return [];
     const points = home?.map?.event_points || [];
@@ -2000,19 +2035,19 @@ function App() {
 
   const filteredLeaks = useMemo(() => {
     return leaks
-      .filter((item) => matchesSearch(`${item.title} ${item.location} ${item.summary}`, globalSearchQuery))
+      .filter((item) => matchesSearch(`${item.title} ${item.location} ${item.summary}`, deferredGlobalSearchQuery))
       .sort(
         (a, b) =>
           (SEVERITY_PRIORITY[b.severity] || 0) - (SEVERITY_PRIORITY[a.severity] || 0) ||
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       );
-  }, [leaks, globalSearchQuery]);
+  }, [leaks, deferredGlobalSearchQuery]);
 
   const filteredTicker = useMemo(() => {
     const maxItems = settings.mode === 'simple' ? 16 : 28;
     const base = ticker
       .filter((item) => (severityFilter === 'ALL' ? true : item.severity === severityFilter))
-      .filter((item) => matchesSearch(`${item.headline} ${item.location}`, globalSearchQuery));
+      .filter((item) => matchesSearch(`${item.headline} ${item.location}`, deferredGlobalSearchQuery));
     if (tickerViewMode === 'all') {
       return buildMixedTickerItems(base, maxItems);
     }
@@ -2024,7 +2059,7 @@ function App() {
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       )
       .slice(0, maxItems);
-  }, [ticker, tickerViewMode, severityFilter, globalSearchQuery, settings.mode]);
+  }, [ticker, tickerViewMode, severityFilter, deferredGlobalSearchQuery, settings.mode]);
   const hasLeakTicker = useMemo(() => ticker.some((item) => item.kind === 'leak'), [ticker]);
   const liveStripHeadline = useMemo(() => {
     const top = filteredTicker[0];
@@ -2223,7 +2258,14 @@ function App() {
   useEffect(() => {
     setFeedFilterPicker(null);
     setFeedFilterSearch('');
+    setExpandedFeedItemId('');
   }, [rightRailTab]);
+
+  useEffect(() => {
+    if (settings.mode !== 'analyst' && expandedFeedItemId) {
+      setExpandedFeedItemId('');
+    }
+  }, [expandedFeedItemId, settings.mode]);
 
   const effectiveFeedItems = useMemo(() => {
     return feedItems.map((item) => ({
@@ -2282,6 +2324,10 @@ function App() {
     setFeedFilterPicker(null);
     setFeedFilterSearch('');
     setFeedSearchQuery('');
+  }, []);
+
+  const toggleFeedItemExpanded = useCallback((itemId: string) => {
+    setExpandedFeedItemId((prev) => (prev === itemId ? '' : itemId));
   }, []);
 
   const filterPickerOptions = useMemo(() => {
@@ -3252,9 +3298,6 @@ function App() {
 
             {!isMobile && (
               <div className="map-tools">
-                <button type="button" title={copy.layers} aria-label={copy.layers} onClick={() => setLayersOpen((prev) => !prev)}>
-                  <Layers3 size={16} />
-                </button>
                 {settings.mode === 'analyst' && (
                   <button
                     type="button"
@@ -3682,19 +3725,26 @@ function App() {
                 {effectiveFeedItems.map((item) => {
                   const isLeak = item.kind === 'leak' || String(item.verification_status).toLowerCase() === 'unverified';
                   const sourceType = normalizeFeedSourceType(item.source_type);
+                  const isExpanded = settings.mode === 'analyst' && expandedFeedItemId === item.id;
                   const leakRef = leaksById.get(String(item.alert_id)) || leaksById.get(String(item.id)) || null;
                   const leakHint = leakRef
                     ? leakVerificationHint(leakRef, copy.leakVerificationHint)
                     : copy.leakVerificationHint;
                   const titleText = compactFeedText(item.title);
+                  const detailTags = [item.topic, item.category, item.country, ...(item.tags || [])]
+                    .map((value) => String(value || '').trim())
+                    .filter(Boolean)
+                    .filter((value, index, arr) => arr.indexOf(value) === index)
+                    .slice(0, isExpanded ? 6 : 3);
                   const description = isLeak
                     ? compactFeedText(stripLeakVerificationText(item.summary))
                     : compactFeedText(item.summary);
+                  const showDescription = !shouldHideFeedSummary(titleText || item.title, description);
                   const canMutate = !isLeak && (alertsById.has(String(item.alert_id)) || alertsById.has(String(item.id)));
                   return (
                     <article
                       key={`feed-item-${rightRailTab}-${item.id}`}
-                      className={`feed-card ${isLeak ? 'is-leak' : 'is-verified'} source-${sourceType || 'news'}`}
+                      className={`feed-card ${isLeak ? 'is-leak' : 'is-verified'} ${isExpanded ? 'is-open' : ''} source-${sourceType || 'news'}`}
                     >
                       <div className="feed-card-top">
                         <span className="alert-source-avatar" aria-hidden="true">
@@ -3723,26 +3773,57 @@ function App() {
                         )}
                       </div>
 
-                      <button type="button" className="feed-card-title" onClick={() => handleFeedItemFocus(item)}>
-                        {titleText || item.title}
-                      </button>
+                      <div className="feed-card-headline-row">
+                        <button
+                          type="button"
+                          className="feed-card-title"
+                          title={item.title}
+                          onClick={() => handleFeedItemFocus(item)}
+                        >
+                          {titleText || item.title}
+                        </button>
+                        {settings.mode === 'analyst' && (
+                          <button
+                            type="button"
+                            className={`feed-card-expand ${isExpanded ? 'is-open' : ''}`}
+                            title={isExpanded ? copy.collapseDetails : copy.expandDetails}
+                            aria-label={isExpanded ? copy.collapseDetails : copy.expandDetails}
+                            aria-pressed={isExpanded}
+                            onClick={() => toggleFeedItemExpanded(item.id)}
+                          >
+                            <ChevronDown size={14} aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
 
-                      {!!description && (
-                        <p className="feed-card-summary">
-                          {settings.mode === 'simple' ? description.slice(0, 140) : description.slice(0, 220)}
+                      {showDescription && !!description && (
+                        <p className={`feed-card-summary ${isExpanded ? 'expanded' : ''}`}>
+                          {settings.mode === 'simple'
+                            ? description.slice(0, 140)
+                            : description.slice(0, isExpanded ? 520 : 220)}
                         </p>
                       )}
 
                       <div className="feed-card-foot">
                         <span>{item.location}</span>
-                        <span>{settings.mode === 'analyst' ? formatVerificationStatusLabel(item.verification_status) : formatTime(item.updated_at)}</span>
+                        <span>{settings.mode === 'analyst' ? confidenceLabel(copy, item.confidence_score) : formatTime(item.updated_at)}</span>
                       </div>
 
                       {settings.mode === 'analyst' && (
                         <div className="feed-card-extra">
                           <span>{item.source_count} {copy.sourcesWord}</span>
-                          <span>{item.topic || item.category}</span>
+                          <span>{formatVerificationStatusLabel(item.verification_status)}</span>
                           <span>{Math.max(0, Math.round(item.confidence_score * 100))}%</span>
+                        </div>
+                      )}
+
+                      {settings.mode === 'analyst' && isExpanded && !!detailTags.length && (
+                        <div className="feed-card-tags">
+                          {detailTags.map((tag) => (
+                            <span key={`${item.id}-${tag}`} className="feed-card-tag">
+                              {tag}
+                            </span>
+                          ))}
                         </div>
                       )}
 
