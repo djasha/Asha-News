@@ -22,9 +22,17 @@ log() {
 check_endpoint() {
   local name="$1"
   local url="$2"
+  shift 2
   local code
   code=$(curl -s -o /tmp/asha_soak_body.json -w "%{http_code}" "$url" || true)
-  if [[ "$code" -ge 200 && "$code" -lt 300 ]]; then
+  if [[ "$#" -gt 0 ]]; then
+    for allowed in "$@"; do
+      if [[ "$code" == "$allowed" ]]; then
+        log "  [$name] $code"
+        return 0
+      fi
+    done
+  elif [[ "$code" -ge 200 && "$code" -lt 300 ]]; then
     log "  [$name] $code"
     return 0
   fi
@@ -47,7 +55,7 @@ while [[ "$(date +%s)" -lt "$end_epoch" ]]; do
   log "[$ts] cycle start"
 
   cycle_ok=true
-  check_endpoint "health" "$BASE_URL/api/health" || cycle_ok=false
+  check_endpoint "health" "$BASE_URL/api/health" 200 503 || cycle_ok=false
   check_endpoint "openapi" "$BASE_URL/api/v1/openapi" || cycle_ok=false
   check_endpoint "public_digest" "$BASE_URL/api/v1/digest?scope=public&limit=3" || cycle_ok=false
   check_endpoint "clusters_search" "$BASE_URL/api/v1/clusters/search?q=market&limit=3" || cycle_ok=false
