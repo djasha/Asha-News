@@ -33,6 +33,14 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
+      onwarn(warning, warn) {
+        const message = String(warning?.message || '');
+        if (message.includes('"spawn" is not exported by "__vite-browser-external"')
+          && message.includes('@loaders.gl/worker-utils')) {
+          return;
+        }
+        warn(warning);
+      },
       output: {
         manualChunks(id) {
           return resolveVendorChunk(id);

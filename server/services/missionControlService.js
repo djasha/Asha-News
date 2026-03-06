@@ -2733,7 +2733,7 @@ function locationLabelFromPoint(lat, lon, fallback = 'Unknown location') {
   const latitude = Number(lat);
   const longitude = Number(lon);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return fallback;
-  return `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+  return fallback;
 }
 
 function toTitleCaseWords(value) {
@@ -3562,9 +3562,7 @@ function deriveEventPointsFromOptionalFeeds(optionalFeeds = {}) {
       id: `derived-cyber-${idx + 1}-${safeString(item.id, stableHash(item.impact || idx))}`,
       event_date: toIso(Date.now()),
       location: safeString(item.location || item.region || item.country)
-        || (isGenericSignalLabel(item.impact)
-        ? locationLabelFromPoint(item.latitude, item.longitude)
-        : safeString(item.impact, locationLabelFromPoint(item.latitude, item.longitude))),
+        || normalizeSignalLabel(item.impact, 'Cyber signal'),
       latitude: Number(item.latitude),
       longitude: Number(item.longitude),
       confidence: clamp(Number(item.confidence || 0.5), 0.35, 0.82),
@@ -3590,9 +3588,7 @@ function deriveEventPointsFromOptionalFeeds(optionalFeeds = {}) {
         id: `derived-weather-${idx + 1}-${safeString(item.id, stableHash(item.event || idx))}`,
         event_date: toIso(Date.now()),
         location: safeString(item.location || item.region || item.country)
-          || (isGenericSignalLabel(item.event)
-          ? locationLabelFromPoint(item.latitude, item.longitude)
-          : safeString(item.event, locationLabelFromPoint(item.latitude, item.longitude))),
+          || normalizeSignalLabel(item.event, 'Weather alert'),
         latitude: Number(item.latitude),
         longitude: Number(item.longitude),
         confidence,
@@ -5267,9 +5263,7 @@ function buildOptionalSignalFeedItems(core = {}) {
       const severity = deriveWeatherSeverityFromSignal(item);
       const title = normalizeSignalLabel(item.event, 'Weather disruption');
       const location = safeString(item.location || item.city || item.region || item.country)
-        || (isGenericSignalLabel(item.event)
-        ? locationLabelFromPoint(item.latitude, item.longitude)
-        : safeString(item.event, locationLabelFromPoint(item.latitude, item.longitude)));
+        || normalizeSignalLabel(item.event, 'Weather alert');
       const summary = safeString(
         item.text || item.summary || item.details,
         `Weather signal ${title.toLowerCase()} in ${location}`
@@ -5315,9 +5309,7 @@ function buildOptionalSignalFeedItems(core = {}) {
       const severity = deriveCyberSeverityFromSignal(item);
       const title = normalizeSignalLabel(item.impact, 'Cyber/comms disruption');
       const location = safeString(item.location || item.city || item.region || item.country)
-        || (isGenericSignalLabel(item.impact)
-        ? locationLabelFromPoint(item.latitude, item.longitude)
-        : safeString(item.impact, locationLabelFromPoint(item.latitude, item.longitude)));
+        || normalizeSignalLabel(item.impact, 'Cyber signal');
       const summary = safeString(item.summary || item.notes || 'Communications and cyber disruption indicator');
       return {
         id: `cyber-feed-${safeString(item.id, String(index + 1))}`,
