@@ -4985,6 +4985,87 @@ async function buildCoreMissionData(options = {}) {
   return promise;
 }
 
+function buildPrewarmTargetOptions() {
+  const languages = [...new Set(
+    String(process.env.MC_HOME_PREWARM_LANGS || 'en')
+      .split(',')
+      .map((item) => normalizeLanguage(item))
+      .filter(Boolean)
+  )];
+  const modes = [...new Set(
+    String(process.env.MC_HOME_PREWARM_MODES || 'simple,analyst')
+      .split(',')
+      .map((item) => normalizeMode(item))
+      .filter(Boolean)
+  )];
+  const daysList = [...new Set(
+    String(process.env.MC_HOME_PREWARM_DAYS || '14')
+      .split(',')
+      .map((item) => Math.max(1, Math.min(parseCount(item || 14), 90)))
+      .filter((item) => Number.isFinite(item) && item > 0)
+  )];
+  const countries = [...new Set(
+    ['', ...String(process.env.MC_HOME_PREWARM_COUNTRIES || 'US')
+      .split(',')
+      .map((item) => normalizeCountryHint(item))
+      .filter(Boolean)]
+  )];
+
+  const targets = [];
+  for (const mode of modes) {
+    for (const days of daysList) {
+      for (const language of languages) {
+        for (const country of countries) {
+          targets.push({
+            conflict: 'all',
+            mode,
+            verification_mode: 'verified-first',
+            profile: 'default',
+            days,
+            lang: language,
+            country,
+          });
+        }
+      }
+    }
+  }
+  return targets;
+}
+
+async function prewarmHomeSnapshots(optionsList = null, loader = buildCoreMissionData) {
+  const enabled = String(process.env.MC_HOME_PREWARM_ENABLED || 'true').toLowerCase() !== 'false';
+  if (!enabled) {
+    return {
+      enabled: false,
+      targets: 0,
+      warmed: 0,
+      failed: 0,
+    };
+  }
+
+  const targets = Array.isArray(optionsList) && optionsList.length ? optionsList : buildPrewarmTargetOptions();
+  const result = {
+    enabled: true,
+    targets: targets.length,
+    warmed: 0,
+    failed: 0,
+  };
+
+  for (const target of targets) {
+    try {
+      // Warm sequentially to avoid hammering WM on process start.
+      await loader(target);
+      result.warmed += 1;
+    } catch (error) {
+      result.failed += 1;
+      logger.warn({ err: error?.message, target }, 'MC home prewarm target failed');
+    }
+  }
+
+  logger.info(result, 'MC home prewarm completed');
+  return result;
+}
+
 function invalidateCoreCacheForScope(scope) {
   const scopeSuffix = `|${scope.scope_id}`;
   [...coreSnapshotCache.keys()].forEach((key) => {
@@ -6152,6 +6233,7 @@ module.exports = {
   getNotificationPreferences,
   updateNotificationPreferences,
   updateAlertAudioPreferences,
+  prewarmHomeSnapshots,
   startDispatchWorker,
   stopDispatchWorker,
   runDispatchWorkerTick,

@@ -231,4 +231,51 @@ describe('missionControl service dispatch worker', () => {
     expect(savedAudio.audio.vibration).toBe(false);
     expect(savedAudio.dispatch.verified_critical_instant).toBe(true);
   });
+
+  test('prewarmHomeSnapshots warms sequential targets and counts failures', async () => {
+    applyBaseEnv({
+      MC_HOME_PREWARM_ENABLED: 'true',
+    });
+
+    const service = require('../services/missionControlService');
+    const loader = jest.fn(async (target) => {
+      if (target.mode === 'analyst') {
+        throw new Error('wm timeout');
+      }
+      return { ok: true };
+    });
+
+    const targets = [
+      {
+        conflict: 'all',
+        mode: 'simple',
+        verification_mode: 'verified-first',
+        profile: 'default',
+        days: 14,
+        lang: 'en',
+        country: '',
+      },
+      {
+        conflict: 'all',
+        mode: 'analyst',
+        verification_mode: 'verified-first',
+        profile: 'default',
+        days: 14,
+        lang: 'en',
+        country: 'US',
+      },
+    ];
+
+    const result = await service.prewarmHomeSnapshots(targets, loader);
+
+    expect(loader).toHaveBeenCalledTimes(2);
+    expect(loader.mock.calls[0][0]).toEqual(targets[0]);
+    expect(loader.mock.calls[1][0]).toEqual(targets[1]);
+    expect(result).toEqual({
+      enabled: true,
+      targets: 2,
+      warmed: 1,
+      failed: 1,
+    });
+  });
 });

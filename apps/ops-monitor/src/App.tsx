@@ -39,6 +39,7 @@ import {
   updateNotificationPreferences,
   updateWorkspacePreset,
 } from './api';
+import { formatLocationDisplay } from './labelUtils';
 import type {
   AlertActionsStateMC,
   AlertCardMC,
@@ -1233,6 +1234,32 @@ function compactFeedText(input: string | null | undefined): string {
   return compacted || raw;
 }
 
+function normalizeFeedSummary(title: string | null | undefined, summary: string | null | undefined): string {
+  const cleaned = compactFeedText(summary);
+  if (!cleaned) return '';
+
+  const cleanedTitle = compactFeedText(title);
+  const normalizedTitle = cleanedTitle.toLowerCase();
+  const normalizedSummary = cleaned.toLowerCase();
+
+  if (
+    /^(weather|cyber|maritime|economic|flight|live)\s+signal\b/i.test(cleaned)
+    && normalizedTitle
+    && (
+      normalizedSummary.includes(normalizedTitle)
+      || normalizedSummary.endsWith(` in ${normalizedTitle}`)
+    )
+  ) {
+    return '';
+  }
+
+  if (normalizedTitle && normalizedSummary.endsWith(` in ${normalizedTitle}`)) {
+    return '';
+  }
+
+  return cleaned;
+}
+
 function shouldHideFeedSummary(title: string | null | undefined, summary: string | null | undefined): boolean {
   const normalize = (value: string | null | undefined) =>
     compactFeedText(value)
@@ -1391,6 +1418,12 @@ function formatVerificationStatusLabel(value: string): string {
   return normalized.replace(/[_-]+/g, ' ');
 }
 
+function isPlaceholderLocationLabel(value: string, copy: LocaleCopy): boolean {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return true;
+  return normalized === 'signal' || normalized === String(copy.signalsLabel || '').trim().toLowerCase();
+}
+
 function buildMixedTickerItems(items: TickerItemMC[], maxItems: number): TickerItemMC[] {
   const ranked = [...items].sort(
     (a, b) =>
@@ -1482,6 +1515,7 @@ type AlertCardProps = {
 };
 
 function AlertCard({ card, copy, formatTime, onFocus, onAcknowledge, onMute, onFollow }: AlertCardProps) {
+  const locationLabel = formatLocationDisplay(card.location, card.hazard_type || copy.signalsLabel);
   return (
     <article className="alert-card" style={{ borderColor: severityColor(card.severity) }}>
       <div className="alert-source-row">
@@ -1496,7 +1530,7 @@ function AlertCard({ card, copy, formatTime, onFocus, onAcknowledge, onMute, onF
         <span className="alert-title">{card.title}</span>
       </button>
       <div className="alert-meta">
-        <span>{card.location}</span>
+        <span>{locationLabel}</span>
         <span>{formatVerificationStatusLabel(card.verification_status)}</span>
       </div>
       <div className="alert-data">
@@ -3112,18 +3146,20 @@ function App() {
             <div className="tickbar-track">
               {filteredTicker.map((item) => {
                 const cleanedHeadline = compactFeedText(item.headline) || item.headline;
+                const locationLabel = formatLocationDisplay(item.location, item.hazard_type || copy.signalsLabel);
+                const hasExplicitLocation = !isPlaceholderLocationLabel(locationLabel, copy);
                 return (
                 <button
                   key={item.id}
                   type="button"
                   className={`tick-item ${item.kind === 'leak' ? 'tick-leak' : 'tick-verified'}`}
                   onClick={() => handleTickerClick(item)}
-                  title={`${cleanedHeadline} · ${item.location}`}
+                  title={hasExplicitLocation ? `${cleanedHeadline} · ${locationLabel}` : cleanedHeadline}
                 >
                   <span className={`severity-pill severity-${item.severity.toLowerCase()}`}>{item.severity}</span>
                   <span className="tick-headline" title={cleanedHeadline}>{cleanedHeadline}</span>
                     <span className="tick-meta">
-                      <span className="tick-location">{item.location}</span>
+                      {hasExplicitLocation && <span className="tick-location">{locationLabel}</span>}
                       <span className="tick-time">{formatTime(item.updated_at)}</span>
                     </span>
                   {item.kind === 'leak' && <span className="tick-warning">{copy.unverifiedBadge}</span>}
@@ -3395,7 +3431,7 @@ function App() {
                     <dl>
                       <div>
                         <dt>{copy.location}</dt>
-                        <dd>{selectedAlert.location}</dd>
+                        <dd>{formatLocationDisplay(selectedAlert.location, selectedAlert.hazard_type || copy.signalsLabel)}</dd>
                       </div>
                       <div>
                         <dt>{copy.confidence}</dt>
@@ -3470,7 +3506,7 @@ function App() {
                     <dl>
                       <div>
                         <dt>{copy.location}</dt>
-                        <dd>{selectedLeak.location}</dd>
+                        <dd>{formatLocationDisplay(selectedLeak.location, selectedLeak.hazard_type || copy.signalsLabel)}</dd>
                       </div>
                       <div>
                         <dt>{copy.riskWarning}</dt>
@@ -3788,8 +3824,12 @@ function App() {
                     .filter((value, index, arr) => arr.indexOf(value) === index)
                     .slice(0, isExpanded ? 6 : 3);
                   const description = isLeak
-                    ? compactFeedText(stripLeakVerificationText(item.summary))
-                    : compactFeedText(item.summary);
+                    ? normalizeFeedSummary(item.title, stripLeakVerificationText(item.summary))
+                    : normalizeFeedSummary(item.title, item.summary);
+                  const locationLabel = formatLocationDisplay(
+                    item.location,
+                    item.country || item.topic || item.category || copy.signalsLabel
+                  );
                   const showDescription = !shouldHideFeedSummary(titleText || item.title, description);
                   const canMutate = !isLeak && (alertsById.has(String(item.alert_id)) || alertsById.has(String(item.id)));
                   return (
@@ -3856,7 +3896,7 @@ function App() {
                       )}
 
                       <div className="feed-card-foot">
-                        <span>{item.location}</span>
+                        <span>{locationLabel}</span>
                         <span>{settings.mode === 'analyst' ? confidenceLabel(copy, item.confidence_score) : formatTime(item.updated_at)}</span>
                       </div>
 

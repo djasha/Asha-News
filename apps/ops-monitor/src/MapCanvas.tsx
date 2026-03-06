@@ -5,6 +5,7 @@ import Map, { Marker, NavigationControl } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 
 import type { HomeSnapshotMC } from './types';
+import { formatLocationDisplay, formatSignalLabel } from './labelUtils';
 
 const MAP_STYLE_URL =
   (import.meta.env.VITE_MC_MAP_STYLE_URL as string | undefined)
@@ -144,7 +145,7 @@ export default function MapCanvas({
             Number(point.longitude),
             color,
             size,
-            String(point.location || 'Signal')
+            formatLocationDisplay(point.location, 'Verified hotspot')
           );
         });
     }
@@ -157,7 +158,7 @@ export default function MapCanvas({
           Number(item.longitude),
           '#10b981',
           8,
-          String(item.callsign || 'Flight')
+          formatSignalLabel(item.callsign, 'Flight track')
         );
       });
     }
@@ -170,7 +171,7 @@ export default function MapCanvas({
           Number(item.longitude),
           '#fb7185',
           9,
-          String(item.corridor || 'Maritime risk')
+          formatLocationDisplay(item.corridor, 'Maritime risk')
         );
       });
     }
@@ -183,7 +184,7 @@ export default function MapCanvas({
           Number(item.longitude),
           '#a855f7',
           9,
-          String(item.impact || 'Cyber signal')
+          formatSignalLabel(item.impact, 'Cyber signal')
         );
       });
     }
@@ -198,7 +199,7 @@ export default function MapCanvas({
           Number(item.longitude),
           color,
           10,
-          String(item.event || 'Weather alert')
+          formatSignalLabel(item.event, 'Weather alert')
         );
       });
     }
@@ -449,19 +450,22 @@ export default function MapCanvas({
           if (!object) return null;
           const obj = object as Record<string, unknown>;
           if (typeof obj.location === 'string' && typeof obj.hits === 'number') {
-            return `${obj.location} · ${String(obj.hits)} intensity hits`;
+            return `${formatLocationDisplay(obj.location, 'Conflict zone')} · ${String(obj.hits)} intensity hits`;
           }
           if (typeof obj.callsign === 'string') {
-            return `${obj.callsign} · ${String(obj.speed_kts || 0)} kts`;
+            return `${formatSignalLabel(obj.callsign, 'Flight track')} · ${String(obj.speed_kts || 0)} kts`;
           }
           if (typeof obj.name === 'string') {
-            return `${obj.name}`;
+            return `${formatLocationDisplay(obj.name, 'Infrastructure point')}`;
           }
           if (typeof obj.event === 'string') {
-            return `${obj.event}`;
+            return `${formatSignalLabel(obj.event, 'Weather alert')}`;
           }
           if (typeof obj.corridor === 'string') {
-            return `${obj.corridor} risk`;
+            return `${formatLocationDisplay(obj.corridor, 'Maritime risk')}`;
+          }
+          if (typeof obj.impact === 'string') {
+            return `${formatSignalLabel(obj.impact, 'Cyber signal')}`;
           }
           return null;
         }}

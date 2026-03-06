@@ -979,6 +979,17 @@ const server = app.listen(PORT, () => {
   // Start cron jobs
   cronService.startAllJobs();
   missionControlService.startDispatchWorker();
+
+  const prewarmDelayMs = Math.max(0, Number.parseInt(process.env.MC_HOME_PREWARM_DELAY_MS || '250', 10) || 250);
+  const prewarmTimer = setTimeout(() => {
+    missionControlService.prewarmHomeSnapshots()
+      .catch((error) => {
+        logger.warn({ err: error?.message }, 'MC home prewarm failed');
+      });
+  }, prewarmDelayMs);
+  if (typeof prewarmTimer.unref === 'function') {
+    prewarmTimer.unref();
+  }
 });
 
 async function shutdown(signal) {
