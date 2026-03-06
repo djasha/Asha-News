@@ -1,4 +1,5 @@
 export type MissionControlMode = 'simple' | 'analyst';
+export type MissionTheme = 'dark' | 'light';
 export type VerificationMode = 'verified-first' | 'all-sources';
 export type MainViewMode = 'Map' | 'Chain' | 'Brief' | 'Suites';
 export type SeverityLevel = 'CRITICAL' | 'HIGH' | 'ELEVATED' | 'INFO';
@@ -187,6 +188,7 @@ export type MissionControlSettings = {
   conflict: string;
   days: number;
   mode: MissionControlMode;
+  theme?: MissionTheme;
   verificationMode: VerificationMode;
   profile: string;
   language?: string;

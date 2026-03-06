@@ -15,6 +15,7 @@ import {
   Layers3,
   LocateFixed,
   MessageCircle,
+  Moon,
   Newspaper,
   Pause,
   Plane,
@@ -24,6 +25,7 @@ import {
   Search,
   Settings,
   SlidersHorizontal,
+  Sun,
   TrendingUp,
   UserRound,
   X,
@@ -54,6 +56,7 @@ import type {
   MapLayerPackMC,
   MissionControlMode,
   MissionControlSettings,
+  MissionTheme,
   NotificationTelemetryMC,
   NotificationPreferenceMC,
   SafetyGuideItemMC,
@@ -230,10 +233,14 @@ const UI_COPY = {
     swipeUp: 'Swipe up',
     swipeDown: 'Swipe down',
     missionSettings: 'Mission Settings',
+    appearance: 'Appearance',
     scope: 'Scope',
     conflict: 'Conflict',
     viewMode: 'View Mode',
     verification: 'Verification',
+    theme: 'Theme',
+    darkTheme: 'Dark',
+    lightTheme: 'Light',
     language: 'Language',
     countryHintIso: 'Country Hint (ISO)',
     auto: 'Auto',
@@ -488,10 +495,14 @@ const UI_COPY = {
     swipeUp: 'اسحب للأعلى',
     swipeDown: 'اسحب للأسفل',
     missionSettings: 'إعدادات المهمة',
+    appearance: 'المظهر',
     scope: 'النطاق',
     conflict: 'النزاع',
     viewMode: 'وضع العرض',
     verification: 'التحقق',
+    theme: 'السمة',
+    darkTheme: 'داكن',
+    lightTheme: 'فاتح',
     language: 'اللغة',
     countryHintIso: 'تلميح الدولة (ISO)',
     auto: 'تلقائي',
@@ -746,10 +757,14 @@ const UI_COPY = {
     swipeUp: 'Desliza hacia arriba',
     swipeDown: 'Desliza hacia abajo',
     missionSettings: 'Ajustes de misión',
+    appearance: 'Apariencia',
     scope: 'Alcance',
     conflict: 'Conflicto',
     viewMode: 'Modo de vista',
     verification: 'Verificación',
+    theme: 'Tema',
+    darkTheme: 'Oscuro',
+    lightTheme: 'Claro',
     language: 'Idioma',
     countryHintIso: 'País sugerido (ISO)',
     auto: 'Auto',
@@ -936,6 +951,7 @@ const DEFAULT_SETTINGS: MissionControlSettings = {
   conflict: 'all',
   days: 14,
   mode: 'simple',
+  theme: 'dark',
   verificationMode: 'verified-first',
   profile: 'default',
   language: 'auto',
@@ -1525,6 +1541,7 @@ function App() {
       return {
         ...DEFAULT_SETTINGS,
         ...parsed,
+        theme: parsed.theme === 'light' ? 'light' : DEFAULT_SETTINGS.theme,
         language: parsed.language || DEFAULT_SETTINGS.language,
         country: String(parsed.country || '').slice(0, 2).toUpperCase(),
       };
@@ -1658,6 +1675,7 @@ function App() {
   }, [home?.source_suggestions?.language, settings.language]);
   const localeKey = useMemo(() => resolveLocaleKey(localeHint), [localeHint]);
   const copy = UI_COPY[localeKey];
+  const currentTheme: MissionTheme = settings.theme === 'light' ? 'light' : 'dark';
   const formatTime = useCallback((input: string | number | Date) => {
     const value = new Date(input);
     if (!Number.isFinite(value.getTime())) return '--';
@@ -1833,6 +1851,11 @@ function App() {
   useEffect(() => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
   }, [settings]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = currentTheme;
+    document.documentElement.style.colorScheme = currentTheme;
+  }, [currentTheme]);
 
   useEffect(() => {
     if (!statusMessage) return;
@@ -2870,7 +2893,7 @@ function App() {
   const utcClock = new Date().toISOString().slice(0, 19).replace('T', ' ') + ' UTC';
 
   return (
-    <div className={`mc-shell ${reducedGlow ? 'reduced-glow' : ''}`} data-mode={settings.mode}>
+    <div className={`mc-shell ${reducedGlow ? 'reduced-glow' : ''}`} data-mode={settings.mode} data-theme={currentTheme}>
       {(!isMobile || (isMobile && !COMPACT_MOBILE_SHELL_ENABLED)) && (
         <>
           <header className="mc-command-bar">
@@ -3036,6 +3059,20 @@ function App() {
               <button
                 type="button"
                 className="icon-button icon-only"
+                title={`${copy.theme}: ${currentTheme === 'dark' ? copy.lightTheme : copy.darkTheme}`}
+                aria-label={`${copy.theme}: ${currentTheme === 'dark' ? copy.lightTheme : copy.darkTheme}`}
+                onClick={() =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    theme: prev.theme === 'light' ? 'dark' : 'light',
+                  }))
+                }
+              >
+                {currentTheme === 'dark' ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
+              </button>
+              <button
+                type="button"
+                className="icon-button icon-only"
                 title={copy.settings}
                 aria-label={copy.settings}
                 onClick={() => setSettingsOpen(true)}
@@ -3141,6 +3178,20 @@ function App() {
               onClick={() => setMainView(mainView === 'Map' ? 'Chain' : 'Map')}
             >
               {mainView === 'Map' ? copy.chainMode : copy.mapMode}
+            </button>
+            <button
+              type="button"
+              className="icon-button compact"
+              title={`${copy.theme}: ${currentTheme === 'dark' ? copy.lightTheme : copy.darkTheme}`}
+              aria-label={`${copy.theme}: ${currentTheme === 'dark' ? copy.lightTheme : copy.darkTheme}`}
+              onClick={() =>
+                setSettings((prev) => ({
+                  ...prev,
+                  theme: prev.theme === 'light' ? 'dark' : 'light',
+                }))
+              }
+            >
+              {currentTheme === 'dark' ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />}
             </button>
             <button
               type="button"
@@ -4188,6 +4239,31 @@ function App() {
                   placeholder={copy.auto}
                 />
               </label>
+            </section>
+
+            <section>
+              <h3>{copy.appearance}</h3>
+              <label>
+                {copy.theme}
+                <select
+                  value={currentTheme}
+                  onChange={(event) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      theme: event.target.value === 'light' ? 'light' : 'dark',
+                    }))
+                  }
+                >
+                  <option value="dark">{copy.darkTheme}</option>
+                  <option value="light">{copy.lightTheme}</option>
+                </select>
+              </label>
+              <div className="quick-action-row">
+                <span>{copy.reducedGlow}</span>
+                <button type="button" onClick={() => setReducedGlow((prev) => !prev)}>
+                  {reducedGlow ? copy.glowOn : copy.reducedGlow}
+                </button>
+              </div>
             </section>
 
             {!!home?.source_suggestions?.items?.length && (
