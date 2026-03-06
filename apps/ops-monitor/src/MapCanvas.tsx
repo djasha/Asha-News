@@ -6,10 +6,8 @@ import maplibregl from 'maplibre-gl';
 
 import type { HomeSnapshotMC } from './types';
 import { formatLocationDisplay, formatSignalLabel } from './labelUtils';
-
-const MAP_STYLE_URL =
-  (import.meta.env.VITE_MC_MAP_STYLE_URL as string | undefined)
-  || 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+import { buildMapFocusClusters, severityFromMapPoint } from './mapUtils';
+import { resolveMissionControlMapStyle } from './mapStyle';
 
 type ViewState = {
   latitude: number;
@@ -22,6 +20,7 @@ type ViewState = {
 type MapCanvasProps = {
   home: HomeSnapshotMC;
   compact?: boolean;
+  isMobile?: boolean;
   activeLayers: Set<string>;
   severityFilter: string;
   viewState: ViewState;
@@ -29,16 +28,6 @@ type MapCanvasProps = {
   onDeckUnavailable: () => void;
   onViewStateChange: (next: ViewState) => void;
 };
-
-function getAlertSeverityFromPoint(point: HomeSnapshotMC['map']['event_points'][number]): string {
-  const fatalities = Number(point.fatalities_total || 0);
-  const injured = Number(point.injured_total || 0);
-  const confidence = Number(point.confidence || 0);
-  if (fatalities >= 20 || confidence >= 0.86) return 'CRITICAL';
-  if (fatalities >= 5 || injured >= 20 || confidence >= 0.7) return 'HIGH';
-  if (confidence >= 0.42) return 'ELEVATED';
-  return 'INFO';
-}
 
 function buildPointKey(latitude: number, longitude: number, extra = ''): string {
   const lat = Number.isFinite(latitude) ? Math.round(latitude * 2) / 2 : 0;
@@ -69,6 +58,7 @@ function dedupeByPoint<T extends { latitude?: number | null; longitude?: number 
 export default function MapCanvas({
   home,
   compact = false,
+  isMobile = false,
   activeLayers,
   severityFilter,
   viewState,
@@ -76,6 +66,10 @@ export default function MapCanvas({
   onDeckUnavailable,
   onViewStateChange,
 }: MapCanvasProps) {
+  const mapStyle = useMemo(
+    () => resolveMissionControlMapStyle(import.meta.env.VITE_MC_MAP_STYLE_URL as string | undefined),
+    []
+  );
   const fallbackMarkers = useMemo(() => {
     const markers: Array<{
       id: string;
@@ -124,12 +118,12 @@ export default function MapCanvas({
     if (activeLayers.has('verified-hotspots')) {
       home.map.event_points
         .filter((point) => {
-          const pointSeverity = getAlertSeverityFromPoint(point);
+          const pointSeverity = severityFromMapPoint(point);
           return severityFilter === 'ALL' ? true : pointSeverity === severityFilter;
         })
         .slice(0, layerCap.hotspots)
         .forEach((point, index) => {
-          const severity = getAlertSeverityFromPoint(point);
+          const severity = severityFromMapPoint(point);
           const color =
             severity === 'CRITICAL'
               ? '#ef4444'
@@ -220,6 +214,15 @@ export default function MapCanvas({
     return markers;
   }, [activeLayers, compact, home.map.event_points, home.map.optional_feeds, severityFilter]);
 
+  const focusClusters = useMemo(
+    () => buildMapFocusClusters(home, activeLayers, severityFilter, viewState.zoom, compact),
+    [activeLayers, compact, home, severityFilter, viewState.zoom]
+  );
+  const visibleFocusClusters = useMemo(
+    () => (isMobile ? focusClusters.slice(0, 1) : focusClusters),
+    [focusClusters, isMobile]
+  );
+
   const deckLayers = useMemo(() => {
     const list: any[] = [];
     const weatherPoints = dedupeByPoint(
@@ -270,7 +273,7 @@ export default function MapCanvas({
 
     if (activeLayers.has('verified-hotspots')) {
       const points = home.map.event_points.filter((point) => {
-        const pointSeverity = getAlertSeverityFromPoint(point);
+        const pointSeverity = severityFromMapPoint(point);
         return severityFilter === 'ALL' ? true : pointSeverity === severityFilter;
       });
 
@@ -288,15 +291,17 @@ export default function MapCanvas({
           radiusMaxPixels: 36,
           stroked: true,
           lineWidthMinPixels: 1,
-          getFillColor: (d: { confidence: number; fatalities_total: number; injured_total: number }) => {
-            const level = getAlertSeverityFromPoint({
+          getFillColor: (
+            d: {
+              confidence: number;
+              fatalities_total: number;
+              injured_total: number;
+              source_tier?: string;
+              official_announcement_types?: string[];
+            }
+          ) => {
+            const level = severityFromMapPoint({
               ...d,
-              id: '',
-              event_date: '',
-              location: '',
-              latitude: 0,
-              longitude: 0,
-              source_tier: '',
             });
             const alpha = Math.min(235, 100 + Number(d.confidence || 0) * 120);
             if (level === 'CRITICAL') return [239, 68, 68, alpha];
@@ -426,6 +431,60 @@ export default function MapCanvas({
     return list;
   }, [activeLayers, compact, home, severityFilter]);
 
+  const renderMapAnnotations = () => (
+    <>
+      {viewState.zoom <= 5.4 && visibleFocusClusters.map((cluster) => (
+        <Marker
+          key={cluster.id}
+          latitude={cluster.latitude}
+          longitude={cluster.longitude}
+          anchor="bottom"
+        >
+          <button
+            type="button"
+            className={`map-focus-cluster tone-${cluster.severity.toLowerCase()}`}
+            title={`${cluster.label} · ${cluster.summary}`}
+            onClick={() => {
+              onViewStateChange({
+                latitude: cluster.latitude,
+                longitude: cluster.longitude,
+                zoom: Math.max(viewState.zoom + 1.15, 5.8),
+                pitch: viewState.pitch,
+                bearing: viewState.bearing,
+              });
+            }}
+          >
+            <span className="focus-cluster-kicker">{cluster.summary}</span>
+            <strong>{formatLocationDisplay(cluster.label, 'Focus zone')}</strong>
+            <span className="focus-cluster-count">{cluster.signalCount}</span>
+          </button>
+        </Marker>
+      ))}
+      {(deckUnavailable ? fallbackMarkers : []).map((point) => (
+        <Marker
+          key={point.id}
+          latitude={point.latitude}
+          longitude={point.longitude}
+          anchor="center"
+        >
+          <span
+            title={point.label}
+            style={{
+              width: `${point.size}px`,
+              height: `${point.size}px`,
+              borderRadius: '999px',
+              border: '1px solid rgba(15, 23, 42, 0.85)',
+              display: 'inline-block',
+              background: point.color,
+              boxShadow: `0 0 0 3px ${point.color}33`,
+            }}
+          />
+        </Marker>
+      ))}
+      <NavigationControl position="bottom-right" />
+    </>
+  );
+
   if (!deckUnavailable) {
     return (
       <DeckGL
@@ -472,10 +531,10 @@ export default function MapCanvas({
       >
         <Map
           mapLib={maplibregl}
-          mapStyle={MAP_STYLE_URL}
+          mapStyle={mapStyle}
           attributionControl={false}
         >
-          <NavigationControl position="bottom-right" />
+          {renderMapAnnotations()}
         </Map>
       </DeckGL>
     );
@@ -484,9 +543,13 @@ export default function MapCanvas({
   return (
     <Map
       mapLib={maplibregl}
-      mapStyle={MAP_STYLE_URL}
+      mapStyle={mapStyle}
       attributionControl={false}
-      initialViewState={viewState}
+      latitude={viewState.latitude}
+      longitude={viewState.longitude}
+      zoom={viewState.zoom}
+      pitch={viewState.pitch}
+      bearing={viewState.bearing}
       onMove={(event) => {
         const next = event.viewState;
         onViewStateChange({
@@ -498,28 +561,7 @@ export default function MapCanvas({
         });
       }}
     >
-      {fallbackMarkers.map((point) => (
-        <Marker
-          key={point.id}
-          latitude={point.latitude}
-          longitude={point.longitude}
-          anchor="center"
-        >
-          <span
-            title={point.label}
-            style={{
-              width: `${point.size}px`,
-              height: `${point.size}px`,
-              borderRadius: '999px',
-              border: '1px solid rgba(15, 23, 42, 0.85)',
-              display: 'inline-block',
-              background: point.color,
-              boxShadow: `0 0 0 3px ${point.color}33`,
-            }}
-          />
-        </Marker>
-      ))}
-      <NavigationControl position="bottom-right" />
+      {renderMapAnnotations()}
     </Map>
   );
 }

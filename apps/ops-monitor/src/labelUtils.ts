@@ -23,6 +23,8 @@ const SIGNAL_LABEL_MAP: Record<string, string> = {
   economic: 'Economic signal',
   maritime: 'Maritime risk',
   conflict: 'Conflict zone',
+  middleeast: 'Middle East',
+  'middle east': 'Middle East',
   geopolitics: 'Geopolitics watch',
   osint: 'Signal',
   breaking: 'Signal',

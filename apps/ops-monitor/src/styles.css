@@ -1440,6 +1440,75 @@ body {
   white-space: nowrap;
 }
 
+.map-focus-cluster {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  min-width: 156px;
+  max-width: 212px;
+  padding: 9px 12px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.24);
+  background:
+    linear-gradient(180deg, rgba(10, 18, 28, 0.96), rgba(6, 12, 20, 0.94));
+  box-shadow: 0 18px 40px rgba(2, 6, 15, 0.32);
+  color: #dbeafe;
+  text-align: left;
+  cursor: pointer;
+}
+
+.map-focus-cluster::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  bottom: -10px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 6px color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.map-focus-cluster strong {
+  font-size: 0.82rem;
+  line-height: 1.1;
+}
+
+.focus-cluster-kicker,
+.focus-cluster-count {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+}
+
+.focus-cluster-kicker {
+  color: var(--text-2);
+}
+
+.focus-cluster-count {
+  color: #f8fafc;
+}
+
+.map-focus-cluster.tone-critical {
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.38);
+}
+
+.map-focus-cluster.tone-high {
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.36);
+}
+
+.map-focus-cluster.tone-elevated {
+  color: #93c5fd;
+  border-color: rgba(96, 165, 250, 0.34);
+}
+
+.map-focus-cluster.tone-info {
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
 .map-empty-banner {
   position: absolute;
   left: 50%;
@@ -1598,6 +1667,7 @@ body {
 [data-theme='light'] .map-overview-card,
 [data-theme='light'] .map-legend-item,
 [data-theme='light'] .map-signal-digest-item,
+[data-theme='light'] .map-focus-cluster,
 [data-theme='light'] .map-empty-banner,
 [data-theme='light'] .map-pack-strip,
 [data-theme='light'] .map-layer-chip-strip,
@@ -1608,7 +1678,8 @@ body {
 [data-theme='light'] .map-posture-pill,
 [data-theme='light'] .map-overview-card,
 [data-theme='light'] .map-legend-item,
-[data-theme='light'] .map-signal-digest-item {
+[data-theme='light'] .map-signal-digest-item,
+[data-theme='light'] .map-focus-cluster {
   background: rgba(255, 255, 255, 0.84);
   border-color: rgba(148, 163, 184, 0.3);
   color: #0f172a;
@@ -1617,7 +1688,8 @@ body {
 [data-theme='light'] .map-posture-pill strong,
 [data-theme='light'] .map-overview-card strong,
 [data-theme='light'] .map-legend-item strong,
-[data-theme='light'] .map-signal-digest-item strong {
+[data-theme='light'] .map-signal-digest-item strong,
+[data-theme='light'] .map-focus-cluster strong {
   color: #020617;
 }
 
@@ -3219,12 +3291,13 @@ body {
 
 .tour-card {
   pointer-events: auto;
-  width: min(360px, calc(100vw - 32px));
-  max-height: min(240px, calc(100vh - 120px));
+  width: min(312px, calc(100vw - 32px));
+  max-height: min(210px, calc(100vh - 120px));
   overflow: auto;
   border-radius: 14px;
-  background: rgba(5, 13, 24, 0.94);
-  box-shadow: 0 24px 64px rgba(2, 6, 15, 0.34);
+  border-color: rgba(125, 211, 252, 0.18);
+  background: rgba(5, 13, 24, 0.88);
+  box-shadow: 0 20px 44px rgba(2, 6, 15, 0.26);
 }
 
 .notification-drawer {
@@ -3573,7 +3646,7 @@ body {
 .tour-card p {
   margin: 0;
   color: var(--text-2);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
 }
 
 .tour-actions {
@@ -3896,7 +3969,7 @@ body {
 
   .tour-card {
     width: min(340px, calc(100vw - 24px));
-    max-height: min(260px, calc(100vh - 160px));
+    max-height: min(220px, calc(100vh - 160px));
   }
 
   .mc-tickbar {
@@ -3957,7 +4030,7 @@ body {
 
   .tour-card {
     width: calc(100vw - 24px);
-    max-height: min(240px, calc(100vh - 120px));
+    max-height: min(210px, calc(100vh - 120px));
   }
 
   .map-posture-pill {
@@ -3987,6 +4060,12 @@ body {
     right: 8px;
     width: auto;
     bottom: 148px;
+  }
+
+  .map-focus-cluster {
+    min-width: 132px;
+    max-width: 168px;
+    padding: 8px 10px 9px;
   }
 
   .map-legend-item {

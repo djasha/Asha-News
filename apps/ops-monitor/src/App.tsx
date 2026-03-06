@@ -38,6 +38,7 @@ import {
   updateWorkspacePreset,
 } from './api';
 import { formatLocationDisplay } from './labelUtils';
+import { severityFromMapPoint } from './mapUtils';
 import type {
   AlertActionsStateMC,
   AlertCardMC,
@@ -1100,20 +1101,6 @@ function confidenceLabel(copy: LocaleCopy, score: number): string {
   if (score >= 0.55) return copy.confidenceModerate;
   if (score >= 0.35) return copy.confidenceLow;
   return copy.confidenceVeryLow;
-}
-
-function severityFromMapPoint(point: {
-  fatalities_total?: number;
-  injured_total?: number;
-  confidence?: number;
-}): SeverityLevel {
-  const fatalities = Number(point.fatalities_total || 0);
-  const injured = Number(point.injured_total || 0);
-  const confidence = Number(point.confidence || 0);
-  if (fatalities >= 20 || confidence >= 0.86) return 'CRITICAL';
-  if (fatalities >= 5 || injured >= 20 || confidence >= 0.7) return 'HIGH';
-  if (confidence >= 0.42) return 'ELEVATED';
-  return 'INFO';
 }
 
 function matchesSearch(text: string, query: string): boolean {
@@ -3594,6 +3581,7 @@ function App() {
                 <MapCanvas
                   home={home}
                   compact={settings.mode === 'simple'}
+                  isMobile={isMobile}
                   activeLayers={activeLayers}
                   severityFilter={severityFilter}
                   viewState={viewState}
