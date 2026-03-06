@@ -2339,7 +2339,7 @@ function App() {
         if (severityDelta !== 0) return severityDelta;
         return Number(b.confidence || 0) - Number(a.confidence || 0);
       })
-      .slice(0, isMobile ? 2 : 4);
+      .slice(0, isMobile ? 1 : 3);
   }, [activeLayers, home?.map?.event_points, isMobile, severityFilter]);
 
   const notificationCounts = useMemo(() => {
@@ -3476,7 +3476,7 @@ function App() {
                     </div>
                   ))}
                 </div>
-                {!!mapSignalDigest.length && (
+                {!!mapSignalDigest.length && (!isMobile || tourStep < 0) && (
                   <div className="map-signal-digest" aria-label={copy.visibleSignals}>
                     {mapSignalDigest.map((point) => {
                       const severity = severityFromMapPoint(point);
