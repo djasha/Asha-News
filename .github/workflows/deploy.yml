@@ -7,6 +7,9 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    env:
+      AUTH_TOKEN: ${{ secrets.AUTH_SMOKE_TOKEN }}
+      REQUIRE_AUTH_SMOKE: ${{ secrets.AUTH_SMOKE_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -25,12 +28,20 @@ jobs:
 
       - name: Run release candidate gate
         run: npm run release:check
-        env:
-          AUTH_TOKEN: ${{ secrets.AUTH_SMOKE_TOKEN }}
-          REQUIRE_AUTH_SMOKE: "true"
+
+  deploy-skipped:
+    needs: lint-and-test
+    if: ${{ needs.lint-and-test.result == 'success' && (secrets.VPS_HOST == '' || secrets.VPS_USER == '' || secrets.VPS_SSH_KEY == '') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report skipped deploy
+        run: |
+          echo "Skipping VPS deploy because one or more required secrets are missing."
+          echo "Required secrets: VPS_HOST, VPS_USER, VPS_SSH_KEY"
 
   deploy:
     needs: lint-and-test
+    if: ${{ needs.lint-and-test.result == 'success' && secrets.VPS_HOST != '' && secrets.VPS_USER != '' && secrets.VPS_SSH_KEY != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
