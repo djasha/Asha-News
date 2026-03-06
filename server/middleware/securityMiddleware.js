@@ -3,6 +3,33 @@ const helmet = require('helmet');
 const validator = require('validator');
 const logger = require('../utils/logger');
 
+const isLocalAddress = (value) => {
+  if (!value) return false;
+  const normalized = String(value).trim();
+  return normalized === '127.0.0.1'
+    || normalized === '::1'
+    || normalized === '::ffff:127.0.0.1'
+    || normalized === 'localhost';
+};
+
+const shouldSkipRateLimit = (req) => {
+  if (process.env.NODE_ENV === 'production') {
+    return false;
+  }
+
+  const forwardedFor = String(req.headers['x-forwarded-for'] || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  return [
+    req.ip,
+    req.socket?.remoteAddress,
+    req.connection?.remoteAddress,
+    ...forwardedFor,
+  ].some(isLocalAddress);
+};
+
 // Rate limiting configurations
 const createRateLimit = (windowMs, max, message) => {
   return rateLimit({
@@ -11,6 +38,7 @@ const createRateLimit = (windowMs, max, message) => {
     message: { error: message },
     standardHeaders: true,
     legacyHeaders: false,
+    skip: shouldSkipRateLimit,
   });
 };
 
@@ -37,6 +65,7 @@ const clusterLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: shouldSkipRateLimit,
 });
 
 // Security headers

@@ -10,7 +10,6 @@ import {
   Check,
   ChevronDown,
   Filter,
-  Globe2,
   Grid2x2,
   Layers3,
   LocateFixed,
@@ -78,6 +77,10 @@ const MOBILE_SURFACE_MUTEX_ENABLED =
   String(import.meta.env.VITE_MC_MOBILE_SURFACE_MUTEX_ENABLED ?? 'true').toLowerCase() !== 'false';
 const DECK_RENDERER_ENABLED =
   String(import.meta.env.VITE_MC_DECK_RENDERER_ENABLED ?? 'false').toLowerCase() === 'true';
+const TICKER_SCROLL_SPEED = {
+  normal: 22,
+  fast: 38,
+} as const;
 
 const CONFLICT_OPTIONS = ['all', 'gaza-israel', 'israel-us-iran'];
 const DAY_OPTIONS = [1, 3, 7, 14, 30];
@@ -1039,10 +1042,10 @@ async function playAlertTone(profile: string, severity: SeverityLevel): Promise<
       pattern.reduce((sum, step) => sum + step.ms, 0) + pattern.length * 80
     );
     window.setTimeout(() => {
-      context.close().catch(() => {});
+      context.close().catch(() => { });
     }, closeDelayMs);
   } catch {
-    await context.close().catch(() => {});
+    await context.close().catch(() => { });
   }
 }
 
@@ -1618,6 +1621,9 @@ function App() {
   const [feedHasMore, setFeedHasMore] = useState(false);
   const [feedTotalFiltered, setFeedTotalFiltered] = useState(0);
   const [expandedFeedItemId, setExpandedFeedItemId] = useState('');
+  const [tickerMotionPaused, setTickerMotionPaused] = useState(false);
+  const [tickerHoverPaused, setTickerHoverPaused] = useState(false);
+  const [tickerSpeedMode, setTickerSpeedMode] = useState<keyof typeof TICKER_SCROLL_SPEED>('normal');
 
   const [activeLayers, setActiveLayers] = useState<Set<string>>(new Set());
   const [quickActions, setQuickActions] = useState<string[]>(QUICK_ACTION_LABELS);
@@ -1641,7 +1647,7 @@ function App() {
   const [deckUnavailable, setDeckUnavailable] = useState<boolean>(
     () => !DECK_RENDERER_ENABLED || !detectWebGlSupport()
   );
-  const [reducedGlow, setReducedGlow] = useState(false);
+  const [reducedGlow] = useState(false);
   const [tourStep, setTourStep] = useState<number>(() =>
     localStorage.getItem(TOUR_STORAGE_KEY) ? -1 : 0
   );
@@ -1653,7 +1659,7 @@ function App() {
   const [statusMessage, setStatusMessage] = useState('');
 
   const [viewState, setViewState] = useState<ViewState>(DEFAULT_VIEW_STATE);
-  const [mapVisualMode, setMapVisualMode] = useState<MapVisualMode>('tactical');
+  const [mapVisualMode] = useState<MapVisualMode>('tactical');
 
   const deferredGlobalSearchQuery = useDeferredValue(globalSearchQuery);
   const deferredFeedSearchQuery = useDeferredValue(feedSearchQuery);
@@ -1665,6 +1671,7 @@ function App() {
   const audioCooldownRef = useRef(0);
   const headerHealthRef = useRef<HTMLDivElement | null>(null);
   const headerPizzaRef = useRef<HTMLDivElement | null>(null);
+  const tickbarTrackRef = useRef<HTMLDivElement | null>(null);
   const previousModeRef = useRef<MissionControlMode>(settings.mode);
   const feedSourceTouchedRef = useRef(false);
   const feedSourceAutoScopeRef = useRef('');
@@ -2087,7 +2094,7 @@ function App() {
     audioCooldownRef.current = now;
 
     const profile = audioPref.severity_profiles?.[topIncoming.severity] || DEFAULT_AUDIO_PROFILES[topIncoming.severity];
-    playAlertTone(profile, topIncoming.severity).catch(() => {});
+    playAlertTone(profile, topIncoming.severity).catch(() => { });
   }, [filteredCriticalCards, notificationPreference?.audio]);
 
   const filteredLeaks = useMemo(() => {
@@ -2317,6 +2324,49 @@ function App() {
     setFeedFilterSearch('');
     setExpandedFeedItemId('');
   }, [rightRailTab]);
+
+  useEffect(() => {
+    if (isMobile) return;
+    if (!tickbarTrackRef.current) return;
+    if (tickerMotionPaused || tickerHoverPaused || filteredTicker.length <= 1) return;
+    const track = tickbarTrackRef.current;
+    let frame = 0;
+    let previous = performance.now();
+    const pxPerSecond = TICKER_SCROLL_SPEED[tickerSpeedMode];
+
+    const step = (timestamp: number) => {
+      const deltaMs = Math.max(0, timestamp - previous);
+      previous = timestamp;
+      const maxScrollLeft = Math.max(0, track.scrollWidth - track.clientWidth);
+      if (maxScrollLeft <= 0) {
+        frame = window.requestAnimationFrame(step);
+        return;
+      }
+      const next = track.scrollLeft + (pxPerSecond * deltaMs) / 1000;
+      track.scrollLeft = next >= maxScrollLeft - 1 ? 0 : next;
+      frame = window.requestAnimationFrame(step);
+    };
+
+    frame = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(frame);
+  }, [filteredTicker.length, isMobile, tickerHoverPaused, tickerMotionPaused, tickerSpeedMode]);
+
+  useEffect(() => {
+    if (!layersCatalog.length) return;
+    if (rightRailTab === 'feed') return;
+    setMainView('Map');
+    setActiveLayers((prev) => {
+      const next = new Set(prev);
+      next.add('verified-hotspots');
+      if (rightRailTab === 'flights') {
+        next.add('flight-radar');
+      }
+      if (rightRailTab === 'whale') {
+        next.add('economic-shocks');
+      }
+      return next;
+    });
+  }, [layersCatalog.length, rightRailTab]);
 
   useEffect(() => {
     if (settings.mode !== 'analyst' && expandedFeedItemId) {
@@ -2832,31 +2882,6 @@ function App() {
       };
     });
   }, []);
-  const toggleMapVisualMode = useCallback(() => {
-    const next = mapVisualMode === 'tactical' ? 'globe' : 'tactical';
-    setMapVisualMode(next);
-    if (next === 'globe') {
-      setViewState((prev) => ({
-        ...prev,
-        latitude: 24,
-        longitude: 18,
-        zoom: 1.75,
-        pitch: 46,
-        bearing: -14,
-      }));
-      return;
-    }
-    const center = home?.map?.default_center || DEFAULT_VIEW_STATE;
-    setViewState((prev) => ({
-      ...prev,
-      latitude: Number(center.latitude),
-      longitude: Number(center.longitude),
-      zoom: Math.max(3.8, Number(center.zoom || 4.9)),
-      pitch: 38,
-      bearing: 0,
-    }));
-  }, [mapVisualMode, home?.map?.default_center]);
-
   const setMobileSheetSurface = useCallback((nextOpen: boolean) => {
     setMobileSheetOpen(nextOpen);
     if (nextOpen && MOBILE_SURFACE_MUTEX_ENABLED) {
@@ -3142,28 +3167,51 @@ function App() {
                   ))}
                 </div>
               )}
+              <div className="tickbar-inline-controls" role="group" aria-label={copy.playback}>
+                <button
+                  type="button"
+                  className={`tickbar-control ${tickerMotionPaused ? 'active' : ''}`}
+                  title={tickerMotionPaused ? copy.playback : copy.stopPlayback}
+                  aria-label={tickerMotionPaused ? copy.playback : copy.stopPlayback}
+                  onClick={() => setTickerMotionPaused((prev) => !prev)}
+                >
+                  {tickerMotionPaused ? <Play size={12} aria-hidden="true" /> : <Pause size={12} aria-hidden="true" />}
+                </button>
+                <button
+                  type="button"
+                  className={`tickbar-speed ${tickerSpeedMode === 'fast' ? 'active' : ''}`}
+                  title={tickerSpeedMode === 'fast' ? '2x' : '1x'}
+                  aria-label={tickerSpeedMode === 'fast' ? '2x' : '1x'}
+                  onClick={() => setTickerSpeedMode((prev) => (prev === 'normal' ? 'fast' : 'normal'))}
+                >
+                  {tickerSpeedMode === 'fast' ? '2x' : '1x'}
+                </button>
+              </div>
             </div>
-            <div className="tickbar-track">
+            <div
+              ref={tickbarTrackRef}
+              className="tickbar-track"
+              onMouseEnter={() => setTickerHoverPaused(true)}
+              onMouseLeave={() => setTickerHoverPaused(false)}
+            >
               {filteredTicker.map((item) => {
                 const cleanedHeadline = compactFeedText(item.headline) || item.headline;
                 const locationLabel = formatLocationDisplay(item.location, item.hazard_type || copy.signalsLabel);
                 const hasExplicitLocation = !isPlaceholderLocationLabel(locationLabel, copy);
                 return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`tick-item ${item.kind === 'leak' ? 'tick-leak' : 'tick-verified'}`}
-                  onClick={() => handleTickerClick(item)}
-                  title={hasExplicitLocation ? `${cleanedHeadline} · ${locationLabel}` : cleanedHeadline}
-                >
-                  <span className={`severity-pill severity-${item.severity.toLowerCase()}`}>{item.severity}</span>
-                  <span className="tick-headline" title={cleanedHeadline}>{cleanedHeadline}</span>
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`tick-item tick-severity-${item.severity.toLowerCase()}`}
+                    onClick={() => handleTickerClick(item)}
+                    title={hasExplicitLocation ? `${cleanedHeadline} · ${locationLabel}` : cleanedHeadline}
+                  >
+                    <span className="tick-headline" title={cleanedHeadline}>{cleanedHeadline}</span>
                     <span className="tick-meta">
                       {hasExplicitLocation && <span className="tick-location">{locationLabel}</span>}
                       <span className="tick-time">{formatTime(item.updated_at)}</span>
                     </span>
-                  {item.kind === 'leak' && <span className="tick-warning">{copy.unverifiedBadge}</span>}
-                </button>
+                  </button>
                 );
               })}
               {!filteredTicker.length && (
@@ -3187,16 +3235,16 @@ function App() {
 
       {isMobile && COMPACT_MOBILE_SHELL_ENABLED && (
         <header className="mc-mobile-strip">
-            <div className="mobile-strip-left">
-              <div className="brand-mark small">MC</div>
-              <div className="mobile-strip-meta">
-                <strong>{copy.missionControlTitle}</strong>
-                <span>
-                  <span className={`mobile-health-dot state-${overallHealthState}`} aria-hidden="true" />
-                  {toHealthLabel(copy, overallHealthState)} · {utcClock}
-                </span>
-              </div>
+          <div className="mobile-strip-left">
+            <div className="brand-mark small">MC</div>
+            <div className="mobile-strip-meta">
+              <strong>{copy.missionControlTitle}</strong>
+              <span>
+                <span className={`mobile-health-dot state-${overallHealthState}`} aria-hidden="true" />
+                {toHealthLabel(copy, overallHealthState)} · {utcClock}
+              </span>
             </div>
+          </div>
           <div className="mobile-strip-right">
             <button
               type="button"
@@ -3279,21 +3327,6 @@ function App() {
                 <button type="button" onClick={() => setSettings((prev) => ({ ...prev, mode: prev.mode === 'simple' ? 'analyst' : 'simple' }))}>
                   {settings.mode === 'simple' ? copy.switchToAnalyst : copy.switchToSimple}
                 </button>
-                {settings.mode === 'analyst' && (
-                  <button
-                    type="button"
-                    onClick={toggleMapVisualMode}
-                    title={mapVisualMode === 'globe' ? copy.tacticalMode : copy.globeHero}
-                  >
-                    <Globe2 size={14} aria-hidden="true" />
-                    <span>{mapVisualMode === 'globe' ? copy.tacticalMode : copy.globeHero}</span>
-                  </button>
-                )}
-                {settings.mode === 'analyst' && (
-                  <button type="button" onClick={() => setReducedGlow((prev) => !prev)}>
-                    {reducedGlow ? copy.glowOn : copy.reducedGlow}
-                  </button>
-                )}
               </div>
             )}
           </div>
@@ -3552,11 +3585,11 @@ function App() {
           {layersOpen && (
             <div className="layers-panel">
               <div className="layers-header">
-                  <h3>{copy.layerPacks}</h3>
-                  <button type="button" onClick={() => setLayersOpen(false)}>
-                    {copy.close}
-                  </button>
-                </div>
+                <h3>{copy.layerPacks}</h3>
+                <button type="button" onClick={() => setLayersOpen(false)}>
+                  {copy.close}
+                </button>
+              </div>
               {!!mapLayerPacks.length && (
                 <div className="layer-pack-list">
                   {mapLayerPacks.map((pack) => {
@@ -4148,7 +4181,8 @@ function App() {
       )}
 
       {notificationOpen && (
-        <div className="drawer-overlay" onClick={() => setNotificationOpen(false)}>
+        <>
+          <div className="notification-backdrop" onClick={() => setNotificationOpen(false)} />
           <aside className="notification-drawer" onClick={(event) => event.stopPropagation()}>
             <div className="drawer-top">
               <h2>{copy.notificationCenter}</h2>
@@ -4190,7 +4224,7 @@ function App() {
               ))}
             </div>
           </aside>
-        </div>
+        </>
       )}
 
       {settingsOpen && (
@@ -4298,12 +4332,7 @@ function App() {
                   <option value="light">{copy.lightTheme}</option>
                 </select>
               </label>
-              <div className="quick-action-row">
-                <span>{copy.reducedGlow}</span>
-                <button type="button" onClick={() => setReducedGlow((prev) => !prev)}>
-                  {reducedGlow ? copy.glowOn : copy.reducedGlow}
-                </button>
-              </div>
+
             </section>
 
             {!!home?.source_suggestions?.items?.length && (
@@ -4427,12 +4456,12 @@ function App() {
                         setNotificationPreference((prev) =>
                           prev
                             ? {
-                                ...prev,
-                                channels: {
-                                  ...prev.channels,
-                                  push: event.target.checked,
-                                },
-                              }
+                              ...prev,
+                              channels: {
+                                ...prev.channels,
+                                push: event.target.checked,
+                              },
+                            }
                             : prev
                         )
                       }
@@ -4447,12 +4476,12 @@ function App() {
                         setNotificationPreference((prev) =>
                           prev
                             ? {
-                                ...prev,
-                                channels: {
-                                  ...prev.channels,
-                                  email: event.target.checked,
-                                },
-                              }
+                              ...prev,
+                              channels: {
+                                ...prev.channels,
+                                email: event.target.checked,
+                              },
+                            }
                             : prev
                         )
                       }
@@ -4475,12 +4504,12 @@ function App() {
                         setNotificationPreference((prev) =>
                           prev
                             ? {
-                                ...prev,
-                                dispatch: {
-                                  ...prev.dispatch,
-                                  verified_high_instant: event.target.checked,
-                                },
-                              }
+                              ...prev,
+                              dispatch: {
+                                ...prev.dispatch,
+                                verified_high_instant: event.target.checked,
+                              },
+                            }
                             : prev
                         )
                       }
@@ -4499,12 +4528,12 @@ function App() {
                         setNotificationPreference((prev) =>
                           prev
                             ? {
-                                ...prev,
-                                audio: {
-                                  ...prev.audio,
-                                  mode: event.target.value as 'silent' | 'vibration-only' | 'tone',
-                                },
-                              }
+                              ...prev,
+                              audio: {
+                                ...prev.audio,
+                                mode: event.target.value as 'silent' | 'vibration-only' | 'tone',
+                              },
+                            }
                             : prev
                         )
                       }
@@ -4522,12 +4551,12 @@ function App() {
                         setNotificationPreference((prev) =>
                           prev
                             ? {
-                                ...prev,
-                                audio: {
-                                  ...prev.audio,
-                                  vibration: event.target.checked,
-                                },
-                              }
+                              ...prev,
+                              audio: {
+                                ...prev.audio,
+                                vibration: event.target.checked,
+                              },
+                            }
                             : prev
                         )
                       }
@@ -4543,15 +4572,15 @@ function App() {
                           setNotificationPreference((prev) =>
                             prev
                               ? {
-                                  ...prev,
-                                  audio: {
-                                    ...prev.audio,
-                                    severity_profiles: {
-                                      ...(prev.audio?.severity_profiles || DEFAULT_AUDIO_PROFILES),
-                                      [level]: event.target.value,
-                                    },
+                                ...prev,
+                                audio: {
+                                  ...prev.audio,
+                                  severity_profiles: {
+                                    ...(prev.audio?.severity_profiles || DEFAULT_AUDIO_PROFILES),
+                                    [level]: event.target.value,
                                   },
-                                }
+                                },
+                              }
                               : prev
                           )
                         }
