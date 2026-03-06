@@ -58,7 +58,8 @@
     "perf:monitor:endpoints": "bash scripts/perf-monitor-endpoints.sh",
     "smoke:security": "bash scripts/security-smoke.sh",
     "soak:v1": "bash scripts/soak-v1.sh",
-    "release:check": "bash scripts/release-candidate-check.sh"
+    "release:check": "bash scripts/release-candidate-check.sh",
+    "branches:sync": "bash scripts/sync-reserved-branches.sh"
   },
   "eslintConfig": {
     "extends": [

@@ -82,7 +82,5 @@ git push origin --delete mc/my-task
 If you want the reserved branches updated after a merge:
 
 ```bash
-git branch -f mc/mission-control main
-git branch -f wm/parity-integration main
-git push origin main mc/mission-control wm/parity-integration
+npm run branches:sync
 ```
