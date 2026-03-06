@@ -54,4 +54,16 @@ describe('agentApi public token lookup', () => {
     expect(queryBridge.mock.calls[0][0]).toBe('/items/users?limit=200&offset=0');
     expect(queryBridge.mock.calls[1][0]).toBe('/items/users?limit=200&offset=200');
   });
+
+  test('returns null when paginated token scan backend is unavailable', async () => {
+    isUsingSupabase.mockReturnValue(true);
+    getPool.mockReturnValue(null);
+    queryBridge.mockRejectedValue(new Error('db unavailable'));
+
+    const result = await __testables.findPublicDigestUserByToken('missing-token');
+
+    expect(result).toBeNull();
+    expect(queryBridge).toHaveBeenCalledTimes(1);
+    expect(queryBridge.mock.calls[0][0]).toBe('/items/users?limit=200&offset=0');
+  });
 });

@@ -155,8 +155,15 @@ async function findPublicDigestUserByToken(token) {
   const maxRows = 50000;
 
   for (let offset = 0; offset <= maxRows; offset += pageSize) {
-    const usersResp = await queryBridge(`/items/users?limit=${pageSize}&offset=${offset}`);
-    const users = Array.isArray(usersResp?.data) ? usersResp.data : [];
+    let users = [];
+    try {
+      const usersResp = await queryBridge(`/items/users?limit=${pageSize}&offset=${offset}`);
+      users = Array.isArray(usersResp?.data) ? usersResp.data : [];
+    } catch (error) {
+      logger.warn({ err: error }, 'Public digest token scan failed');
+      return null;
+    }
+
     if (users.length === 0) break;
 
     const matchedUser = users.find((user) => {
