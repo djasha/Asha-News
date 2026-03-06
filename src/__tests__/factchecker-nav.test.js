@@ -12,7 +12,12 @@ const Providers = ({ children, initialEntries = ['/'] }) => (
   <HelmetProvider>
     <ThemeProvider>
       <SiteConfigProvider>
-        <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
+        <MemoryRouter
+          initialEntries={initialEntries}
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
+          {children}
+        </MemoryRouter>
       </SiteConfigProvider>
     </ThemeProvider>
   </HelmetProvider>

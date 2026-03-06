@@ -30,7 +30,10 @@ const makeCluster = () => ({
 function renderWithRouter(route = '/story/test-cluster-1') {
   return render(
     <HelmetProvider>
-      <MemoryRouter initialEntries={[route]}>
+      <MemoryRouter
+        initialEntries={[route]}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <Routes>
           <Route path="/story/:clusterId" element={<StoryClusterPage />} />
         </Routes>

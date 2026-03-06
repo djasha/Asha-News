@@ -875,13 +875,6 @@ const THREAT_LEVEL_TO_SEVERITY = Object.freeze({
   THREAT_LEVEL_UNSPECIFIED: 'INFO',
 });
 
-const UNREST_SEVERITY_TO_SEVERITY = Object.freeze({
-  SEVERITY_LEVEL_HIGH: 'HIGH',
-  SEVERITY_LEVEL_MEDIUM: 'ELEVATED',
-  SEVERITY_LEVEL_LOW: 'INFO',
-  SEVERITY_LEVEL_UNSPECIFIED: 'INFO',
-});
-
 const UNREST_CONFIDENCE_TO_SCORE = Object.freeze({
   CONFIDENCE_LEVEL_HIGH: 0.82,
   CONFIDENCE_LEVEL_MEDIUM: 0.62,
@@ -1139,13 +1132,6 @@ async function dbPatchItem(collection, id, payload) {
   }
   if (Array.isArray(response?.data)) return response.data[0] || null;
   return response?.data || null;
-}
-
-async function dbDeleteItem(collection, id) {
-  if (pgStateRuntimeDisabled) return;
-  await queryBridge(`/items/${collection}/${id}`, {
-    method: 'DELETE',
-  });
 }
 
 function buildCoreCacheKey(options = {}) {
@@ -2721,30 +2707,9 @@ function severityFromThreatLevel(level) {
   return THREAT_LEVEL_TO_SEVERITY[key] || 'INFO';
 }
 
-function severityFromUnrestLevel(level) {
-  const key = safeString(level, 'SEVERITY_LEVEL_UNSPECIFIED');
-  return UNREST_SEVERITY_TO_SEVERITY[key] || 'INFO';
-}
-
 function confidenceFromUnrestLevel(level) {
   const key = safeString(level, 'CONFIDENCE_LEVEL_UNSPECIFIED');
   return UNREST_CONFIDENCE_TO_SCORE[key] || 0.5;
-}
-
-function severityFromOutageLevel(level) {
-  const key = safeString(level, 'OUTAGE_SEVERITY_UNSPECIFIED');
-  if (key === 'OUTAGE_SEVERITY_TOTAL') return 'CRITICAL';
-  if (key === 'OUTAGE_SEVERITY_MAJOR') return 'HIGH';
-  if (key === 'OUTAGE_SEVERITY_PARTIAL') return 'ELEVATED';
-  return 'INFO';
-}
-
-function severityFromCriticality(level) {
-  const key = safeString(level, 'CRITICALITY_LEVEL_UNSPECIFIED');
-  if (key === 'CRITICALITY_LEVEL_CRITICAL') return 'CRITICAL';
-  if (key === 'CRITICALITY_LEVEL_HIGH') return 'HIGH';
-  if (key === 'CRITICALITY_LEVEL_MEDIUM') return 'ELEVATED';
-  return 'INFO';
 }
 
 function inferSeverityFromText(text, fallback = 'INFO') {

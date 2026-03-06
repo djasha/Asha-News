@@ -90,7 +90,7 @@ function App() {
           <AuthProvider>
             <PreferencesProvider>
               <SiteConfigProvider>
-                <Router>
+                <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                   <BreakingNewsAlert />
                   <MobileLayout>
                     <Suspense fallback={legacyLoadingFallback}>

@@ -386,13 +386,6 @@ function toDateMs(value) {
   return Number.isFinite(ts) ? ts : null;
 }
 
-function slugify(value) {
-  return String(value || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
 function normalizeText(value) {
   return String(value || '')
     .toLowerCase()
