@@ -2762,8 +2762,18 @@ function normalizeSignalLabel(value, fallback = 'Signal') {
   const normalized = raw.toLowerCase();
   if (normalized.startsWith('anomaly_type_')) {
     const suffix = normalized.replace('anomaly_type_', '').replace(/_/g, ' ').trim();
-    const variant = suffix ? ` (${toTitleCaseWords(suffix)})` : '';
-    return `Climate Anomaly${variant}`;
+    if (!suffix) return 'Climate Anomaly';
+    if (suffix.includes('warm')) return 'Heat Anomaly';
+    if (suffix.includes('cold')) return 'Cold Anomaly';
+    if (suffix.includes('precip')) return 'Rain Anomaly';
+    if (suffix.includes('dry')) return 'Dry Anomaly';
+    if (suffix.includes('wildfire') || suffix.includes('fire')) return 'Wildfire Risk';
+    if (suffix.includes('smoke')) return 'Smoke Anomaly';
+    if (suffix.includes('storm')) return 'Storm Anomaly';
+    if (suffix.includes('flood')) return 'Flood Anomaly';
+    if (suffix.includes('dust')) return 'Dust Anomaly';
+    if (suffix.includes('ash')) return 'Ash Anomaly';
+    return `${toTitleCaseWords(suffix)} Anomaly`;
   }
   if (normalized === 'cobaltstrike') return 'Cyber Threat Cluster';
   if (normalized === 'weather' || normalized === 'weather conditions') return 'Weather Alert';
