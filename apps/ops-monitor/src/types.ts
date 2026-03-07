@@ -217,6 +217,15 @@ export type AlertCardMC = {
   actions: string[];
 };
 
+export type MapFallbackSignalMC = {
+  id: string;
+  label: string;
+  summary: string;
+  severity: SeverityLevel;
+  latitude: number;
+  longitude: number;
+};
+
 export type LeakItemMC = {
   id: string;
   title: string;

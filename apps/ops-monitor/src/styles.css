@@ -1301,6 +1301,16 @@ body {
   z-index: 2;
 }
 
+.map-canvas-wrap .maplibregl-canvas-container,
+.map-canvas-wrap .deckgl-overlay {
+  z-index: 1;
+}
+
+.map-canvas-wrap .maplibregl-marker,
+.map-canvas-wrap .maplibregl-control-container {
+  z-index: 6;
+}
+
 .map-layer-strip {
   position: absolute;
   left: 50%;
@@ -1598,6 +1608,35 @@ body {
 .map-focus-cluster.tone-info {
   color: #cbd5e1;
   border-color: rgba(148, 163, 184, 0.28);
+}
+
+.map-live-focus-grid {
+  position: absolute;
+  inset: 72px 26px 104px 26px;
+  pointer-events: none;
+  z-index: 8;
+}
+
+.map-focus-cluster-floating {
+  position: absolute;
+  min-width: 164px;
+  max-width: 228px;
+  pointer-events: auto;
+}
+
+.map-focus-cluster-floating.slot-0 {
+  top: 18%;
+  right: 24%;
+}
+
+.map-focus-cluster-floating.slot-1 {
+  top: 62%;
+  left: 18%;
+}
+
+.map-focus-cluster-floating.slot-2 {
+  right: 18%;
+  bottom: 18%;
 }
 
 .map-empty-banner {
@@ -4141,6 +4180,27 @@ body {
     right: 8px;
     bottom: 96px;
     width: min(220px, calc(100% - 16px));
+  }
+
+  .map-live-focus-grid {
+    inset: 132px 12px 110px 12px;
+  }
+
+  .map-focus-cluster-floating.slot-0 {
+    top: 0;
+    left: 12px;
+    right: 12px;
+    max-width: none;
+  }
+
+  .map-focus-cluster-floating.slot-1 {
+    top: 56%;
+    left: 10%;
+  }
+
+  .map-focus-cluster-floating.slot-2 {
+    right: 10%;
+    bottom: 18%;
   }
 
   .map-legend-item {

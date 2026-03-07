@@ -53,6 +53,7 @@ import type {
   LayerDescriptorMC,
   LeakItemMC,
   MainViewMode,
+  MapFallbackSignalMC,
   MapLayerPackMC,
   MissionAccentTheme,
   MissionControlMode,
@@ -1335,38 +1336,61 @@ function shouldHideFeedSummary(title: string | null | undefined, summary: string
 
 function deriveAdaptiveMapCenter(
   map: HomeSnapshotMC['map'] | undefined,
-  fallback: { latitude: number; longitude: number; zoom: number }
+  fallback: { latitude: number; longitude: number; zoom: number },
+  feedItems: FeedItemMC[] = []
 ): { latitude: number; longitude: number; zoom: number } {
   if (!map) return fallback;
-  const points: Array<{ latitude: number; longitude: number }> = [];
-  const addPoint = (latitude: unknown, longitude: unknown) => {
+  const points: Array<{ latitude: number; longitude: number; score: number }> = [];
+  const addPoint = (latitude: unknown, longitude: unknown, score = 1) => {
     const lat = Number(latitude);
     const lon = Number(longitude);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-    points.push({ latitude: lat, longitude: lon });
+    points.push({ latitude: lat, longitude: lon, score });
   };
 
-  map.event_points.slice(0, 160).forEach((point) => addPoint(point.latitude, point.longitude));
-  (map.optional_feeds.flight_radar || []).slice(0, 120).forEach((point) => addPoint(point.latitude, point.longitude));
-  (map.optional_feeds.maritime_risk || []).slice(0, 60).forEach((point) => addPoint(point.latitude, point.longitude));
-  (map.optional_feeds.cyber_comms || []).slice(0, 80).forEach((point) => addPoint(point.latitude, point.longitude));
-  (map.optional_feeds.weather_alerts || []).slice(0, 60).forEach((point) => addPoint(point.latitude, point.longitude));
+  map.event_points.slice(0, 160).forEach((point) => {
+    addPoint(point.latitude, point.longitude, (SEVERITY_PRIORITY[severityFromMapPoint(point)] || 1) + Number(point.confidence || 0));
+  });
+  (map.optional_feeds.flight_radar || []).slice(0, 120).forEach((point) => addPoint(point.latitude, point.longitude, 0.55));
+  (map.optional_feeds.maritime_risk || []).slice(0, 60).forEach((point) => addPoint(point.latitude, point.longitude, 1.2 + Number(point.risk || 0)));
+  (map.optional_feeds.cyber_comms || []).slice(0, 80).forEach((point) => addPoint(point.latitude, point.longitude, 1 + Number(point.confidence || 0)));
+  (map.optional_feeds.weather_alerts || []).slice(0, 60).forEach((point) => {
+    const level = String(point.level || '').toUpperCase() as SeverityLevel;
+    addPoint(point.latitude, point.longitude, (SEVERITY_PRIORITY[level] || 1) + 0.35);
+  });
+  if (points.length < 6) {
+    feedItems
+      .slice(0, 32)
+      .forEach((item) => {
+        const kindWeight = item.kind === 'verified' ? 1.15 : 0.82;
+        addPoint(
+          item.metadata?.latitude,
+          item.metadata?.longitude,
+          (SEVERITY_PRIORITY[item.severity] || 1) * kindWeight + Number(item.source_count || 0) * 0.08 + Number(item.confidence_score || 0)
+        );
+      });
+  }
 
   if (points.length < 6) return fallback;
 
-  const latitudes = points.map((point) => point.latitude);
-  const longitudes = points.map((point) => point.longitude);
-  const minLat = Math.min(...latitudes);
-  const maxLat = Math.max(...latitudes);
-  const minLon = Math.min(...longitudes);
-  const maxLon = Math.max(...longitudes);
-  const latRange = Math.max(0.1, maxLat - minLat);
-  const lonRange = Math.max(0.1, maxLon - minLon);
-  const span = Math.max(latRange, lonRange);
-  const zoom = span > 145 ? 1.8 : span > 95 ? 2.3 : span > 65 ? 2.8 : span > 42 ? 3.4 : span > 26 ? 4.1 : fallback.zoom;
+  const buckets = new globalThis.Map<string, { latitudeSum: number; longitudeSum: number; score: number; count: number }>();
+  points.forEach((point) => {
+    const key = `${Math.round(point.latitude / 8)}:${Math.round(point.longitude / 10)}`;
+    const bucket = buckets.get(key) || { latitudeSum: 0, longitudeSum: 0, score: 0, count: 0 };
+    bucket.latitudeSum += point.latitude;
+    bucket.longitudeSum += point.longitude;
+    bucket.score += point.score;
+    bucket.count += 1;
+    buckets.set(key, bucket);
+  });
+
+  const bestBucket = [...buckets.values()].sort((a, b) => b.score - a.score || b.count - a.count)[0];
+  if (!bestBucket) return fallback;
+
+  const zoom = bestBucket.count >= 8 ? 4.6 : bestBucket.count >= 4 ? 5 : 5.4;
   return {
-    latitude: Number(((minLat + maxLat) / 2).toFixed(3)),
-    longitude: Number(((minLon + maxLon) / 2).toFixed(3)),
+    latitude: Number((bestBucket.latitudeSum / bestBucket.count).toFixed(3)),
+    longitude: Number((bestBucket.longitudeSum / bestBucket.count).toFixed(3)),
     zoom,
   };
 }
@@ -1854,7 +1878,7 @@ function App() {
             latitude: Number(center.latitude),
             longitude: Number(center.longitude),
             zoom: Number(center.zoom),
-          });
+          }, bundle.feedItems?.items || []);
           setViewState((prev) => ({
             ...prev,
             latitude: resolved.latitude,
@@ -2289,6 +2313,43 @@ function App() {
     }
     return incoming.slice(0, 6);
   }, [isMobile, mapLayerPacks, settings.mode]);
+  const effectiveFeedItems = useMemo(() => {
+    return feedItems.map((item) => ({
+      ...item,
+      source_type: normalizeFeedSourceType(item.source_type),
+    }));
+  }, [feedItems]);
+  const feedMapSignals = useMemo<MapFallbackSignalMC[]>(() => {
+    const seen = new Set<string>();
+    return effectiveFeedItems
+      .filter((item) => item.kind === 'verified')
+      .filter((item) => (severityFilter === 'ALL' ? true : item.severity === severityFilter))
+      .filter((item) => matchesSearch(`${item.title} ${item.location} ${item.summary}`, deferredGlobalSearchQuery))
+      .sort(
+        (a, b) =>
+          (SEVERITY_PRIORITY[b.severity] || 0) - (SEVERITY_PRIORITY[a.severity] || 0)
+          || Number(b.source_count || 0) - Number(a.source_count || 0)
+          || new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      )
+      .flatMap((item) => {
+        const latitude = Number(item.metadata?.latitude || NaN);
+        const longitude = Number(item.metadata?.longitude || NaN);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
+        const label = formatLocationDisplay(item.location, item.title || copy.signalsLabel);
+        const key = `${Math.round(latitude * 2) / 2}:${Math.round(longitude * 2) / 2}:${label.toLowerCase()}`;
+        if (seen.has(key)) return [];
+        seen.add(key);
+        return [{
+          id: `feed-map-${item.id}`,
+          label,
+          summary: item.source_name || item.category || copy.signalsLabel,
+          severity: item.severity,
+          latitude,
+          longitude,
+        }];
+      })
+      .slice(0, isMobile ? 5 : 10);
+  }, [copy.signalsLabel, deferredGlobalSearchQuery, effectiveFeedItems, isMobile, severityFilter]);
   const visibleMapSignals = useMemo(() => {
     if (!home) return 0;
     let total = 0;
@@ -2304,8 +2365,8 @@ function App() {
     if (activeLayers.has('cyber-comms')) total += home.map.optional_feeds.cyber_comms?.length || 0;
     if (activeLayers.has('weather-alerts')) total += home.map.optional_feeds.weather_alerts?.length || 0;
     if (activeLayers.has('economic-shocks')) total += home.map.optional_feeds.economic_shocks?.length || 0;
-    return total;
-  }, [activeLayers, home, severityFilter]);
+    return total || feedMapSignals.length;
+  }, [activeLayers, feedMapSignals.length, home, severityFilter]);
   const hotspotSeverityCounts = useMemo(() => {
     const counts = { critical: 0, high: 0, elevated: 0, info: 0 };
     (home?.map.event_points || []).forEach((point) => {
@@ -2317,6 +2378,16 @@ function App() {
     });
     return counts;
   }, [home?.map.event_points]);
+  const fallbackSignalSeverityCounts = useMemo(() => {
+    const counts = { critical: 0, high: 0, elevated: 0, info: 0 };
+    feedMapSignals.forEach((signal) => {
+      if (signal.severity === 'CRITICAL') counts.critical += 1;
+      else if (signal.severity === 'HIGH') counts.high += 1;
+      else if (signal.severity === 'ELEVATED') counts.elevated += 1;
+      else counts.info += 1;
+    });
+    return counts;
+  }, [feedMapSignals]);
   const mapOverviewItems = useMemo(() => ([
     {
       key: 'signals',
@@ -2361,7 +2432,16 @@ function App() {
     if (activeLayers.has('weather-alerts')) {
       items.push({ key: 'weather', label: copy.layerWeatherShort, count: home?.map.optional_feeds.weather_alerts?.length || 0, tone: 'weather' });
     }
-    return items.filter((item) => item.count > 0).slice(0, settings.mode === 'simple' ? 5 : 8);
+    const populated = items.filter((item) => item.count > 0);
+    if (populated.length > 0) {
+      return populated.slice(0, settings.mode === 'simple' ? 5 : 8);
+    }
+    return [
+      { key: 'critical-fallback', label: copy.feedCritical, count: fallbackSignalSeverityCounts.critical, tone: 'critical' },
+      { key: 'high-fallback', label: copy.feedHigh, count: fallbackSignalSeverityCounts.high, tone: 'high' },
+      { key: 'elevated-fallback', label: copy.feedElevated, count: fallbackSignalSeverityCounts.elevated, tone: 'elevated' },
+      { key: 'info-fallback', label: copy.feedInfo, count: fallbackSignalSeverityCounts.info, tone: 'info' },
+    ].filter((item) => item.count > 0).slice(0, settings.mode === 'simple' ? 4 : 6);
   }, [
     activeLayers,
     copy.feedCritical,
@@ -2372,6 +2452,7 @@ function App() {
     copy.layerPackFlights,
     copy.layerPackMaritime,
     copy.layerWeatherShort,
+    fallbackSignalSeverityCounts,
     home?.map.optional_feeds.cyber_comms?.length,
     home?.map.optional_feeds.flight_radar?.length,
     home?.map.optional_feeds.maritime_risk?.length,
@@ -2387,26 +2468,36 @@ function App() {
   }, [home?.posture?.level]);
   const mapSignalDigest = useMemo(() => {
     const points = Array.isArray(home?.map?.event_points) ? home.map.event_points : [];
-    const filtered = activeLayers.has('verified-hotspots')
-      ? points.filter((point) => (severityFilter === 'ALL' ? true : severityFromMapPoint(point) === severityFilter))
-      : [];
-    const ordered = [...filtered]
-      .sort((a, b) => {
-        const severityDelta = (SEVERITY_PRIORITY[severityFromMapPoint(b)] || 0) - (SEVERITY_PRIORITY[severityFromMapPoint(a)] || 0);
-        if (severityDelta !== 0) return severityDelta;
-        return Number(b.confidence || 0) - Number(a.confidence || 0);
-      });
-    const seen = new Set<string>();
-    const deduped = [];
-    for (const point of ordered) {
-      const key = `${String(point.location || '').trim().toLowerCase()}:${severityFromMapPoint(point)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      deduped.push(point);
-      if (deduped.length >= (isMobile ? 1 : 3)) break;
+    if (activeLayers.has('verified-hotspots') && points.length) {
+      const filtered = points.filter((point) => (severityFilter === 'ALL' ? true : severityFromMapPoint(point) === severityFilter));
+      const ordered = [...filtered]
+        .sort((a, b) => {
+          const severityDelta = (SEVERITY_PRIORITY[severityFromMapPoint(b)] || 0) - (SEVERITY_PRIORITY[severityFromMapPoint(a)] || 0);
+          if (severityDelta !== 0) return severityDelta;
+          return Number(b.confidence || 0) - Number(a.confidence || 0);
+        });
+      const seen = new Set<string>();
+      const deduped: MapFallbackSignalMC[] = [];
+      for (const point of ordered) {
+        const severity = severityFromMapPoint(point);
+        const key = `${String(point.location || '').trim().toLowerCase()}:${severity}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push({
+          id: `hotspot-digest-${point.id}`,
+          label: formatLocationDisplay(point.location, copy.signalsLabel),
+          summary: 'Verified hotspot',
+          severity,
+          latitude: Number(point.latitude),
+          longitude: Number(point.longitude),
+        });
+        if (deduped.length >= (isMobile ? 1 : 3)) break;
+      }
+      return deduped;
     }
-    return deduped;
-  }, [activeLayers, home?.map?.event_points, isMobile, severityFilter]);
+    return feedMapSignals.slice(0, isMobile ? 1 : 3);
+  }, [activeLayers, copy.signalsLabel, feedMapSignals, home?.map?.event_points, isMobile, severityFilter]);
+  const showMapSurfaceFocus = mapSignalDigest.length > 0;
 
   const notificationCounts = useMemo(() => {
     return {
@@ -2572,13 +2663,6 @@ function App() {
       setExpandedFeedItemId('');
     }
   }, [expandedFeedItemId, settings.mode]);
-
-  const effectiveFeedItems = useMemo(() => {
-    return feedItems.map((item) => ({
-      ...item,
-      source_type: normalizeFeedSourceType(item.source_type),
-    }));
-  }, [feedItems]);
 
   const leaksById = useMemo(() => {
     const map = new Map<string, LeakItemMC>();
@@ -3547,10 +3631,41 @@ function App() {
                     </div>
                   ))}
                 </div>
-                {!!mapSignalDigest.length && (!isMobile || tourStep < 0) && (
+                {showMapSurfaceFocus && tourStep < 0 && (
+                  <div className="map-live-focus-grid" aria-label={copy.visibleSignals}>
+                    {mapSignalDigest.slice(0, isMobile ? 1 : 3).map((point, index) => {
+                      const severity = point.severity;
+                      return (
+                        <button
+                          key={`surface-focus-${point.id}`}
+                          type="button"
+                          className={`map-focus-cluster map-focus-cluster-floating slot-${index} tone-${severity.toLowerCase()}`}
+                          onClick={() => {
+                            setSelectedAlert(null);
+                            setSelectedLeak(null);
+                            setViewState((prev) => ({
+                              ...prev,
+                              latitude: Number(point.latitude),
+                              longitude: Number(point.longitude),
+                              zoom: Math.max(prev.zoom, 5.8),
+                            }));
+                          }}
+                          title={`${point.label} · ${point.summary}`}
+                        >
+                          <span className="focus-cluster-kicker">{point.summary}</span>
+                          <strong>{point.label}</strong>
+                          <span className="focus-cluster-count">
+                            {severity === 'ELEVATED' ? copy.feedElevated : severity === 'INFO' ? copy.feedInfo : severity}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {!!mapSignalDigest.length && !showMapSurfaceFocus && (!isMobile || tourStep < 0) && (
                   <div className="map-signal-digest" aria-label={copy.visibleSignals}>
                     {mapSignalDigest.map((point) => {
-                      const severity = severityFromMapPoint(point);
+                      const severity = point.severity;
                       return (
                         <button
                           key={`digest-${point.id}`}
@@ -3566,10 +3681,10 @@ function App() {
                               zoom: Math.max(prev.zoom, 5.6),
                             }));
                           }}
-                          title={formatLocationDisplay(point.location, copy.signalsLabel)}
+                          title={point.label}
                         >
                           <span className="digest-dot" aria-hidden="true" />
-                          <span className="digest-label">{formatLocationDisplay(point.location, copy.signalsLabel)}</span>
+                          <span className="digest-label">{point.label}</span>
                           <strong>{severity === 'ELEVATED' ? copy.feedElevated : severity === 'INFO' ? copy.feedInfo : severity}</strong>
                         </button>
                       );
@@ -3656,6 +3771,7 @@ function App() {
                   accentTheme={currentAccentTheme}
                   activeLayers={activeLayers}
                   severityFilter={severityFilter}
+                  fallbackSignals={feedMapSignals}
                   viewState={viewState}
                   deckUnavailable={deckUnavailable}
                   onDeckUnavailable={handleDeckUnavailable}

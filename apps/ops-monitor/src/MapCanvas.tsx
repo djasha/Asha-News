@@ -4,7 +4,7 @@ import { DeckGL } from '@deck.gl/react';
 import Map, { Marker, NavigationControl } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 
-import type { HomeSnapshotMC, MissionAccentTheme } from './types';
+import type { HomeSnapshotMC, MapFallbackSignalMC, MissionAccentTheme, SeverityLevel } from './types';
 import { formatLocationDisplay, formatSignalLabel } from './labelUtils';
 import { buildMapFocusClusters, severityFromMapPoint } from './mapUtils';
 import { resolveMissionControlMapStyle } from './mapStyle';
@@ -41,6 +41,7 @@ type MapCanvasProps = {
   accentTheme: MissionAccentTheme;
   activeLayers: Set<string>;
   severityFilter: string;
+  fallbackSignals?: MapFallbackSignalMC[];
   viewState: ViewState;
   deckUnavailable: boolean;
   onDeckUnavailable: () => void;
@@ -142,6 +143,77 @@ function resolveLayerVisibilityProfile(zoom: number, compact: boolean, isMobile:
   };
 }
 
+function resolveSeverityColor(severity: SeverityLevel): string {
+  if (severity === 'CRITICAL') return '#ef4444';
+  if (severity === 'HIGH') return '#f59e0b';
+  if (severity === 'ELEVATED') return '#eab308';
+  return '#94a3b8';
+}
+
+function resolveSeverityMarkerSize(severity: SeverityLevel): number {
+  if (severity === 'CRITICAL') return 14;
+  if (severity === 'HIGH') return 12;
+  if (severity === 'ELEVATED') return 10;
+  return 9;
+}
+
+function buildFallbackSurfaceClusters(
+  signals: MapFallbackSignalMC[],
+  zoom: number,
+  compact: boolean,
+  isMobile: boolean
+): Array<MapFallbackSignalMC & { signalCount: number }> {
+  if (!signals.length) return [];
+
+  const latStep = zoom <= 3.2 ? 18 : zoom <= 4.5 ? 14 : 10;
+  const lonStep = zoom <= 3.2 ? 24 : zoom <= 4.5 ? 18 : 12;
+  const buckets = new globalThis.Map<
+    string,
+    {
+      latitudeSum: number;
+      longitudeSum: number;
+      signals: MapFallbackSignalMC[];
+    }
+  >();
+
+  signals.forEach((signal) => {
+    const latitude = Number(signal.latitude);
+    const longitude = Number(signal.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+    const key = `${Math.round(latitude / latStep)}:${Math.round(longitude / lonStep)}`;
+    const bucket = buckets.get(key) || {
+      latitudeSum: 0,
+      longitudeSum: 0,
+      signals: [],
+    };
+    bucket.latitudeSum += latitude;
+    bucket.longitudeSum += longitude;
+    bucket.signals.push(signal);
+    buckets.set(key, bucket);
+  });
+
+  return [...buckets.values()]
+    .map((bucket) => {
+      const ordered = [...bucket.signals].sort(
+        (a, b) => (SEVERITY_WEIGHT[b.severity] || 0) - (SEVERITY_WEIGHT[a.severity] || 0)
+      );
+      const primary = ordered[0];
+      return {
+        ...primary,
+        latitude: Number((bucket.latitudeSum / bucket.signals.length).toFixed(3)),
+        longitude: Number((bucket.longitudeSum / bucket.signals.length).toFixed(3)),
+        summary: bucket.signals.length > 1 ? `${bucket.signals.length} verified feed signals` : primary.summary,
+        signalCount: bucket.signals.length,
+      };
+    })
+    .sort((a, b) => {
+      const severityDelta = (SEVERITY_WEIGHT[b.severity] || 0) - (SEVERITY_WEIGHT[a.severity] || 0);
+      if (severityDelta !== 0) return severityDelta;
+      return b.signalCount - a.signalCount;
+    })
+    .slice(0, isMobile ? 1 : compact ? 2 : 4);
+}
+
 export default function MapCanvas({
   home,
   compact = false,
@@ -149,11 +221,13 @@ export default function MapCanvas({
   accentTheme,
   activeLayers,
   severityFilter,
+  fallbackSignals = [],
   viewState,
   deckUnavailable,
   onDeckUnavailable,
   onViewStateChange,
 }: MapCanvasProps) {
+  const focusClusterZoomLimit = isMobile ? 6.1 : 5.4;
   const mapTone = useMemo(
     () =>
       accentTheme === 'palestine'
@@ -312,21 +386,12 @@ export default function MapCanvas({
     if (activeLayers.has('verified-hotspots')) {
       prioritizedHotspots.forEach((point, index) => {
           const severity = severityFromMapPoint(point);
-          const color =
-            severity === 'CRITICAL'
-              ? '#ef4444'
-              : severity === 'HIGH'
-                ? '#f59e0b'
-                : severity === 'ELEVATED'
-                  ? '#eab308'
-                  : '#94a3b8';
-          const size = severity === 'CRITICAL' ? 14 : severity === 'HIGH' ? 12 : 10;
           addMarker(
             `fallback-hotspot-${point.id || index}`,
             Number(point.latitude),
             Number(point.longitude),
-            color,
-            size,
+            resolveSeverityColor(severity),
+            resolveSeverityMarkerSize(severity),
             formatLocationDisplay(point.location, 'Verified hotspot')
           );
         });
@@ -424,6 +489,28 @@ export default function MapCanvas({
   const visibleFocusClusters = useMemo(
     () => (visibilityProfile.showFocusClusters ? (isMobile ? focusClusters.slice(0, 1) : focusClusters) : []),
     [focusClusters, isMobile, visibilityProfile.showFocusClusters]
+  );
+  const needsFocusFallback = visibleFocusClusters.length === 0 && fallbackSignals.length > 0;
+  const fallbackSurfaceClusters = useMemo(
+    () => (
+      visibilityProfile.showFocusClusters && needsFocusFallback
+        ? buildFallbackSurfaceClusters(fallbackSignals, viewState.zoom, compact, isMobile)
+        : []
+    ),
+    [compact, fallbackSignals, isMobile, needsFocusFallback, viewState.zoom, visibilityProfile.showFocusClusters]
+  );
+  const renderedFocusClusters = needsFocusFallback ? fallbackSurfaceClusters : visibleFocusClusters;
+  const fallbackSurfaceMarkers = useMemo(
+    () => (
+      needsFocusFallback
+        ? dedupeByPoint(
+            [...fallbackSignals].sort((a, b) => (SEVERITY_WEIGHT[b.severity] || 0) - (SEVERITY_WEIGHT[a.severity] || 0)),
+            compact ? 5 : 9,
+            (item) => `${item.label}:${item.severity}`
+          )
+        : []
+    ),
+    [compact, fallbackSignals, needsFocusFallback]
   );
 
   const deckLayers = useMemo(() => {
@@ -629,7 +716,7 @@ export default function MapCanvas({
 
   const renderMapAnnotations = () => (
     <>
-      {viewState.zoom <= 5.4 && visibleFocusClusters.map((cluster) => (
+      {viewState.zoom <= focusClusterZoomLimit && renderedFocusClusters.map((cluster) => (
         <Marker
           key={cluster.id}
           latitude={cluster.latitude}
@@ -654,6 +741,27 @@ export default function MapCanvas({
             <strong>{formatLocationDisplay(cluster.label, 'Focus zone')}</strong>
             <span className="focus-cluster-count">{cluster.signalCount}</span>
           </button>
+        </Marker>
+      ))}
+      {!deckUnavailable && viewState.zoom > focusClusterZoomLimit - 0.2 && fallbackSurfaceMarkers.map((point) => (
+        <Marker
+          key={`supplemental-${point.id}`}
+          latitude={point.latitude}
+          longitude={point.longitude}
+          anchor="center"
+        >
+          <span
+            title={`${point.label} · ${point.summary}`}
+            style={{
+              width: `${resolveSeverityMarkerSize(point.severity)}px`,
+              height: `${resolveSeverityMarkerSize(point.severity)}px`,
+              borderRadius: '999px',
+              border: '1px solid rgba(15, 23, 42, 0.85)',
+              display: 'inline-block',
+              background: resolveSeverityColor(point.severity),
+              boxShadow: `0 0 0 3px ${resolveSeverityColor(point.severity)}33`,
+            }}
+          />
         </Marker>
       ))}
       {(deckUnavailable ? fallbackMarkers : []).map((point) => (
