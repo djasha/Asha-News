@@ -17,6 +17,23 @@ type ViewState = {
   bearing: number;
 };
 
+type LayerVisibilityProfile = {
+  showFocusClusters: boolean;
+  hotspotCap: number;
+  showInfrastructure: boolean;
+  infrastructureCap: number;
+  showWeather: boolean;
+  weatherCap: number;
+  showFlights: boolean;
+  flightCap: number;
+  showMaritime: boolean;
+  maritimeCap: number;
+  showCyber: boolean;
+  cyberCap: number;
+  showEconomic: boolean;
+  economicCap: number;
+};
+
 type MapCanvasProps = {
   home: HomeSnapshotMC;
   compact?: boolean;
@@ -56,6 +73,75 @@ function dedupeByPoint<T extends { latitude?: number | null; longitude?: number 
   return next;
 }
 
+const SEVERITY_WEIGHT = {
+  CRITICAL: 4,
+  HIGH: 3,
+  ELEVATED: 2,
+  INFO: 1,
+} as const;
+
+function resolveLayerVisibilityProfile(zoom: number, compact: boolean, isMobile: boolean): LayerVisibilityProfile {
+  const strategicView = zoom <= 4.85;
+  const theaterView = zoom > 4.85 && zoom <= 6.15;
+  const mobilePenalty = isMobile ? 0.72 : 1;
+  const scale = (value: number) => Math.max(1, Math.round(value * mobilePenalty));
+
+  if (strategicView) {
+    return {
+      showFocusClusters: true,
+      hotspotCap: scale(compact ? 10 : 16),
+      showInfrastructure: false,
+      infrastructureCap: 0,
+      showWeather: false,
+      weatherCap: 0,
+      showFlights: false,
+      flightCap: 0,
+      showMaritime: true,
+      maritimeCap: scale(compact ? 3 : 5),
+      showCyber: false,
+      cyberCap: 0,
+      showEconomic: false,
+      economicCap: 0,
+    };
+  }
+
+  if (theaterView) {
+    return {
+      showFocusClusters: true,
+      hotspotCap: scale(compact ? 18 : 28),
+      showInfrastructure: true,
+      infrastructureCap: scale(compact ? 8 : 14),
+      showWeather: true,
+      weatherCap: scale(compact ? 10 : 18),
+      showFlights: zoom >= 5.35,
+      flightCap: zoom >= 5.35 ? scale(compact ? 10 : 18) : 0,
+      showMaritime: true,
+      maritimeCap: scale(compact ? 6 : 10),
+      showCyber: zoom >= 5.4,
+      cyberCap: zoom >= 5.4 ? scale(compact ? 10 : 18) : 0,
+      showEconomic: zoom >= 5.15,
+      economicCap: zoom >= 5.15 ? scale(compact ? 5 : 9) : 0,
+    };
+  }
+
+  return {
+    showFocusClusters: zoom <= 6.8,
+    hotspotCap: scale(compact ? 30 : 52),
+    showInfrastructure: true,
+    infrastructureCap: scale(compact ? 14 : 22),
+    showWeather: true,
+    weatherCap: scale(compact ? 18 : 30),
+    showFlights: true,
+    flightCap: scale(compact ? 18 : 34),
+    showMaritime: true,
+    maritimeCap: scale(compact ? 10 : 18),
+    showCyber: true,
+    cyberCap: scale(compact ? 16 : 28),
+    showEconomic: true,
+    economicCap: scale(compact ? 8 : 14),
+  };
+}
+
 export default function MapCanvas({
   home,
   compact = false,
@@ -72,13 +158,15 @@ export default function MapCanvas({
     () =>
       accentTheme === 'palestine'
         ? {
-            infoHex: '#22c55e',
+            weatherHex: '#38bdf8',
+            weatherFill: [56, 189, 248, 170] as [number, number, number, number],
             infrastructureFill: [34, 197, 94, 150] as [number, number, number, number],
             infrastructureLine: [187, 247, 208, 220] as [number, number, number, number],
             waterways: [74, 222, 128] as [number, number, number],
           }
         : {
-            infoHex: '#3b82f6',
+            weatherHex: '#38bdf8',
+            weatherFill: [56, 189, 248, 170] as [number, number, number, number],
             infrastructureFill: [14, 165, 233, 145] as [number, number, number, number],
             infrastructureLine: [6, 182, 212, 220] as [number, number, number, number],
             waterways: [34, 211, 238] as [number, number, number],
@@ -88,6 +176,101 @@ export default function MapCanvas({
   const mapStyle = useMemo(
     () => resolveMissionControlMapStyle(import.meta.env.VITE_MC_MAP_STYLE_URL as string | undefined, accentTheme),
     [accentTheme]
+  );
+  const visibilityProfile = useMemo(
+    () => resolveLayerVisibilityProfile(viewState.zoom, compact, isMobile),
+    [compact, isMobile, viewState.zoom]
+  );
+  const prioritizedHotspots = useMemo(
+    () =>
+      [...home.map.event_points]
+        .filter((point) => {
+          const pointSeverity = severityFromMapPoint(point);
+          return severityFilter === 'ALL' ? true : pointSeverity === severityFilter;
+        })
+        .sort((a, b) => {
+          const severityDiff =
+            (SEVERITY_WEIGHT[severityFromMapPoint(b)] || 0) - (SEVERITY_WEIGHT[severityFromMapPoint(a)] || 0);
+          if (severityDiff !== 0) return severityDiff;
+          const casualtyDiff =
+            Number(b.fatalities_total || 0) + Number(b.injured_total || 0) - (Number(a.fatalities_total || 0) + Number(a.injured_total || 0));
+          if (casualtyDiff !== 0) return casualtyDiff;
+          return Number(b.confidence || 0) - Number(a.confidence || 0);
+        })
+        .slice(0, visibilityProfile.hotspotCap),
+    [home.map.event_points, severityFilter, visibilityProfile.hotspotCap]
+  );
+  const prioritizedInfrastructure = useMemo(
+    () =>
+      visibilityProfile.showInfrastructure
+        ? dedupeByPoint(
+            [...home.map.infrastructure_points].sort((a, b) => Number(b.risk || 0) - Number(a.risk || 0)),
+            visibilityProfile.infrastructureCap,
+            (item) => String(item.name || item.id || '')
+          )
+        : [],
+    [home.map.infrastructure_points, visibilityProfile.infrastructureCap, visibilityProfile.showInfrastructure]
+  );
+  const prioritizedWeather = useMemo(
+    () =>
+      visibilityProfile.showWeather
+        ? dedupeByPoint(
+            [...(home.map.optional_feeds.weather_alerts || [])].sort((a, b) => {
+              const severityDiff =
+                (SEVERITY_WEIGHT[String(b.level || '').toUpperCase() as keyof typeof SEVERITY_WEIGHT] || 1)
+                - (SEVERITY_WEIGHT[String(a.level || '').toUpperCase() as keyof typeof SEVERITY_WEIGHT] || 1);
+              if (severityDiff !== 0) return severityDiff;
+              return String(a.event || '').localeCompare(String(b.event || ''));
+            }),
+            visibilityProfile.weatherCap,
+            (item) => String(item.event || item.level || '')
+          )
+        : [],
+    [home.map.optional_feeds.weather_alerts, visibilityProfile.showWeather, visibilityProfile.weatherCap]
+  );
+  const prioritizedFlights = useMemo(
+    () =>
+      visibilityProfile.showFlights
+        ? dedupeByPoint(
+            [...(home.map.optional_feeds.flight_radar || [])].sort((a, b) => Number(b.speed_kts || 0) - Number(a.speed_kts || 0)),
+            visibilityProfile.flightCap,
+            (item) => String(item.callsign || item.id || '')
+          )
+        : [],
+    [home.map.optional_feeds.flight_radar, visibilityProfile.flightCap, visibilityProfile.showFlights]
+  );
+  const prioritizedMaritime = useMemo(
+    () =>
+      visibilityProfile.showMaritime
+        ? dedupeByPoint(
+            [...(home.map.optional_feeds.maritime_risk || [])].sort((a, b) => Number(b.risk || 0) - Number(a.risk || 0)),
+            visibilityProfile.maritimeCap,
+            (item) => String(item.corridor || item.id || '')
+          )
+        : [],
+    [home.map.optional_feeds.maritime_risk, visibilityProfile.maritimeCap, visibilityProfile.showMaritime]
+  );
+  const prioritizedCyber = useMemo(
+    () =>
+      visibilityProfile.showCyber
+        ? dedupeByPoint(
+            [...(home.map.optional_feeds.cyber_comms || [])].sort((a, b) => Number(b.confidence || 0) - Number(a.confidence || 0)),
+            visibilityProfile.cyberCap,
+            (item) => String(item.impact || item.id || '')
+          )
+        : [],
+    [home.map.optional_feeds.cyber_comms, visibilityProfile.cyberCap, visibilityProfile.showCyber]
+  );
+  const prioritizedEconomic = useMemo(
+    () =>
+      visibilityProfile.showEconomic
+        ? dedupeByPoint(
+            [...(home.map.optional_feeds.economic_shocks || [])].sort((a, b) => Number(b.intensity || 0) - Number(a.intensity || 0)),
+            visibilityProfile.economicCap,
+            (item) => String(item.id || '')
+          )
+        : [],
+    [home.map.optional_feeds.economic_shocks, visibilityProfile.economicCap, visibilityProfile.showEconomic]
   );
   const fallbackMarkers = useMemo(() => {
     const markers: Array<{
@@ -99,15 +282,7 @@ export default function MapCanvas({
       label: string;
     }> = [];
     const markerKeySet = new Set<string>();
-    const maxTotalMarkers = compact ? 96 : 170;
-    const layerCap = {
-      hotspots: compact ? 40 : 80,
-      flight: compact ? 36 : 70,
-      maritime: compact ? 18 : 40,
-      cyber: compact ? 24 : 48,
-      weather: compact ? 18 : 40,
-      economic: compact ? 16 : 32,
-    };
+    const maxTotalMarkers = compact ? 56 : 104;
 
     const addMarker = (
       id: string,
@@ -135,13 +310,7 @@ export default function MapCanvas({
     };
 
     if (activeLayers.has('verified-hotspots')) {
-      home.map.event_points
-        .filter((point) => {
-          const pointSeverity = severityFromMapPoint(point);
-          return severityFilter === 'ALL' ? true : pointSeverity === severityFilter;
-        })
-        .slice(0, layerCap.hotspots)
-        .forEach((point, index) => {
+      prioritizedHotspots.forEach((point, index) => {
           const severity = severityFromMapPoint(point);
           const color =
             severity === 'CRITICAL'
@@ -163,8 +332,8 @@ export default function MapCanvas({
         });
     }
 
-    if (activeLayers.has('flight-radar')) {
-      (home.map.optional_feeds.flight_radar || []).slice(0, layerCap.flight).forEach((item, index) => {
+    if (activeLayers.has('flight-radar') && visibilityProfile.showFlights) {
+      prioritizedFlights.forEach((item, index) => {
         addMarker(
           `fallback-flight-${item.id || index}`,
           Number(item.latitude),
@@ -176,8 +345,8 @@ export default function MapCanvas({
       });
     }
 
-    if (activeLayers.has('maritime-risk')) {
-      (home.map.optional_feeds.maritime_risk || []).slice(0, layerCap.maritime).forEach((item, index) => {
+    if (activeLayers.has('maritime-risk') && visibilityProfile.showMaritime) {
+      prioritizedMaritime.forEach((item, index) => {
         addMarker(
           `fallback-maritime-${item.id || index}`,
           Number(item.latitude),
@@ -189,8 +358,8 @@ export default function MapCanvas({
       });
     }
 
-    if (activeLayers.has('cyber-comms')) {
-      (home.map.optional_feeds.cyber_comms || []).slice(0, layerCap.cyber).forEach((item, index) => {
+    if (activeLayers.has('cyber-comms') && visibilityProfile.showCyber) {
+      prioritizedCyber.forEach((item, index) => {
         addMarker(
           `fallback-cyber-${item.id || index}`,
           Number(item.latitude),
@@ -202,10 +371,10 @@ export default function MapCanvas({
       });
     }
 
-    if (activeLayers.has('weather-alerts')) {
-      (home.map.optional_feeds.weather_alerts || []).slice(0, layerCap.weather).forEach((item, index) => {
+    if (activeLayers.has('weather-alerts') && visibilityProfile.showWeather) {
+      prioritizedWeather.forEach((item, index) => {
         const level = String(item.level || '').toUpperCase();
-        const color = level === 'CRITICAL' ? '#ef4444' : level === 'HIGH' ? '#f59e0b' : mapTone.infoHex;
+        const color = level === 'CRITICAL' ? '#ef4444' : level === 'HIGH' ? '#f59e0b' : mapTone.weatherHex;
         addMarker(
           `fallback-weather-${item.id || index}`,
           Number(item.latitude),
@@ -217,8 +386,8 @@ export default function MapCanvas({
       });
     }
 
-    if (activeLayers.has('economic-shocks')) {
-      (home.map.optional_feeds.economic_shocks || []).slice(0, layerCap.economic).forEach((item, index) => {
+    if (activeLayers.has('economic-shocks') && visibilityProfile.showEconomic) {
+      prioritizedEconomic.forEach((item, index) => {
         addMarker(
           `fallback-economic-${item.id || index}`,
           Number(item.latitude),
@@ -231,44 +400,34 @@ export default function MapCanvas({
     }
 
     return markers;
-  }, [activeLayers, compact, home.map.event_points, home.map.optional_feeds, mapTone.infoHex, severityFilter]);
+  }, [
+    activeLayers,
+    compact,
+    mapTone.weatherHex,
+    prioritizedCyber,
+    prioritizedEconomic,
+    prioritizedFlights,
+    prioritizedHotspots,
+    prioritizedMaritime,
+    prioritizedWeather,
+    visibilityProfile.showCyber,
+    visibilityProfile.showEconomic,
+    visibilityProfile.showFlights,
+    visibilityProfile.showMaritime,
+    visibilityProfile.showWeather,
+  ]);
 
   const focusClusters = useMemo(
     () => buildMapFocusClusters(home, activeLayers, severityFilter, viewState.zoom, compact),
     [activeLayers, compact, home, severityFilter, viewState.zoom]
   );
   const visibleFocusClusters = useMemo(
-    () => (isMobile ? focusClusters.slice(0, 1) : focusClusters),
-    [focusClusters, isMobile]
+    () => (visibilityProfile.showFocusClusters ? (isMobile ? focusClusters.slice(0, 1) : focusClusters) : []),
+    [focusClusters, isMobile, visibilityProfile.showFocusClusters]
   );
 
   const deckLayers = useMemo(() => {
     const list: any[] = [];
-    const weatherPoints = dedupeByPoint(
-      home.map.optional_feeds.weather_alerts || [],
-      compact ? 36 : 72,
-      (item) => String(item.event || item.level || '')
-    );
-    const flightPoints = dedupeByPoint(
-      home.map.optional_feeds.flight_radar || [],
-      compact ? 48 : 96,
-      (item) => String(item.callsign || item.id || '')
-    );
-    const maritimePoints = dedupeByPoint(
-      home.map.optional_feeds.maritime_risk || [],
-      compact ? 24 : 48,
-      (item) => String(item.corridor || item.id || '')
-    );
-    const cyberPoints = dedupeByPoint(
-      home.map.optional_feeds.cyber_comms || [],
-      compact ? 32 : 64,
-      (item) => String(item.impact || item.id || '')
-    );
-    const economicPoints = dedupeByPoint(
-      home.map.optional_feeds.economic_shocks || [],
-      compact ? 24 : 48,
-      (item) => String(item.id || '')
-    );
 
     if (activeLayers.has('conflict-zones')) {
       list.push(
@@ -291,15 +450,10 @@ export default function MapCanvas({
     }
 
     if (activeLayers.has('verified-hotspots')) {
-      const points = home.map.event_points.filter((point) => {
-        const pointSeverity = severityFromMapPoint(point);
-        return severityFilter === 'ALL' ? true : pointSeverity === severityFilter;
-      });
-
       list.push(
         new ScatterplotLayer({
           id: 'mc-verified-hotspots',
-          data: points,
+          data: prioritizedHotspots,
           getPosition: (d: { longitude: number; latitude: number }) => [d.longitude, d.latitude],
           getRadius: (d: { fatalities_total: number; injured_total: number; confidence: number }) => {
             const scale =
@@ -334,11 +488,11 @@ export default function MapCanvas({
       );
     }
 
-    if (activeLayers.has('critical-infrastructure')) {
+    if (activeLayers.has('critical-infrastructure') && visibilityProfile.showInfrastructure) {
       list.push(
         new ScatterplotLayer({
           id: 'mc-infrastructure',
-          data: home.map.infrastructure_points,
+          data: prioritizedInfrastructure,
           getPosition: (d: { longitude: number; latitude: number }) => [d.longitude, d.latitude],
           getRadius: (d: { risk: number }) => 2100 + Number(d.risk || 0) * 3200,
           radiusMinPixels: 2,
@@ -373,11 +527,11 @@ export default function MapCanvas({
       );
     }
 
-    if (activeLayers.has('weather-alerts')) {
+    if (activeLayers.has('weather-alerts') && visibilityProfile.showWeather) {
       list.push(
         new ScatterplotLayer({
           id: 'mc-weather-alerts',
-          data: weatherPoints,
+          data: prioritizedWeather,
           getPosition: (d: { longitude: number; latitude: number }) => [d.longitude, d.latitude],
           getRadius: 4200,
           radiusMinPixels: 4,
@@ -386,23 +540,18 @@ export default function MapCanvas({
             const level = String(d.level || '').toUpperCase();
             if (level === 'HIGH') return [245, 158, 11, 180];
             if (level === 'CRITICAL') return [239, 68, 68, 185];
-            return [
-              mapTone.infrastructureFill[0],
-              mapTone.infrastructureFill[1],
-              mapTone.infrastructureFill[2],
-              170,
-            ] as [number, number, number, number];
+            return mapTone.weatherFill;
           },
           pickable: true,
         })
       );
     }
 
-    if (activeLayers.has('flight-radar')) {
+    if (activeLayers.has('flight-radar') && visibilityProfile.showFlights) {
       list.push(
         new ScatterplotLayer({
           id: 'mc-flight-radar',
-          data: flightPoints,
+          data: prioritizedFlights,
           getPosition: (d: { longitude: number; latitude: number }) => [d.longitude, d.latitude],
           getRadius: 3200,
           radiusMinPixels: 2,
@@ -413,11 +562,11 @@ export default function MapCanvas({
       );
     }
 
-    if (activeLayers.has('maritime-risk')) {
+    if (activeLayers.has('maritime-risk') && visibilityProfile.showMaritime) {
       list.push(
         new ScatterplotLayer({
           id: 'mc-maritime-risk',
-          data: maritimePoints,
+          data: prioritizedMaritime,
           getPosition: (d: { longitude: number; latitude: number }) => [d.longitude, d.latitude],
           getRadius: (d: { risk: number }) => 2500 + Number(d.risk || 0) * 2800,
           radiusMinPixels: 3,
@@ -428,11 +577,11 @@ export default function MapCanvas({
       );
     }
 
-    if (activeLayers.has('cyber-comms')) {
+    if (activeLayers.has('cyber-comms') && visibilityProfile.showCyber) {
       list.push(
         new ScatterplotLayer({
           id: 'mc-cyber-comms',
-          data: cyberPoints,
+          data: prioritizedCyber,
           getPosition: (d: { longitude: number; latitude: number }) => [d.longitude, d.latitude],
           getRadius: 2800,
           radiusMinPixels: 3,
@@ -443,11 +592,11 @@ export default function MapCanvas({
       );
     }
 
-    if (activeLayers.has('economic-shocks')) {
+    if (activeLayers.has('economic-shocks') && visibilityProfile.showEconomic) {
       list.push(
         new ScatterplotLayer({
           id: 'mc-economic-shocks',
-          data: economicPoints,
+          data: prioritizedEconomic,
           getPosition: (d: { longitude: number; latitude: number }) => [d.longitude, d.latitude],
           getRadius: (d: { intensity: number }) => 2400 + Number(d.intensity || 0) * 2600,
           radiusMinPixels: 3,
@@ -459,7 +608,24 @@ export default function MapCanvas({
     }
 
     return list;
-  }, [activeLayers, compact, home, mapTone, severityFilter]);
+  }, [
+    activeLayers,
+    home.map.location_intensity,
+    mapTone,
+    prioritizedCyber,
+    prioritizedEconomic,
+    prioritizedFlights,
+    prioritizedHotspots,
+    prioritizedInfrastructure,
+    prioritizedMaritime,
+    prioritizedWeather,
+    visibilityProfile.showCyber,
+    visibilityProfile.showEconomic,
+    visibilityProfile.showFlights,
+    visibilityProfile.showInfrastructure,
+    visibilityProfile.showMaritime,
+    visibilityProfile.showWeather,
+  ]);
 
   const renderMapAnnotations = () => (
     <>

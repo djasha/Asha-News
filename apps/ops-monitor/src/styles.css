@@ -101,6 +101,17 @@
 }
 
 :root[data-accent-theme='palestine'] {
+  --bg-0: #050705;
+  --bg-1: #070a07;
+  --bg-2: #0b100c;
+  --panel: rgba(8, 10, 8, 0.95);
+  --panel-strong: rgba(6, 8, 6, 0.98);
+  --panel-soft: rgba(10, 13, 10, 0.93);
+  --panel-alt: rgba(12, 16, 12, 0.88);
+  --control-bg: rgba(9, 12, 9, 0.96);
+  --control-bg-strong: rgba(7, 10, 7, 0.98);
+  --border: rgba(220, 252, 231, 0.08);
+  --border-strong: rgba(187, 247, 208, 0.16);
   --accent: #16a34a;
   --accent-soft: rgba(22, 163, 74, 0.16);
   --accent-soft-2: rgba(22, 163, 74, 0.08);
@@ -115,12 +126,23 @@
   --map-surface-dot: #4ade80;
   --map-surface-dot-soft: rgba(74, 222, 128, 0.16);
   --app-background:
-    radial-gradient(900px 600px at 8% 0%, rgba(22, 163, 74, 0.12) 0%, rgba(6, 6, 8, 0) 50%),
-    radial-gradient(700px 500px at 100% 0%, rgba(239, 68, 68, 0.08) 0%, rgba(6, 6, 8, 0) 42%),
-    linear-gradient(180deg, #080b08 0%, #050604 100%);
+    radial-gradient(900px 620px at 8% 0%, rgba(22, 163, 74, 0.14) 0%, rgba(5, 6, 5, 0) 52%),
+    radial-gradient(720px 520px at 100% 0%, rgba(239, 68, 68, 0.06) 0%, rgba(5, 6, 5, 0) 40%),
+    linear-gradient(180deg, #070806 0%, #040503 100%);
 }
 
 :root[data-theme='light'][data-accent-theme='palestine'] {
+  --bg-0: #eef4ed;
+  --bg-1: #f5f8f2;
+  --bg-2: #fdfefb;
+  --panel: rgba(249, 252, 246, 0.93);
+  --panel-strong: rgba(255, 255, 252, 0.97);
+  --panel-soft: rgba(242, 247, 239, 0.96);
+  --panel-alt: rgba(234, 242, 232, 0.94);
+  --control-bg: rgba(244, 249, 241, 0.98);
+  --control-bg-strong: rgba(255, 255, 252, 0.98);
+  --border: rgba(21, 128, 61, 0.12);
+  --border-strong: rgba(21, 128, 61, 0.22);
   --accent: #15803d;
   --accent-soft: rgba(21, 128, 61, 0.13);
   --accent-soft-2: rgba(21, 128, 61, 0.07);
@@ -274,7 +296,7 @@ body {
   border: 1px solid var(--border);
   padding: 7px 12px;
   font-size: 0.75rem;
-  background: rgba(8, 19, 34, 0.86);
+  background: color-mix(in srgb, var(--control-bg) 90%, transparent);
   color: var(--text-1);
   white-space: nowrap;
 }
@@ -869,7 +891,7 @@ body {
 }
 
 .quick-search input::placeholder {
-  color: #7d96b2;
+  color: color-mix(in srgb, var(--accent) 18%, var(--text-3));
 }
 
 .quick-search {
@@ -1444,7 +1466,7 @@ body {
 }
 
 .map-legend-item.tone-weather .legend-dot {
-  background: var(--map-surface-dot);
+  background: #38bdf8;
 }
 
 .map-signal-digest {
@@ -1569,8 +1591,8 @@ body {
 }
 
 .map-focus-cluster.tone-elevated {
-  color: color-mix(in srgb, var(--accent) 48%, white);
-  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  color: #fde68a;
+  border-color: rgba(234, 179, 8, 0.34);
 }
 
 .map-focus-cluster.tone-info {
@@ -1993,7 +2015,7 @@ body {
 
 .mc-dock {
   border-top: 1px solid var(--border);
-  background: rgba(5, 14, 24, 0.92);
+  background: linear-gradient(180deg, var(--panel-strong), var(--panel));
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -2009,7 +2031,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 8px 10px;
-  background: linear-gradient(145deg, rgba(10, 22, 38, 0.97), rgba(7, 16, 28, 0.96));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 10%, var(--panel-strong)), var(--panel));
   box-shadow: var(--shadow);
 }
 
@@ -3499,7 +3521,7 @@ body {
 }
 
 .drawer-overlay {
-  background: color-mix(in srgb, var(--bg-0) 74%, rgba(2, 7, 14, 0.42));
+  background: color-mix(in srgb, var(--bg-0) 74%, rgba(0, 0, 0, 0.42));
   display: grid;
   place-items: center;
   padding: 18px;
