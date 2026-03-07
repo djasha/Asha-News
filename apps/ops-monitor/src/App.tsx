@@ -54,6 +54,7 @@ import type {
   LeakItemMC,
   MainViewMode,
   MapLayerPackMC,
+  MissionAccentTheme,
   MissionControlMode,
   MissionControlSettings,
   MissionTheme,
@@ -91,6 +92,7 @@ const SEVERITY_FILTERS = ['ALL', 'CRITICAL', 'HIGH', 'ELEVATED', 'INFO'] as cons
 const FEED_TABS: FeedTabMC[] = ['feed', 'whale', 'flights'];
 const FEED_SOURCE_TOGGLE_ORDER = ['all', 'x', 'telegram', 'news', 'official', 'osint', 'wm-ai'] as const;
 const TICKER_VIEW_MODES: TickerViewMode[] = ['all', 'verified', 'leak'];
+const ACCENT_THEMES: MissionAccentTheme[] = ['wm-blue', 'palestine'];
 const QUICK_ACTION_LABELS = ['Critical', 'Near Me', 'Verified', 'Leaks', 'Brief'];
 const DEFAULT_AUDIO_PROFILES = {
   CRITICAL: 'alarm-critical',
@@ -117,6 +119,10 @@ const LAYER_SHORT_LABELS: Record<string, string> = {
   'economic-shocks': 'Econ',
   'conflict-zones': 'Conflict',
 };
+
+function resolveAccentTheme(value?: string): MissionAccentTheme {
+  return value === 'palestine' ? 'palestine' : 'wm-blue';
+}
 
 const SIMPLE_MODE_LAYER_BASELINE = [
   'conflict-zones',
@@ -253,8 +259,11 @@ const UI_COPY = {
     viewMode: 'View Mode',
     verification: 'Verification',
     theme: 'Theme',
+    palette: 'Palette',
     darkTheme: 'Dark',
     lightTheme: 'Light',
+    wmBluePalette: 'WM Blue',
+    palestinePalette: 'Palestine',
     language: 'Language',
     countryHintIso: 'Country Hint (ISO)',
     auto: 'Auto',
@@ -523,8 +532,11 @@ const UI_COPY = {
     viewMode: 'وضع العرض',
     verification: 'التحقق',
     theme: 'السمة',
+    palette: 'لوحة الألوان',
     darkTheme: 'داكن',
     lightTheme: 'فاتح',
+    wmBluePalette: 'أزرق WM',
+    palestinePalette: 'فلسطين',
     language: 'اللغة',
     countryHintIso: 'تلميح الدولة (ISO)',
     auto: 'تلقائي',
@@ -793,8 +805,11 @@ const UI_COPY = {
     viewMode: 'Modo de vista',
     verification: 'Verificación',
     theme: 'Tema',
+    palette: 'Paleta',
     darkTheme: 'Oscuro',
     lightTheme: 'Claro',
+    wmBluePalette: 'Azul WM',
+    palestinePalette: 'Palestina',
     language: 'Idioma',
     countryHintIso: 'País sugerido (ISO)',
     auto: 'Auto',
@@ -988,6 +1003,7 @@ const DEFAULT_SETTINGS: MissionControlSettings = {
   days: 14,
   mode: 'simple',
   theme: 'dark',
+  accentTheme: 'wm-blue',
   verificationMode: 'verified-first',
   profile: 'default',
   language: 'auto',
@@ -1636,6 +1652,7 @@ function App() {
         ...DEFAULT_SETTINGS,
         ...parsed,
         theme: parsed.theme === 'light' ? 'light' : DEFAULT_SETTINGS.theme,
+        accentTheme: resolveAccentTheme(parsed.accentTheme),
         language: parsed.language || DEFAULT_SETTINGS.language,
         country: String(parsed.country || '').slice(0, 2).toUpperCase(),
       };
@@ -1774,6 +1791,7 @@ function App() {
   const localeKey = useMemo(() => resolveLocaleKey(localeHint), [localeHint]);
   const copy = UI_COPY[localeKey];
   const currentTheme: MissionTheme = settings.theme === 'light' ? 'light' : 'dark';
+  const currentAccentTheme: MissionAccentTheme = resolveAccentTheme(settings.accentTheme);
   const formatTime = useCallback((input: string | number | Date) => {
     const value = new Date(input);
     if (!Number.isFinite(value.getTime())) return '--';
@@ -1954,8 +1972,9 @@ function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = currentTheme;
+    document.documentElement.dataset.accentTheme = currentAccentTheme;
     document.documentElement.style.colorScheme = currentTheme;
-  }, [currentTheme]);
+  }, [currentAccentTheme, currentTheme]);
 
   useEffect(() => {
     if (!statusMessage) return;
@@ -3123,7 +3142,12 @@ function App() {
   const utcClock = new Date().toISOString().slice(0, 19).replace('T', ' ') + ' UTC';
 
   return (
-    <div className={`mc-shell ${reducedGlow ? 'reduced-glow' : ''}`} data-mode={settings.mode} data-theme={currentTheme}>
+    <div
+      className={`mc-shell ${reducedGlow ? 'reduced-glow' : ''}`}
+      data-mode={settings.mode}
+      data-theme={currentTheme}
+      data-accent-theme={currentAccentTheme}
+    >
       {(!isMobile || (isMobile && !COMPACT_MOBILE_SHELL_ENABLED)) && (
         <>
           <header className="mc-command-bar">
@@ -3620,6 +3644,7 @@ function App() {
                   home={home}
                   compact={settings.mode === 'simple'}
                   isMobile={isMobile}
+                  accentTheme={currentAccentTheme}
                   activeLayers={activeLayers}
                   severityFilter={severityFilter}
                   viewState={viewState}
@@ -4554,6 +4579,24 @@ function App() {
                 >
                   <option value="dark">{copy.darkTheme}</option>
                   <option value="light">{copy.lightTheme}</option>
+                </select>
+              </label>
+              <label>
+                {copy.palette}
+                <select
+                  value={currentAccentTheme}
+                  onChange={(event) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      accentTheme: resolveAccentTheme(event.target.value),
+                    }))
+                  }
+                >
+                  {ACCENT_THEMES.map((themeId) => (
+                    <option key={themeId} value={themeId}>
+                      {themeId === 'palestine' ? copy.palestinePalette : copy.wmBluePalette}
+                    </option>
+                  ))}
                 </select>
               </label>
 

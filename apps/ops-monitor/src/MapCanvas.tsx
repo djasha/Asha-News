@@ -4,7 +4,7 @@ import { DeckGL } from '@deck.gl/react';
 import Map, { Marker, NavigationControl } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 
-import type { HomeSnapshotMC } from './types';
+import type { HomeSnapshotMC, MissionAccentTheme } from './types';
 import { formatLocationDisplay, formatSignalLabel } from './labelUtils';
 import { buildMapFocusClusters, severityFromMapPoint } from './mapUtils';
 import { resolveMissionControlMapStyle } from './mapStyle';
@@ -21,6 +21,7 @@ type MapCanvasProps = {
   home: HomeSnapshotMC;
   compact?: boolean;
   isMobile?: boolean;
+  accentTheme: MissionAccentTheme;
   activeLayers: Set<string>;
   severityFilter: string;
   viewState: ViewState;
@@ -59,6 +60,7 @@ export default function MapCanvas({
   home,
   compact = false,
   isMobile = false,
+  accentTheme,
   activeLayers,
   severityFilter,
   viewState,
@@ -66,9 +68,26 @@ export default function MapCanvas({
   onDeckUnavailable,
   onViewStateChange,
 }: MapCanvasProps) {
+  const mapTone = useMemo(
+    () =>
+      accentTheme === 'palestine'
+        ? {
+            infoHex: '#22c55e',
+            infrastructureFill: [34, 197, 94, 150] as [number, number, number, number],
+            infrastructureLine: [187, 247, 208, 220] as [number, number, number, number],
+            waterways: [74, 222, 128] as [number, number, number],
+          }
+        : {
+            infoHex: '#3b82f6',
+            infrastructureFill: [14, 165, 233, 145] as [number, number, number, number],
+            infrastructureLine: [6, 182, 212, 220] as [number, number, number, number],
+            waterways: [34, 211, 238] as [number, number, number],
+          },
+    [accentTheme]
+  );
   const mapStyle = useMemo(
-    () => resolveMissionControlMapStyle(import.meta.env.VITE_MC_MAP_STYLE_URL as string | undefined),
-    []
+    () => resolveMissionControlMapStyle(import.meta.env.VITE_MC_MAP_STYLE_URL as string | undefined, accentTheme),
+    [accentTheme]
   );
   const fallbackMarkers = useMemo(() => {
     const markers: Array<{
@@ -186,7 +205,7 @@ export default function MapCanvas({
     if (activeLayers.has('weather-alerts')) {
       (home.map.optional_feeds.weather_alerts || []).slice(0, layerCap.weather).forEach((item, index) => {
         const level = String(item.level || '').toUpperCase();
-        const color = level === 'CRITICAL' ? '#ef4444' : level === 'HIGH' ? '#f59e0b' : '#3b82f6';
+        const color = level === 'CRITICAL' ? '#ef4444' : level === 'HIGH' ? '#f59e0b' : mapTone.infoHex;
         addMarker(
           `fallback-weather-${item.id || index}`,
           Number(item.latitude),
@@ -212,7 +231,7 @@ export default function MapCanvas({
     }
 
     return markers;
-  }, [activeLayers, compact, home.map.event_points, home.map.optional_feeds, severityFilter]);
+  }, [activeLayers, compact, home.map.event_points, home.map.optional_feeds, mapTone.infoHex, severityFilter]);
 
   const focusClusters = useMemo(
     () => buildMapFocusClusters(home, activeLayers, severityFilter, viewState.zoom, compact),
@@ -324,8 +343,8 @@ export default function MapCanvas({
           getRadius: (d: { risk: number }) => 2100 + Number(d.risk || 0) * 3200,
           radiusMinPixels: 2,
           radiusMaxPixels: 18,
-          getFillColor: [14, 165, 233, 145],
-          getLineColor: [6, 182, 212, 220],
+          getFillColor: mapTone.infrastructureFill,
+          getLineColor: mapTone.infrastructureLine,
           stroked: true,
           lineWidthMinPixels: 1,
           pickable: true,
@@ -342,7 +361,13 @@ export default function MapCanvas({
           getWidth: (d: { risk: number }) => 2 + Number(d.risk || 0) * 5,
           widthMinPixels: 1,
           widthMaxPixels: 6,
-          getColor: (d: { risk: number }) => [34, 211, 238, Math.round(130 + Number(d.risk || 0) * 80)],
+          getColor: (d: { risk: number }) =>
+            [
+              mapTone.waterways[0],
+              mapTone.waterways[1],
+              mapTone.waterways[2],
+              Math.round(130 + Number(d.risk || 0) * 80),
+            ] as [number, number, number, number],
           pickable: true,
         })
       );
@@ -361,7 +386,12 @@ export default function MapCanvas({
             const level = String(d.level || '').toUpperCase();
             if (level === 'HIGH') return [245, 158, 11, 180];
             if (level === 'CRITICAL') return [239, 68, 68, 185];
-            return [59, 130, 246, 170];
+            return [
+              mapTone.infrastructureFill[0],
+              mapTone.infrastructureFill[1],
+              mapTone.infrastructureFill[2],
+              170,
+            ] as [number, number, number, number];
           },
           pickable: true,
         })
@@ -429,7 +459,7 @@ export default function MapCanvas({
     }
 
     return list;
-  }, [activeLayers, compact, home, severityFilter]);
+  }, [activeLayers, compact, home, mapTone, severityFilter]);
 
   const renderMapAnnotations = () => (
     <>
