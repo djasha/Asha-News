@@ -100,12 +100,21 @@ const DEFAULT_AUDIO_PROFILES = {
   ELEVATED: 'tone-elevated',
   INFO: 'tone-info',
 } as const;
-const DEFCON_COLORS: Record<number, string> = {
-  1: '#ef4444',
-  2: '#f97316',
-  3: '#f59e0b',
-  4: '#38bdf8',
-  5: '#34d399',
+const DEFCON_COLORS: Record<MissionAccentTheme, Record<number, string>> = {
+  'wm-blue': {
+    1: '#ef4444',
+    2: '#f97316',
+    3: '#f59e0b',
+    4: '#38bdf8',
+    5: '#34d399',
+  },
+  palestine: {
+    1: '#ef4444',
+    2: '#f97316',
+    3: '#f59e0b',
+    4: '#16a34a',
+    5: '#86efac',
+  },
 };
 const LEAK_VERIFICATION_TEXT_FALLBACK = 'Pending independent verification.';
 const LAYER_SHORT_LABELS: Record<string, string> = {
@@ -2211,7 +2220,7 @@ function App() {
 
   const pizzint = home?.pizzint || null;
   const pizzaDefconLevel = Number(pizzint?.defcon_level || 0);
-  const pizzaDefconColor = DEFCON_COLORS[pizzaDefconLevel] || '#64748b';
+  const pizzaDefconColor = DEFCON_COLORS[currentAccentTheme][pizzaDefconLevel] || '#64748b';
   const pizzaDefconLabel = pizzaDefconLevel > 0 ? `DEFCON ${pizzaDefconLevel}` : '--';
   const pizzaActivityLabel = Number.isFinite(Number(pizzint?.aggregate_activity))
     ? `${Math.max(0, Math.round(Number(pizzint?.aggregate_activity || 0)))}%`

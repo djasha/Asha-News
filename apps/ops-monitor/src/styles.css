@@ -2848,6 +2848,78 @@ body {
   background: rgba(109, 40, 217, 0.05);
 }
 
+:root[data-accent-theme='palestine'] .feed-type-badge.type-telegram {
+  border-color: color-mix(in srgb, var(--accent) 54%, rgba(255, 255, 255, 0.14));
+  color: var(--vibe-text-strong);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+:root[data-accent-theme='palestine'] .feed-type-badge.type-x {
+  border-color: rgba(214, 211, 209, 0.26);
+  color: #f5f5f4;
+  background: rgba(245, 245, 244, 0.03);
+}
+
+:root[data-accent-theme='palestine'] .feed-type-badge.type-news {
+  border-color: rgba(231, 229, 228, 0.24);
+  color: #e7e5e4;
+  background: rgba(245, 245, 244, 0.03);
+}
+
+:root[data-accent-theme='palestine'] .feed-type-badge.type-official {
+  border-color: color-mix(in srgb, var(--emerald) 42%, rgba(255, 255, 255, 0.12));
+  color: color-mix(in srgb, var(--emerald) 30%, white);
+  background: color-mix(in srgb, var(--emerald) 10%, transparent);
+}
+
+:root[data-accent-theme='palestine'] .feed-type-badge.type-osint {
+  border-color: rgba(249, 115, 22, 0.34);
+  color: #fdba74;
+  background: rgba(249, 115, 22, 0.08);
+}
+
+:root[data-accent-theme='palestine'] .feed-type-badge.type-wm-ai {
+  border-color: color-mix(in srgb, var(--accent) 44%, rgba(255, 255, 255, 0.16));
+  color: color-mix(in srgb, var(--accent) 44%, white);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+:root[data-theme='light'][data-accent-theme='palestine'] .feed-type-badge.type-telegram {
+  border-color: rgba(21, 128, 61, 0.24);
+  color: #14532d;
+  background: rgba(21, 128, 61, 0.08);
+}
+
+:root[data-theme='light'][data-accent-theme='palestine'] .feed-type-badge.type-x {
+  border-color: rgba(87, 83, 78, 0.18);
+  color: #292524;
+  background: rgba(87, 83, 78, 0.05);
+}
+
+:root[data-theme='light'][data-accent-theme='palestine'] .feed-type-badge.type-news {
+  border-color: rgba(68, 64, 60, 0.18);
+  color: #44403c;
+  background: rgba(68, 64, 60, 0.05);
+}
+
+:root[data-theme='light'][data-accent-theme='palestine'] .feed-type-badge.type-official {
+  border-color: rgba(21, 128, 61, 0.22);
+  color: #166534;
+  background: rgba(21, 128, 61, 0.06);
+}
+
+:root[data-theme='light'][data-accent-theme='palestine'] .feed-type-badge.type-osint {
+  border-color: rgba(194, 65, 12, 0.2);
+  color: #9a3412;
+  background: rgba(194, 65, 12, 0.05);
+}
+
+:root[data-theme='light'][data-accent-theme='palestine'] .feed-type-badge.type-wm-ai {
+  border-color: rgba(21, 128, 61, 0.2);
+  color: #166534;
+  background: rgba(21, 128, 61, 0.05);
+}
+
 :root[data-theme='light'] .mc-command-bar,
 :root[data-theme='light'] .mc-tickbar,
 :root[data-theme='light'] .mc-right-rail,
